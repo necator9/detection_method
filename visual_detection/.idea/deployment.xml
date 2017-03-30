@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="debian_BBB">
+  <component name="PublishConfigData" autoUpload="Always" serverName="BeagleBone">
     <serverData>
-      <paths name="Copy of project-level server 'BeagleBone'">
+      <paths name="BeagleBone">
         <serverdata>
           <mappings>
-            <mapping deploy="/visual_detection" local="$PROJECT_DIR$/visual_detection" web="/" />
+            <mapping deploy="/visual_detection" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>
-      <paths name="debian_BBB">
+      <paths name="Copy of project-level server 'BeagleBone'">
         <serverdata>
           <mappings>
-            <mapping deploy="/home/debian/" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/visual_detection" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>

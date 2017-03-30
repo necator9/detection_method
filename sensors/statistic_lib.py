@@ -149,7 +149,8 @@ class Statistic(threading.Thread):
         wr = threading.Thread(name='Writer thread', target=self.writer)
         wr.start()
 
-        while self.stop_event.is_set(): time.sleep(1)
+        while self.stop_event.is_set():
+            time.sleep(1)
         logger.info("Stop event received")
 
         for i in buf_threads: i.join()

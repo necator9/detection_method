@@ -1,34 +1,40 @@
-# import the necessary packages
-#from __future__ import print_function
-#from imutils.object_detection import non_max_suppression
-#from imutils import paths
-import numpy as np
-import imutils
+# detection while winStride=(8, 8), padding=(8, 8), scale=1.05 takes 2.56 s
+
+import numpy
 import cv2
 import os
 import time
+import logging.config
 
-print ("start...")
-st_time = time.time()
-imagePath = "/root/2.jpg"
+logging.config.fileConfig('logging.conf')
+logger = logging.getLogger(__name__)
+
+logger.info("Start")
 
 hog = cv2.HOGDescriptor()
 hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
 
-image = cv2.imread(imagePath)
-image = imutils.resize(image, width=min(400, image.shape[1]))
+mean_time = []
+i = 0
+while i < 40:
 
+    imagePath = "share/img/processed_%s.jpg" % i
+    image = cv2.imread(imagePath)
 
-# detect people in the image
-(rects, weights) = hog.detectMultiScale(image, winStride=(8, 8),
-                                        padding=(8, 8), scale=1.05)
+    logger.info("Detection process... %s" % i)
+    start_time = time.time()
+    (rects, weights) = hog.detectMultiScale(image, winStride=(8, 8), padding=(8, 8), scale=1.1)
+    tm = round((time.time() - start_time), 3)
+    logger.info("Image processing takes: %s s", tm)
+    mean_time.append(tm)
 
-print (time.time() - st_time)
-# draw the original bounding boxes
-for (x, y, w, h) in rects:
-    cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 255), 2)
+    # draw the original bounding boxes
+    for (x, y, w, h) in rects:
+        cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 255), 2)
 
-cv2.imwrite("img/kek.jpg", image)
-cv2.waitKey(0)
-command = "rsync -avzhe ssh --delete img/ fila@192.168.8.107:~/img_BBB/"
+    cv2.imwrite("share/img/single_%s.jpg" % i, image)
+    i += 1
+
+logger.info("Mean time: %s s", numpy.mean(tm))
+command = "rsync -avzhe 'ssh -p 2122' --delete share/ ivan@192.168.8.108:~/share_BBB/"
 os.system(command)
