@@ -18,7 +18,6 @@ logging.config.fileConfig('logging.conf')
 logger = logging.getLogger(__name__)
 
 
-
 def capture(stop_ev, pool_sema):
     logger.info("Start")
     global image
