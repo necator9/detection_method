@@ -29,9 +29,9 @@ def capture(stop_ev, pool_sema):
         os.system(command)
         sys.exit(-1)
 
-    # Set resolution of the capture (Logitech C910 supports 640x480 and 1920x1080)
-    camera.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, 400)
-    camera.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, 300)
+    # Set resolution of the capture #352x288
+    camera.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, 320)
+    camera.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, 240)
 
     hog = cv2.HOGDescriptor()               # Hot descriptor initialization
     hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
@@ -94,7 +94,7 @@ detectThread.start()
 i = 0
 try:
     while i < 20:
-        time.sleep(4)
+        time.sleep(1)
         i += 1
 except KeyboardInterrupt:
     logger.warning("Keyboard Interrupt, threads are going to stop")
