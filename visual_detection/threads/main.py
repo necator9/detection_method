@@ -7,12 +7,10 @@ import cv2
 import os
 import sys
 import numpy
-import Queue
 
-var = 0
-image = []
+image = []  # global var used by both threads
 
-command = "rsync -avzhe 'ssh -p 2122' --delete ../share/ ivan@192.168.8.108:~/share_BBB/"
+command = "rsync -avzhe 'ssh -p 2122' --delete ../share/ ivan@192.168.100.119:~/share_rpi/"
 
 logging.config.fileConfig('logging.conf')
 logger = logging.getLogger(__name__)
@@ -24,6 +22,8 @@ def capture(stop_ev, pool_sema):
     mean_time = []
 
     camera = cv2.VideoCapture(0)  # Initialize the camera capture object with the cv2.VideoCapture class.
+    # camera = cv2.VideoCapture("/home/pi/out.m4v")  # Initialize the camera capture object with the cv2.VideoCapture class.
+
     if not camera.isOpened():  # Check on successful camera object initialization
         logger.error("Cannot initialize camera object")
         os.system(command)
@@ -36,6 +36,7 @@ def capture(stop_ev, pool_sema):
     hog = cv2.HOGDescriptor()               # Hot descriptor initialization
     hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
 
+    i = 0
     while stop_ev.is_set():
         pool_sema.acquire()
         start_time = time.time()
@@ -45,8 +46,10 @@ def capture(stop_ev, pool_sema):
         mean_time.append(tm)
         logger.info("Image shooting takes %s s", tm)
         pool_sema.release()
+        i += 1
     del camera
     logger.info("Mean time %s s", numpy.mean(mean_time))
+
 
 
 def detect(stop_ev, pool_sema):
@@ -64,7 +67,7 @@ def detect(stop_ev, pool_sema):
         logger.info("Detection process... %s" % i)
         start_time = time.time()
 
-        (rects, weights) = hog.detectMultiScale(image, winStride=(8, 8), padding=(8, 8), scale=1.08)
+        (rects, weights) = hog.detectMultiScale(image, winStride=(8, 8), padding=(8, 8), scale=1.06)
         tm = round((time.time() - start_time), 3)
         logger.info("Image processing takes: %s s", tm)
         mean_time.append(tm)
@@ -73,11 +76,13 @@ def detect(stop_ev, pool_sema):
         for (x, y, w, h) in rects:
             cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 255), 2)
 
-        cv2.imwrite("../share/img/single_%s.jpg" % i, image)
+        #cv2.imwrite("../share/img/single_%s.jpg" % i, image)
+        cv2.imshow("my_window", image)
+        cv2.waitKey(1)
         i += 1
         pool_sema.release()
 
-    logger.info("Mean time: %s s", numpy.mean(tm))
+    logger.info("Mean time: %s s", numpy.mean(mean_time))
 
 pool_sema = threading.BoundedSemaphore(1)
 stop_ev = threading.Event()
@@ -93,7 +98,8 @@ detectThread.start()
 
 i = 0
 try:
-    while i < 20:
+    while True:
+    # while i < 20:
         time.sleep(1)
         i += 1
 except KeyboardInterrupt:

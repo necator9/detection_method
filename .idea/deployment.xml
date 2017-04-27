@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="debian_BBB">
+  <component name="PublishConfigData" autoUpload="Always" serverName="rpi">
     <serverData>
       <paths name="Copy of project-level server 'BeagleBone'">
         <serverdata>
@@ -9,10 +9,24 @@
           </mappings>
         </serverdata>
       </paths>
+      <paths name="Copy of project-level server 'rpi'">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/pi" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
       <paths name="debian_BBB">
         <serverdata>
           <mappings>
             <mapping deploy="/home/debian/" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="rpi">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/pi" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>
