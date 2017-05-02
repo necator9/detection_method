@@ -8,7 +8,7 @@ import os
 import sys
 import numpy
 
-image = []  # global var used by both threads
+img_buff = []  # shared var which grabber uses for writing and detector for reading
 
 command = "rsync -avzhe 'ssh -p 2122' --delete ../share/ ivan@192.168.100.119:~/share_rpi/"
 
@@ -16,98 +16,91 @@ logging.config.fileConfig('logging.conf')
 logger = logging.getLogger(__name__)
 
 
-def capture(stop_ev, pool_sema):
-    logger.info("Start")
-    global image
+def cam_setup(camera, width, height, fps):
+    camera.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, width)
+    camera.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, height)
+    camera.set(cv2.cv.CV_CAP_PROP_FPS, fps)
+
+
+def grabber(stop_ev):
+    logger.info("Grabber start")
+    global img_buff
     mean_time = []
 
-    camera = cv2.VideoCapture(0)  # Initialize the camera capture object with the cv2.VideoCapture class.
-    # camera = cv2.VideoCapture("/home/pi/out.m4v")  # Initialize the camera capture object with the cv2.VideoCapture class.
-
-    if not camera.isOpened():  # Check on successful camera object initialization
+    camera = cv2.VideoCapture(0)  # Initialize the camera capture object
+    # camera = cv2.VideoCapture("/home/pi/out.m4v")
+    if not camera.isOpened():  # Check on successful camera initialization
         logger.error("Cannot initialize camera object")
         os.system(command)
+        stop_ev.clear()
         sys.exit(-1)
 
-    # Set resolution of the capture #352x288
-    camera.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, 320)
-    camera.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, 240)
+    cam_setup(camera, 320, 240, 7)  # Initial camera configuration: function(object, width, height, fps)
 
-    hog = cv2.HOGDescriptor()               # Hot descriptor initialization
-    hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
-
-    i = 0
     while stop_ev.is_set():
-        pool_sema.acquire()
         start_time = time.time()
-        logger.info("Taking image...")
-        ret, image = camera.read()                     # Take the actual image we want to keep
+        logger.debug("Taking image...")
+        ret, img_buff = camera.read()
         tm = round(time.time() - start_time, 3)
         mean_time.append(tm)
-        logger.info("Image shooting takes %s s", tm)
-        pool_sema.release()
-        i += 1
-    del camera
-    logger.info("Mean time %s s", numpy.mean(mean_time))
+        logger.debug("Image shooting takes %s s", tm)
+    camera.release()
+    logger.info("Mean capturing time %s s", numpy.mean(mean_time))
 
 
-
-def detect(stop_ev, pool_sema):
-    logger.info("Start")
-    global image
+def detector(stop_ev):
+    logger.info("Detector start")
+    global img_buff
     mean_time = []
 
     hog = cv2.HOGDescriptor()
     hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
 
-    i = 0
     while stop_ev.is_set():
-        pool_sema.acquire()
-
-        logger.info("Detection process... %s" % i)
+        logger.debug("Detection process...")
         start_time = time.time()
+        while stop_ev.is_set():
+            if len(img_buff) == 0:
+                logging.warning("No available images in buffer")
+                time.sleep(1)
+            else:
+                img_proc = img_buff
+                break
 
-        (rects, weights) = hog.detectMultiScale(image, winStride=(8, 8), padding=(8, 8), scale=1.06)
+        (rects, weights) = hog.detectMultiScale(img_proc, winStride=(8, 8), padding=(8, 8), scale=1.06)
         tm = round((time.time() - start_time), 3)
-        logger.info("Image processing takes: %s s", tm)
+        logger.debug("Image processing takes: %s s", tm)
         mean_time.append(tm)
 
-        # draw the original bounding boxes
+        # draw the bounding boxes
         for (x, y, w, h) in rects:
-            cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 255), 2)
+            cv2.rectangle(img_proc, (x, y), (x + w, y + h), (0, 0, 255), 2)
 
-        #cv2.imwrite("../share/img/single_%s.jpg" % i, image)
-        cv2.imshow("my_window", image)
+        cv2.imshow("my_window", img_proc)
         cv2.waitKey(1)
-        i += 1
-        pool_sema.release()
 
-    logger.info("Mean time: %s s", numpy.mean(mean_time))
+    logger.info("Mean detection time: %s s", numpy.mean(mean_time))
 
-pool_sema = threading.BoundedSemaphore(1)
 stop_ev = threading.Event()
 stop_ev.set()
-captureThread = threading.Thread(target=capture, name="CaptureThread", args=(stop_ev, pool_sema))
-detectThread = threading.Thread(target=detect, name="DetectThread", args=(stop_ev, pool_sema))
+grabberThr = threading.Thread(target=grabber, name="Grabber", args=(stop_ev,))
+detectorThr = threading.Thread(target=detector, name="Detector", args=(stop_ev,))
 
 logger.info("Program started")
 
-captureThread.start()
-time.sleep(0.5)
-detectThread.start()
+grabberThr.start()
+detectorThr.start()
 
-i = 0
 try:
-    while True:
-    # while i < 20:
+    while stop_ev.is_set():
         time.sleep(1)
-        i += 1
 except KeyboardInterrupt:
     logger.warning("Keyboard Interrupt, threads are going to stop")
+
 stop_ev.clear()
 
-captureThread.join()
-detectThread.join()
+grabberThr.join()
+detectorThr.join()
 
 # Sync saved images with workstation via rsync command
 logger.info("Sync with workstation...")

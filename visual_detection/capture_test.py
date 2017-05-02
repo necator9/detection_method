@@ -40,20 +40,20 @@ try:
     while i < 1:
         start_time = time.time()
         logger.info("Taking image...")
-        image = get_image()                     # Take the actual image we want to keep
+        img_buff = get_image()                     # Take the actual image we want to keep
         tm = round(time.time() - start_time, 3)
         mean_time.append(tm)
         logger.info("Image shooting takes %s s", tm)
 
         logger.info("Images writing...")
-        cv2.imwrite("./share/img/processed_%s.jpg" % i, image)  # Writing images
+        cv2.imwrite("./share/img/processed_%s.jpg" % i, img_buff)  # Writing images
 
         time.sleep(1)
         i += 1
 except KeyboardInterrupt:
     logger.warning("Keyboard Interrupt, threads are going to stop")
 
-cv2.imshow('my webcam', image)
+cv2.imshow('my webcam', img_buff)
 cv2.waitKey(0)
 
 #del camera
