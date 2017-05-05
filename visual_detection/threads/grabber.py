@@ -4,44 +4,43 @@ from config import *
 logger = logging.getLogger(__name__)
 
 
-def cam_setup(camera, width, height, fps):
-    version = int(cv2.__version__.split(".")[0])
-    if version == 3:
-        camera.set(3, width)
-        camera.set(4, height)
-        camera.set(5, fps)
-    if version == 2:
-        camera.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, width)
-        camera.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, height)
-        camera.set(cv2.cv.CV_CAP_PROP_FPS, fps)
+def cam_setup(camera):                      # Camera configuration in accordance to OpenCV version
+    cv_version = int(cv2.__version__.split(".")[0])
+
+    if cv_version == 3:
+        camera.set(3, config.width)
+        camera.set(4, config.height)
+        camera.set(5, config.fps)
+
+    if cv_version == 2:
+        camera.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, config.width)
+        camera.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, config.height)
+        camera.set(cv2.cv.CV_CAP_PROP_FPS, config.fps)
 
 
 def capture(stop_ev):
-
     logger.info("Grabber started")
 
-    camera = cv2.VideoCapture(0)  # Initialize the camera capture object
-    # camera = cv2.VideoCapture("/home/pi/out.m4v")
-    # camera = cv2.VideoCapture("/home/ivan/out.m4v")
-    if not camera.isOpened():  # Check on successful camera initialization
+    camera = cv2.VideoCapture(config.dev)   # Initialize the camera capture object
+
+    if not camera.isOpened():               # Check on successful camera initialization
         logger.error("Cannot initialize camera object")
-        os.system(config.command)
         stop_ev.clear()
         sys.exit(-1)
 
-    cam_setup(camera, 320, 240, 7)  # Initial camera configuration: function(object, width, height, fps)
+    cam_setup(camera)                       # Initial camera configuration
 
     while stop_ev.is_set():
         start_time = time.time()
         logger.debug("Taking image...")
-        ret, config.img_buff = camera.read()
-        tm = time.time() - start_time
 
-        if len(config.mean_t_grabber) < 300:
-            config.mean_t_grabber.append(tm)
+        ret, config.img_buff = camera.read()    # Getting of image into global var "img_buff"
 
-        logger.debug("Image shooting takes %s s", tm)
-        # time.sleep(0.2)        # remove!!!!!!!!!!!!!!!!!!!!!!
+        if len(config.t_grabber) < config.st_window:
+            config.t_grabber.append(time.time() - start_time)
+
+        logger.debug("Image shooting takes %s s", time.time() - start_time)
+
     camera.release()
 
     logger.info("Grabber finished")
