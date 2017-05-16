@@ -1,25 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="rpi">
+  <component name="PublishConfigData" autoUpload="Always" serverName="bbb">
     <serverData>
-      <paths name="Copy of project-level server 'BeagleBone'">
+      <paths name="bbb">
         <serverdata>
           <mappings>
-            <mapping deploy="/visual_detection" local="$PROJECT_DIR$/visual_detection" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="Copy of project-level server 'rpi'">
-        <serverdata>
-          <mappings>
-            <mapping deploy="/home/pi" local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="debian_BBB">
-        <serverdata>
-          <mappings>
-            <mapping deploy="/home/debian/" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/root/" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>
