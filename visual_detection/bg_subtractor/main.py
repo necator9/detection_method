@@ -7,7 +7,6 @@ from config import *
 import config
 import grabber
 import detector
-import tracker
 
 logging.config.fileConfig('logging.conf')
 logger = logging.getLogger(__name__)
@@ -20,12 +19,10 @@ stop_ev = threading.Event()
 stop_ev.set()
 
 grabberThr = threading.Thread(target=grabber.capture, name="Grabber", args=(stop_ev,))
-detectorThr = threading.Thread(target=detector.detect, name="Detector", args=(stop_ev, q))
-trackerThr = threading.Thread(target=tracker.track, name="Tracker", args=(stop_ev, q,))
+detectorThr = threading.Thread(target=detector.detect, name="Detector", args=(stop_ev, ))
 
 grabberThr.start()
 detectorThr.start()
-trackerThr.start()
 
 try:
     while stop_ev.is_set():
@@ -37,7 +34,6 @@ stop_ev.clear()
 
 grabberThr.join()
 detectorThr.join()
-trackerThr.join()
 
 # Timing calculations
 config.t_grabber = round(numpy.mean(config.t_grabber), 3)

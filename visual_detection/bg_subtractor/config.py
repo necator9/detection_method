@@ -18,14 +18,10 @@ height = 240                    # Height of an image to capture
 fps = 7                         # Capturing frequency (frames per second)
 
 # Detector parameters
-winStr = (8, 8)                 # Step size in both the x and y location of the sliding window
-pad = (8, 8)                    # Number of pixels in x and y directions in which window is padded
-scale = 1.06                    # Influence on the number of levels in the image pyramid.
+
 
 # Tracker parameters
-shift_min = 0                   # Low threshold in distance between pixels
-shift_max = 25                  # High threshold in distance between pixels
-deq_len = 5                     # Size of buffer containing coordinated for analysis of movement
+
 
 # Statistic parameters
 st_window = 300                 # Window size for timing calculation
