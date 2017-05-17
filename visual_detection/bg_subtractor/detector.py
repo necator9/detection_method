@@ -17,11 +17,12 @@ def detect(stop_ev):
     logger.info("Detector started")
 
     mog = cv2.createBackgroundSubtractorMOG2()
-    # mog = cv2.bgsegm.createBackgroundSubtractorMOG()
-    # mog = cv2.bgsegm.createBackgroundSubtractorGMG()
+    #mog = cv2.bgsegm.createBackgroundSubtractorMOG()
+    #mog = cv2.bgsegm.createBackgroundSubtractorGMG()
 
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (10, 10))
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, config.fObjSize)
 
+    i = 0
     while stop_ev.is_set():
         start_time = time.time()
 
@@ -37,21 +38,20 @@ def detect(stop_ev):
         _, cnts, hier = cv2.findContours(filled, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         for arr in cnts:
-            if cv2.contourArea(arr) < 1000:
+            if cv2.contourArea(arr) < config.dObjSize:
                 continue
             else:
                 logging.info("Motion detected")
+                (x, y, w, h) = cv2.boundingRect(arr)
+                cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                cv2.imwrite("../share/img_%s.jpeg" % i, img)
+
+                #for (x, y, w, h) in cnts:
+         #   cv2.rectangle(img, (x, y), (x + w, y + h), (0, 0, 255), 2)
 
         if len(config.t_detector) < 300:
             config.t_detector.append(time.time() - start_time)
-
-        logger.debug("Image processing takes: %s s", time.time() - start_time)
-
-        # Draw the bounding boxes
-        # for (x, y, w, h) in coordinates:
-        #     cv2.rectangle(img, (x, y), (x + w, y + h), (0, 0, 255), 2)
-        #
-        # cv2.imshow("my_window", img)
-        # cv2.waitKey(1)
+        i += 1
+        logger.info("Image processing takes: %s s", time.time() - start_time)
 
     logger.info("Detector finished")

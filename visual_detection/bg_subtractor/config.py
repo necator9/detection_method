@@ -18,9 +18,8 @@ height = 240                    # Height of an image to capture
 fps = 7                         # Capturing frequency (frames per second)
 
 # Detector parameters
-
-
-# Tracker parameters
+fObjSize = (10, 10)             # Size of elliptical filtering kernel in pixels
+dObjSize = 1000                 # Detection threshold. Minimal obj size to be detected
 
 
 # Statistic parameters
