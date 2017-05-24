@@ -46,3 +46,6 @@ logger.info("Mean iteration time %s s" % mean_it_time)
 logger.info("Mean FPS %s" % round(1/mean_it_time, 3))
 
 logger.info("Program finished")
+
+if config.img_save_flag:
+    os.system(command)

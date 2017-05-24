@@ -34,7 +34,8 @@ def capture(stop_ev):
         start_time = time.time()
         logger.debug("Taking image...")
 
-        ret, config.img_buff = camera.read()    # Getting of image into global var "img_buff"
+        ret, img = camera.read()            # Getting of image into img
+        config.img_buff = imutils.resize(img, width=100)
 
         if len(config.t_grabber) < config.st_window:
             config.t_grabber.append(time.time() - start_time)
