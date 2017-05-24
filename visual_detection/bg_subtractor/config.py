@@ -5,7 +5,7 @@ import sys
 import time
 import numpy
 import Queue
-
+import imutils
 # Shared vars
 img_buff = []                   # Grabber writes in the var/detector reads from the var
 
@@ -19,10 +19,12 @@ fps = 7                         # Capturing frequency (frames per second)
 
 # Detector parameters
 fObjSize = (10, 10)             # Size of elliptical filtering kernel in pixels
-dObjSize = 1000                 # Detection threshold. Minimal obj size to be detected
+dObjSize = 900                 # Detection threshold. Minimal obj size to be detected
 
 
 # Statistic parameters
+img_save_flag = True
+command = "rsync -avzhe 'ssh -p 2122' --delete ../share/ ivan@192.168.100.119:~/share_BBB/"
 st_window = 300                 # Window size for timing calculation
 t_detector = []                 # Times of detection duration are stored here
 t_grabber = []                  # Times of capturing duration are stored here

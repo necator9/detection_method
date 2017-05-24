@@ -38,16 +38,14 @@ def detect(stop_ev):
         _, cnts, hier = cv2.findContours(filled, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         for arr in cnts:
-            if cv2.contourArea(arr) < config.dObjSize:
-                continue
-            else:
+            if cv2.contourArea(arr) > config.dObjSize:
                 logging.info("Motion detected")
-                (x, y, w, h) = cv2.boundingRect(arr)
-                cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                cv2.imwrite("../share/img_%s.jpeg" % i, img)
-
-                #for (x, y, w, h) in cnts:
-         #   cv2.rectangle(img, (x, y), (x + w, y + h), (0, 0, 255), 2)
+                if config.img_save_flag:
+                    (x, y, w, h) = cv2.boundingRect(arr)
+                    cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                    cv2.imwrite("../share/img/img_%s.jpeg" % i, img)
+            else:
+                continue
 
         if len(config.t_detector) < 300:
             config.t_detector.append(time.time() - start_time)
