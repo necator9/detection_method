@@ -2,50 +2,50 @@
 
 import threading
 import logging.config
+from config import T_GRABBER, T_DETECTOR, COMMAND, IMG_SAVE, PATH_TO_SHARE
+import detection
+import time
+import os
+from numpy import mean
 
-from config import *
-import config
-import grabber
-import detector
 
 logging.config.fileConfig('logging.conf')
 logger = logging.getLogger(__name__)
 
 logger.info("Program started")
 
-q = Queue.Queue()
+if IMG_SAVE:
+    os.system("rm ../share/img/*")
 
-stop_ev = threading.Event()
-stop_ev.set()
+stop_event = threading.Event()
+stop_event.set()
 
-grabberThr = threading.Thread(target=grabber.capture, name="Grabber", args=(stop_ev,))
-detectorThr = threading.Thread(target=detector.detect, name="Detector", args=(stop_ev, ))
+grabberThr = detection.Grabber(stop_event)
+detectorThr = detection.Detector(stop_event)
 
 grabberThr.start()
 detectorThr.start()
 
 try:
-    while stop_ev.is_set():
+    while stop_event.is_set():
         time.sleep(1)
 except KeyboardInterrupt:
     logger.warning("Keyboard Interrupt, threads are going to stop")
 
-stop_ev.clear()
-
-grabberThr.join()
-detectorThr.join()
+grabberThr.quit()
+detectorThr.quit()
 
 # Timing calculations
-config.t_grabber = round(numpy.mean(config.t_grabber), 3)
-config.t_detector = round(numpy.mean(config.t_detector), 3)
-mean_it_time = config.t_grabber + config.t_detector
+T_GRABBER = round(mean(T_GRABBER), 3)
+T_DETECTOR = round(mean(T_DETECTOR), 3)
+mean_it_time = T_GRABBER + T_DETECTOR
 
-logger.info("Mean capturing time %s s", config.t_grabber)
-logger.info("Mean detection time: %s s", config.t_detector)
+logger.info("Mean capturing time %s s", T_GRABBER)
+logger.info("Mean detection time: %s s", T_DETECTOR)
 logger.info("Mean iteration time %s s" % mean_it_time)
 logger.info("Mean FPS %s" % round(1/mean_it_time, 3))
 
 logger.info("Program finished")
 
-if config.img_save_flag:
-    os.system(command)
+if IMG_SAVE:
+    os.system(COMMAND)
