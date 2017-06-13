@@ -4,6 +4,7 @@ import time
 from imutils import resize
 import config
 import threading
+import copy
 
 logger = logging.getLogger(__name__)
 
@@ -25,12 +26,18 @@ class Grabber(threading.Thread):
         while self.running:
             start_time = time.time()
             logger.debug("Taking image...")
+
             # Getting of an image into img
-            ret, img = self.camera.read()
+            read_ok, img = self.camera.read()
+            if not read_ok:
+                logger.error("Capturing failed")
+                break
+
             config.IMG_BUFF = resize(img, width=100)
-            if len(config.T_GRABBER) < config.ST_WINDOW:
-                config.T_GRABBER.append(time.time() - start_time)
-            logger.debug("Image shooting takes %s s", time.time() - start_time)
+
+            processing_t = time.time() - start_time
+            config.T_GRABBER.append(processing_t)
+            logger.debug("Image shooting takes %s s", processing_t)
 
     # Stop and quit the thread operation.
     def quit(self):
@@ -72,25 +79,26 @@ class Detector(threading.Thread):
         logger.info("Detector started")
         while self.running and self.stop_event.is_set():
             detection_t = time.time()
-            if self.check_on_buffer():
-                img = config.IMG_BUFF
-            else:
+            if not self.check_on_buffer():
                 time.sleep(1)
                 continue
+            img = copy.copy(config.IMG_BUFF)
             mask = self.mog.apply(img)
             filtered = cv2.morphologyEx(mask, cv2.MORPH_OPEN, self.filtering_kernel)
             filled = cv2.dilate(filtered, None, iterations=8)
             _, cnts, _ = cv2.findContours(filled, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
             if self.detect(cnts):
+                config.MOTION_STATUS = True
                 logging.info("Motion detected")
+            else:
+                config.MOTION_STATUS = False
 
             if config.IMG_SAVE:
                 self.save_image(cnts, img, self.start_t)
-            processing_t = round(time.time() - detection_t, 4)
 
-            if len(config.T_DETECTOR) < 300:
-                config.T_DETECTOR.append(processing_t)
+            processing_t = time.time() - detection_t
+            config.T_DETECTOR.append(processing_t)
             logger.debug("Image processing takes: %s s", processing_t)
 
     def quit(self):
@@ -101,7 +109,6 @@ class Detector(threading.Thread):
     def check_on_buffer():
         if len(config.IMG_BUFF) == 0:
             logging.warning("No available images in buffer")
-            time.sleep(1)
             return False
         else:
             return True

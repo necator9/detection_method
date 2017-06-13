@@ -7,24 +7,51 @@ import detection
 import time
 import os
 from numpy import mean
+import display
 
+
+def check_dir():
+    img_path = PATH_TO_SHARE + "img/"
+    if not os.path.isdir(PATH_TO_SHARE):
+        logger.error("No such directory: %s" % PATH_TO_SHARE)
+        return False
+    if not os.path.isdir(PATH_TO_SHARE + "img/"):
+        logger.error("No such directory: %s" % img_path)
+        return False
+    else:
+        return True
+
+
+def clear_img_dir():
+    img_path = PATH_TO_SHARE + "img/"
+    files_n = len([name for name in os.listdir(img_path) if os.path.isfile(name)])
+    if files_n > 0:
+        os.system("rm " + img_path + "*")
+        logger.debug("Previous files are removed in dir: %s" % img_path)
+    else:
+        logger.debug("No images detected in dir: %s" % img_path)
 
 logging.config.fileConfig('logging.conf')
 logger = logging.getLogger(__name__)
 
 logger.info("Program started")
 
+if not check_dir():
+    exit(1)
+
 if IMG_SAVE:
-    os.system("rm ../share/img/*")
+    clear_img_dir()
 
 stop_event = threading.Event()
 stop_event.set()
 
 grabberThr = detection.Grabber(stop_event)
 detectorThr = detection.Detector(stop_event)
+displayThr = display.Display(stop_event)
 
 grabberThr.start()
 detectorThr.start()
+displayThr.start()
 
 try:
     while stop_event.is_set():
@@ -34,16 +61,9 @@ except KeyboardInterrupt:
 
 grabberThr.quit()
 detectorThr.quit()
+displayThr.quit()
 
-# Timing calculations
-T_GRABBER = round(mean(T_GRABBER), 3)
-T_DETECTOR = round(mean(T_DETECTOR), 3)
-mean_it_time = T_GRABBER + T_DETECTOR
 
-logger.info("Mean capturing time %s s", T_GRABBER)
-logger.info("Mean detection time: %s s", T_DETECTOR)
-logger.info("Mean iteration time %s s" % mean_it_time)
-logger.info("Mean FPS %s" % round(1/mean_it_time, 3))
 
 logger.info("Program finished")
 
