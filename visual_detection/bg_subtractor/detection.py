@@ -33,7 +33,7 @@ class Grabber(threading.Thread):
                 logger.error("Capturing failed")
                 break
 
-            config.IMG_BUFF = resize(img, width=100)
+            config.IMG_BUFF = resize(img, width=100, height=75)
 
             processing_t = time.time() - start_time
             config.T_GRABBER.append(processing_t)
@@ -126,10 +126,10 @@ class Detector(threading.Thread):
         for arr in cnts:
             (x, y, w, h) = cv2.boundingRect(arr)
             cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            current_time = round(time.time() - start_t, 3)
-            cv2.imwrite(config.PATH_TO_SHARE + "img/img_%s.jpeg" % current_time, img)
-
-
+            cv2.putText(img, str(cv2.contourArea(arr)), (x+5, y+15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1,
+                        cv2.LINE_AA)
+            current_time = round(time.time() - start_t, 2)
+            cv2.imwrite(config.PATH_TO_SHARE + "img/img_%s_%s.jpeg" % (current_time, cv2.contourArea(arr)), img)
 
 
 
