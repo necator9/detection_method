@@ -1,17 +1,20 @@
+import logging
 import curses
-import time
 import threading
-import config
+import time
 from numpy import mean
+import config
+import os
+import glob
 
-# import pyexiv2
+logger = logging.getLogger(__name__)
 
 
 class Display(threading.Thread):
-    def __init__(self, stop_ev):
+    def __init__(self, st_event):
         super(Display, self).__init__(name="Display")
         self.running = False
-        self.stop_event = stop_ev
+        self.stop_event = st_event
         self.screen = curses.initscr()
         self.win_bg = curses.newwin(16, 90, 0, 0)
         self.win_params = curses.newwin(11, 45, 3, 1)
@@ -19,6 +22,8 @@ class Display(threading.Thread):
         self.win_statistic = curses.newwin(8, 40, 6, 47)
 
     def run(self):
+        logger.info("UI has started")
+        self.running = True
         self.win_bg.border(0)
         self.win_bg.addstr(1, 35, "Moving objects detection", curses.A_BOLD)
         self.win_bg.addstr(14, 1, "To exit press Ctrl^C")
@@ -26,7 +31,7 @@ class Display(threading.Thread):
         self.static_window()
         self.statistic_window()
         i = 0
-        while self.stop_event.is_set():
+        while self.running:
             self.detect_window()
             if i > 20:
                 self.statistic_window()
@@ -34,11 +39,12 @@ class Display(threading.Thread):
             i += 1
             time.sleep(0.1)
 
+
     def static_window(self):
         self.win_params.border(1)
         self.win_params.addstr(1, 1, "Set parameters", curses.A_BOLD)
         self.win_params.addstr(3, 1, "Input device used:")
-        self.win_params.addstr(3, 30, "/dev/video%s" % config.DEV, curses.A_BOLD)
+        self.win_params.addstr(3, 30, "%s" % config.DEVICE, curses.A_BOLD)
         self.win_params.addstr(4, 1, "Original image resolution:")
         self.win_params.addstr(4, 30, "%sx%s" % (config.IMG_WIDTH, config.IMG_HEIGHT), curses.A_BOLD)
         self.win_params.addstr(5, 1, "Capturing frequency, FPS:")
@@ -50,7 +56,7 @@ class Display(threading.Thread):
         self.win_params.addstr(8, 1, "Save detected movement:")
         self.win_params.addstr(8, 30, "%s" % config.IMG_SAVE, curses.A_BOLD)
         self.win_params.addstr(9, 1, "Path to shared folder:")
-        self.win_params.addstr(9, 30, "%s" % config.PATH_TO_SHARE, curses.A_BOLD)
+        self.win_params.addstr(9, 30, "%s" % config.BBB_SYNC_DIRECTORY, curses.A_BOLD)
         self.win_params.refresh()
 
     def detect_window(self):
@@ -76,7 +82,7 @@ class Display(threading.Thread):
         self.win_statistic.addstr(4, 30, "%s " % mean_d_t, curses.A_BOLD)
         self.win_statistic.addstr(5, 1, "Mean iteration time, s:")
         self.win_statistic.addstr(5, 30, "%s " % mean_it_time, curses.A_BOLD)
-        self.win_statistic.addstr(6, 1, "Mean FPS:")
+        self.win_statistic.addstr(6, 1, "Mean processing FPS:")
         self.win_statistic.addstr(6, 30, "%s " % mean_fps, curses.A_BOLD)
         self.win_statistic.refresh()
 
@@ -84,44 +90,50 @@ class Display(threading.Thread):
         self.running = False
         self.stop_event.clear()
         curses.endwin()
+        logger.info("UI has quit")
 
 
-#
-#
-# class MyImage():
-#
-#   _filename = None
-#   _data = None
-#   _metadata = None
-#
-#   def __init__(self,fname):
-#
-#     _filename = fname
-#     _data = cv.LoadImage(_filename)
-#     _metadata = pyexiv2.ImageMetadata(_filename)
-#     _metadata.read()
-#
-#   def addMeta(self,key,value):
-#     _metadata[key] = pyexiv2.ExifTag(key, value)
-#
-#   def delMeta(self,delkey):
-#     newdict = {key: value for key, value in some_dict.items()
-#                 if value is not delkey}
-#
-#   def resize(self,newx,newy):
-#     tmpimage = cv.CreateMat(newy, newx, cv.CV_8UC3)
-#     cv.Resize(_data,tmpimage)
-#     _data = tmpimage
-#     try: # Set metadata tags to new size if exist!
-#       _metadata['Exif.Image.XResolution'] = newx
-#       _metadata['Exif.Image.YResolution'] = newy
-#     except:
-#       pass
-#
-#   def save(self):
-#     cv.SaveImage(_filename,_data)
-#     _metadata.write()
-#
+def check_dir():
+    if not os.path.isdir(config.BBB_SYNC_DIRECTORY):
+        logger.error("No such directory: %s" % config.BBB_SYNC_DIRECTORY)
+        return False
+    if not os.path.isdir(config.BBB_IMG_DIRECTORY):
+        logger.error("No such directory: %s" % config.BBB_IMG_DIRECTORY)
+        return False
+    else:
+        return True
+
+
+def clear_dir():
+    files_n = len(glob.glob(config.BBB_IMG_DIRECTORY + "*"))
+    if files_n > 0:
+        os.system("rm " + config.BBB_IMG_DIRECTORY + "*")
+        logger.info("Previous files are removed in dir: %s" % config.BBB_IMG_DIRECTORY)
+    else:
+        logger.info("No images detected in dir: %s" % config.BBB_IMG_DIRECTORY)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

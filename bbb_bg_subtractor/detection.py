@@ -1,10 +1,11 @@
+import copy
 import logging
-import cv2
+import threading
 import time
+
+import cv2
 from imutils import resize
 import config
-import threading
-import copy
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,7 @@ class Grabber(threading.Thread):
         self.running = False
         self.stop_event = stop_ev
         # Initialize the camera capture object
-        self.camera = cv2.VideoCapture(config.DEV)
+        self.camera = cv2.VideoCapture(config.DEVICE)
 
     # Main thread routine
     def run(self):
@@ -33,18 +34,11 @@ class Grabber(threading.Thread):
                 logger.error("Capturing failed")
                 break
 
-            config.IMG_BUFF = resize(img, width=100, height=75)
+            config.IMG_BUFF = resize(img, width=config.IMG_WIDTH_SAVE, height=config.IMG_HEIGHT_SAVE)
 
             processing_t = time.time() - start_time
             config.T_GRABBER.append(processing_t)
             logger.debug("Image shooting takes %s s", processing_t)
-
-    # Stop and quit the thread operation.
-    def quit(self):
-        self.running = False
-        self.stop_event.clear()
-        self.camera.release()
-        logger.info("Grabber finished")
 
     # Camera configuration in accordance to OpenCV version
     def cam_setup(self):
@@ -63,6 +57,13 @@ class Grabber(threading.Thread):
             self.camera.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, config.IMG_HEIGHT)
             self.camera.set(cv2.cv.CV_CAP_PROP_FPS, config.FPS)
 
+    # Stop and quit the thread operation.
+    def quit(self):
+        self.running = False
+        self.stop_event.clear()
+        self.camera.release()
+        logger.info("Grabber has quit")
+
 
 class Detector(threading.Thread):
     def __init__(self, stop_ev):
@@ -77,7 +78,7 @@ class Detector(threading.Thread):
     def run(self):
         self.running = True
         logger.info("Detector started")
-        while self.running and self.stop_event.is_set():
+        while self.running:
             detection_t = time.time()
             if not self.check_on_buffer():
                 time.sleep(1)
@@ -96,14 +97,10 @@ class Detector(threading.Thread):
 
             if config.IMG_SAVE:
                 self.save_image(cnts, img, self.start_t)
-
+            time.sleep(0.3)
             processing_t = time.time() - detection_t
             config.T_DETECTOR.append(processing_t)
             logger.debug("Image processing takes: %s s", processing_t)
-
-    def quit(self):
-        self.running = False
-        logger.info("Detector finished")
 
     @staticmethod
     def check_on_buffer():
@@ -129,8 +126,12 @@ class Detector(threading.Thread):
             cv2.putText(img, str(cv2.contourArea(arr)), (x+5, y+15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1,
                         cv2.LINE_AA)
             current_time = round(time.time() - start_t, 2)
-            cv2.imwrite(config.PATH_TO_SHARE + "img/img_%s_%s.jpeg" % (current_time, cv2.contourArea(arr)), img)
+            cv2.imwrite(config.BBB_SYNC_DIRECTORY + "img/img_%s_%s.jpeg" % (current_time, cv2.contourArea(arr)), img)
 
+    def quit(self):
+        self.running = False
+        self.stop_event.clear()
+        logger.info("Detector has quit")
 
 
 
