@@ -34,7 +34,7 @@ class Grabber(threading.Thread):
                 logger.error("Capturing failed")
                 break
 
-            config.IMG_BUFF = resize(img, width=config.IMG_WIDTH_SAVE, height=config.IMG_HEIGHT_SAVE)
+            config.IMG_BUFF = resize(img, width=config.PROC_IMG_RES[0], height=config.PROC_IMG_RES[1])
 
             processing_t = time.time() - start_time
             config.T_GRABBER.append(processing_t)
@@ -49,12 +49,12 @@ class Grabber(threading.Thread):
         # Initial camera configuration
         cv_version = int(cv2.__version__.split(".")[0])
         if cv_version == 3:
-            self.camera.set(3, config.IMG_WIDTH)
-            self.camera.set(4, config.IMG_HEIGHT)
+            self.camera.set(3, config.ORIG_IMG_RES[0])
+            self.camera.set(4, config.ORIG_IMG_RES[1])
             self.camera.set(5, config.FPS)
         if cv_version == 2:
-            self.camera.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, config.IMG_WIDTH)
-            self.camera.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, config.IMG_HEIGHT)
+            self.camera.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, config.ORIG_IMG_RES[0])
+            self.camera.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, config.ORIG_IMG_RES[1])
             self.camera.set(cv2.cv.CV_CAP_PROP_FPS, config.FPS)
 
     # Stop and quit the thread operation.
@@ -73,7 +73,7 @@ class Detector(threading.Thread):
         self.stop_event = stop_ev
         self.start_t = time.time()
         self.mog = cv2.createBackgroundSubtractorMOG2()
-        self.filtering_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, config.FILTERED_OBJ_SIZE)
+        self.filtering_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, config.F_KERNEL_SIZE)
 
     def run(self):
         self.running = True
@@ -113,7 +113,7 @@ class Detector(threading.Thread):
     @staticmethod
     def detect(cnts):
         for arr in cnts:
-            if cv2.contourArea(arr) > config.DETECTED_OBJ_SIZE:
+            if cv2.contourArea(arr) > config.D_OBJ_SIZE:
                 return True
             else:
                 return False
@@ -126,7 +126,7 @@ class Detector(threading.Thread):
             cv2.putText(img, str(cv2.contourArea(arr)), (x+5, y+15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1,
                         cv2.LINE_AA)
             current_time = round(time.time() - start_t, 2)
-            cv2.imwrite(config.BBB_SYNC_DIRECTORY + "img/img_%s_%s.jpeg" % (current_time, cv2.contourArea(arr)), img)
+            cv2.imwrite(config.BBB_SYNC_DIR + "img/img_%s_%s.jpeg" % (current_time, cv2.contourArea(arr)), img)
 
     def quit(self):
         self.running = False

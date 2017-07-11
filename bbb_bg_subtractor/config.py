@@ -4,34 +4,28 @@ from collections import deque
 IMG_BUFF = []                   # Grabber writes into the buff/detector reads from
 
 # Camera parameters
-DEVICE = "/dev/video0"             # Path to input camera device or video file
-# dev = "/home/pi/out.m4v"
-# dev = "/home/ivan/out.m4v"
-IMG_WIDTH = 320                 # Width of an image to capture
-IMG_HEIGHT = 240                # Height of an image to capture
+DEVICE = "/dev/video0"          # Path to input camera device or video file
+
+ORIG_IMG_RES = (320, 240)       # Width and height of an image to capture
 FPS = 7                         # Capturing frequency (frames per second)
 
-# Image parameters to resize, compress and save images
-IMG_WIDTH_SAVE = 100            # Width of an image to capture
-IMG_HEIGHT_SAVE = 70            # Height of an image to capture
-
 # Detector parameters
-FILTERED_OBJ_SIZE = (3, 3)      # Size of elliptical filtering kernel in pixels
-DETECTED_OBJ_SIZE = 30          # Detection threshold. Minimal obj size to be detected
+PROC_IMG_RES = (100, 70)        # Width and height of an image for processing
+F_KERNEL_SIZE = (3, 3)          # Size of elliptical filtering kernel in pixels
+D_OBJ_SIZE = 100                # Detection threshold. Minimal obj size to be detected
 
 # Interactive parameters
 IMG_SAVE = True                 # Save frames where motion is detected
 UI = True                       # Display user interface
-SYNC_DIR = True
+SYNC = True
 
 # Sync parameters
-BBB_SYNC_DIRECTORY = "share/"
-BBB_IMG_DIRECTORY = "share/img/"
-WORKSTATION_SYNC_DIRECTORY = "~/share_BBB/"
-WORKSTATION_USER_IP = "ivan@192.168.100.119"
-WORKSTATION_PORT = "2122"
-COMMAND = "rsync -avzhe 'ssh -p %s' --delete %s %s:%s" % \
-          (WORKSTATION_PORT, BBB_SYNC_DIRECTORY, WORKSTATION_USER_IP, WORKSTATION_SYNC_DIRECTORY)
+BBB_SYNC_DIR = "share/"                       # Path to synchronizing directory on Beaglebone Black
+BBB_IMG_DIR = "share/img/"                    # Path to image saving directory on Beaglebone Black
+W_SYNC_DIR = "~/share_BBB/"                   # Path to synchronizing directory on workstation
+W_USER_IP = "ivan@192.168.100.119"                  # Workstation username@ip
+W_PORT = "2122"                                     # Workstation ssh port
+COMMAND = "rsync -avzhe 'ssh -p %s' --delete %s %s:%s" % (W_PORT, BBB_SYNC_DIR, W_USER_IP, W_SYNC_DIR)
 
 # Global variables for internal usage
 MOTION_STATUS = False            # Initial status of motion
