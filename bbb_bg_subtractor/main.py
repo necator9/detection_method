@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 logger.info("Program started")
 
+
 extensions.parse()
 
 if not extensions.check_dir():
