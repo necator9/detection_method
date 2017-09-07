@@ -6,6 +6,7 @@ import time
 import cv2
 from imutils import resize
 import config
+import glob
 
 logger = logging.getLogger(__name__)
 
@@ -16,27 +17,24 @@ class Detector(threading.Thread):
         # Thread state status flag
         self.running = False
         self.stop_event = stop_ev
-        # Initialize the camera capture object
-        #self.camera = cv2.VideoCapture(config.DEVICE)
+
         self.mog = cv2.createBackgroundSubtractorMOG2()
         self.filtering_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, config.F_KERNEL_SIZE)
+        self.counter = 0
 
     # Main thread routine
     def run(self):
         logger.info("Grabber started")
         self.running = True
-        #self.cam_setup()
-        while self.running:
+        #while True:
+        print self.counter
+        print len(glob.glob("/home/ivan/test_ir/img/*.jpeg"))
+        while (self.counter < ((len(glob.glob("/home/ivan/test_ir/share/img/*.jpeg"))) - 1)) and self.running:
+
             start_time = time.time()
             logger.debug("Taking image...")
 
-            # Getting of an image into img
-            # read_ok, image = self.camera.read()
-            # if not read_ok:
-            #     logger.error("Capturing failed")
-            #     break
-
-            image = cv2.imread("/home/ivan/share_BBB/img/img_0*.jpeg")
+            image = cv2.imread(glob.glob("/home/ivan/test_ir/share/img/img_%s_*.jpeg" % self.counter)[0])
             img = copy.copy(image)
             img = resize(img, width=config.PROC_IMG_RES[0], height=config.PROC_IMG_RES[1])
             mask = self.mog.apply(img)
@@ -63,28 +61,16 @@ class Detector(threading.Thread):
             cv2.imshow('image', img)
             cv2.waitKey(1)
 
-    # Camera configuration in accordance to OpenCV version
-    def cam_setup(self):
-        # Check on successful camera initialization
-        if not self.camera.isOpened():
-            logger.error("Cannot initialize camera object")
-            self.quit()
-        # Initial camera configuration
-        cv_version = int(cv2.__version__.split(".")[0])
-        if cv_version == 3:
-            self.camera.set(3, config.ORIG_IMG_RES[0])
-            self.camera.set(4, config.ORIG_IMG_RES[1])
-            self.camera.set(5, config.FPS)
-        if cv_version == 2:
-            self.camera.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, config.ORIG_IMG_RES[0])
-            self.camera.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, config.ORIG_IMG_RES[1])
-            self.camera.set(cv2.cv.CV_CAP_PROP_FPS, config.FPS)
+            self.counter += 1
+            time.sleep(0.2)
+            print self.counter
+
+        self.quit()
 
     # Stop and quit the thread operation.
     def quit(self):
         self.running = False
         self.stop_event.clear()
-        self.camera.release()
         logger.info("Grabber has quit")
 
     @staticmethod
