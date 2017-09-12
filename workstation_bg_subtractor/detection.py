@@ -26,7 +26,6 @@ class Detector(threading.Thread):
     def run(self):
         logger.info("Grabber started")
         self.running = True
-        #while True:
         print self.counter
         print len(glob.glob("/home/ivan/test_ir/img/*.jpeg"))
         while (self.counter < ((len(glob.glob("/home/ivan/test_ir/share/img/*.jpeg"))) - 1)) and self.running:
@@ -60,6 +59,7 @@ class Detector(threading.Thread):
 
             cv2.imshow('image', img)
             cv2.waitKey(1)
+            # cv2.imwrite("/home/ivan/test_ir/img_%s.jpeg" % self.counter, img)
 
             self.counter += 1
             time.sleep(0.2)

@@ -10,8 +10,8 @@ FPS = 30                        # Capturing frequency (frames per second)
 
 # Detector parameters
 PROC_IMG_RES = (320, 240)        # Width and height of an image for processing
-F_KERNEL_SIZE = (4, 4)          # Size of elliptical filtering kernel in pixels
-D_OBJ_SIZE = 0                # Detection threshold. Minimal obj size to be detected
+F_KERNEL_SIZE = (4, 5)          # Size of elliptical filtering kernel in pixels
+D_OBJ_SIZE = 1000                # Detection threshold. Minimal obj size to be detected
 
 
 # Global variables for internal usage
