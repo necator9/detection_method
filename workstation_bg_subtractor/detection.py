@@ -40,19 +40,26 @@ class Detector(threading.Thread):
             filtered = cv2.morphologyEx(mask, cv2.MORPH_OPEN, self.filtering_kernel)
             filled = cv2.dilate(filtered, None, iterations=8)
             _, cnts, _ = cv2.findContours(filled, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-            if self.detect(cnts):
+            flag, in_arr, contour_area = self.detect(cnts)
+            if flag:
                 config.MOTION_STATUS = True
                 logging.info("Motion detected")
-                for arr in cnts:
-                    (x, y, w, h) = cv2.boundingRect(arr)
-                    cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                    cv2.putText(img, str(cv2.contourArea(arr)), (x + 5, y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
-                                (0, 0, 255),
-                                1,
-                                cv2.LINE_AA)
-            else:
-                config.MOTION_STATUS = False
+                for i in in_arr:
+                    (x, y, w, h) = cv2.boundingRect(cnts[i])
+                    print float(h)/w
+                    print contour_area, "area size"
+                    cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 1)
+                    cv2.putText(img, str(contour_area), (x + 5, y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                                (0, 0, 255), 1, cv2.LINE_AA)
+                    # cv2.putText(img, "w = %s" % str(w), (10, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                    #             (0,50, 200), 1, cv2.LINE_AA)
+                    # cv2.putText(img, "h = %s" % str(h), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                    #             (0, 50, 200), 1, cv2.LINE_AA)
+                    # cv2.putText(img, "h/w = %s" % str(float(h)/w), (100, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                    #             (0, 50, 200), 1, cv2.LINE_AA)
+                # cv2.drawContours(img, cnts, -1, (0,255,0), 3)
+            # else:
+            #     config.MOTION_STATUS = False
 
             processing_t = time.time() - start_time
             logger.debug("Image shooting takes %s s", processing_t)
@@ -63,7 +70,7 @@ class Detector(threading.Thread):
 
             self.counter += 1
             time.sleep(0.2)
-            print self.counter
+            #print self.counter
 
         self.quit()
 
@@ -75,11 +82,15 @@ class Detector(threading.Thread):
 
     @staticmethod
     def detect(cnts):
-        for arr in cnts:
-            if cv2.contourArea(arr) > config.D_OBJ_SIZE:
-                return True
-            else:
-                return False
+        contour_area = 0
+        in_arr = []
+        flag = False
+        for i, arr in enumerate(cnts):
+            contour_area = cv2.contourArea(arr)
+            if contour_area > config.D_OBJ_SIZE:
+                in_arr.append(i)
+                flag = True
+        return flag, in_arr, contour_area
 
 
 
