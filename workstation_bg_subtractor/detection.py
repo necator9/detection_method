@@ -1,4 +1,3 @@
-import copy
 import logging
 import threading
 import time
@@ -9,6 +8,8 @@ import config
 import glob
 import pyexiv2
 import os
+import numpy as np
+import copy
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +21,28 @@ class Detector(threading.Thread):
         self.stop_event = stop_ev
 
         self.mog = cv2.createBackgroundSubtractorMOG2()
-        self.filtering_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, config.F_KERNEL_SIZE)
+        if config.F_KERNEL_SIZE[0] > 0 and config.F_KERNEL_SIZE[1] > 0:
+            self.filtering_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, config.F_KERNEL_SIZE)
+
+        self.out_data = ""
+        self.x_range = (config.MARGIN[0], config.PROC_IMG_RES[0] - config.MARGIN[0])
+        self.y_range = (config.MARGIN[1], config.PROC_IMG_RES[1] - config.MARGIN[1])
+
+        self.orig_img_1 = []
+        self.orig_img_2 = []
+        self.mog_mask = []
+        self.filled_img = []
+        self.filtered_img = []
+        self.out_img = []
+        self.extent_img = []
+        self.data_img = []
+        self.blank_img = []
+        self.bg_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0], 3), np.uint8)
+        self.rect_mask = []
+
+        self.d_result = []
+        self.frame_m_status = False
         self.counter = 0
-        self.img = []
 
     # Main thread routine
     def run(self):
@@ -32,86 +52,271 @@ class Detector(threading.Thread):
         while (self.counter < ((len(glob.glob(os.path.join(config.IMG_IN_DIR, "*.jpeg")))) - 1)) and self.running:
 
             logger.debug("Taking image...")
+            self.orig_img_1 = cv2.imread(glob.glob(os.path.join(config.IMG_IN_DIR, "img_%s_*.jpeg" % self.counter))[0])
+            self.preprocessing()
+            self.detect()
+            self.check_on_extent()
+            self.form_out_img()
 
-            self.img = cv2.imread(glob.glob(os.path.join(config.IMG_IN_DIR, "img_%s_*.jpeg" % self.counter))[0])
-            self.img = resize(self.img, width=config.PROC_IMG_RES[0], height=config.PROC_IMG_RES[1])
-            mask = self.mog.apply(self.img)
-            filtered = cv2.morphologyEx(mask, cv2.MORPH_OPEN, self.filtering_kernel)
-            filled = cv2.dilate(filtered, None, iterations=8)
-            _, cnts, _ = cv2.findContours(filled, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-            det_res = self.detect(cnts)
-
-            if config.MOTION_STATUS:
-                self.draw_on_img(det_res)
-
-            cv2.imshow('image', self.img)
+            cv2.imshow('image', self.out_img)
             cv2.waitKey(1)
 
-            self.save_image(det_res)
+
+
+            self.save_image()
 
             self.counter += 1
-            time.sleep(0.2)
+            # time.sleep(0.2)
+            # self.out_data += self.formData(det_res)
+        # file = open("/home/ivan/test_ir/data_1000.txt", "w")
+        # file.write(self.out_data)
+        # file.close()
 
         self.quit()
 
-    @staticmethod
-    def detect(cnts):
-        detect_res = []
-        for arr in cnts:
-            contour_area = cv2.contourArea(arr)
-            if contour_area > config.D_OBJ_SIZE:
-                coord = cv2.boundingRect(arr)
-                detect_res.append([contour_area, coord])
+    def preprocessing(self):
+        self.orig_img_1 = resize(self.orig_img_1, width=config.PROC_IMG_RES[0], height=config.PROC_IMG_RES[1])
+        self.mog_mask = self.mog.apply(self.orig_img_1)
+
+        if config.F_KERNEL_SIZE[0] > 0 and config.F_KERNEL_SIZE[1] > 0:
+            self.filtered_img = cv2.morphologyEx(self.mog_mask, cv2.MORPH_OPEN, self.filtering_kernel)
+        else:
+            self.filtered_img = copy.copy(self.mog_mask)
+
+        self.filled_img = cv2.dilate(self.filtered_img, None, iterations=3)
+
+    def detect(self):
+        config.MOTION_STATUS = False
+        self.frame_m_status = False
+        self.coeff_calc()
+
+        for i in range(len(self.d_result)):
+            is_coeff_belongs = config.COEFF_RANGE[0] < self.d_result[i][2] < config.COEFF_RANGE[1]
+            if is_coeff_belongs:
                 config.MOTION_STATUS = True
+                self.frame_m_status = True
                 logging.info("Motion detected")
-                logger.info(str(detect_res))
             else:
                 config.MOTION_STATUS = False
-        return detect_res
 
-    def draw_on_img(self, det_res):
-        for i in range(len(det_res)):
-            x, y, w, h = det_res[i][1]
-            cv2.rectangle(self.img, (x, y), (x + w, y + h), (0, 255, 0), 1)
-            cv2.putText(self.img, str(det_res[i][0]), (x + 5, y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+    def check_on_extent(self):
+        n = 1
+        for i in range(len(self.d_result)):
+            is_coeff_belongs = -20000 < self.d_result[i][2] < -10000
+            if self.d_result[i][3] < 0.6 and is_coeff_belongs:
+                x, y, w, h = self.d_result[i][1]
+                self.rect_mask = np.zeros((h, w), np.uint8)
+                self.rect_mask[:, :] = self.filled_img[y:y + h, x:x + w]
+
+                self.bg_img = np.zeros((h, w), np.uint8)
+                self.bg_img[:, :w/2 - n] = self.rect_mask[:, :w / 2 - n]
+                self.bg_img[:, w / 2 + n:] = self.rect_mask[:, w / 2 + n:]
+
+                self.filled_img[y:y + h, x:x + w] = self.bg_img[:, :]
+                self.coeff_calc()
+                self.detect()
+                # cv2.imshow('im', self.filled_img)
+                # cv2.waitKey(0)
+
+
+                # self.bg_img[:, : w/2 - n] = self.filled_img[y:y + h, x: (x + w) / 2 - 1]
+
+                # self.bg_img[:, w / 2 - 1] = self.filled_img[y:y + h, x:((x + w / 2) - 1)]
+                #self.test_img[:, :] = self.filled_img[y:y + h, ((x + w / 2) + 1):x+w]
+
+
+                # black_image[:, :160 - n] = white_image[:, :160 - n]
+                # black_image[:, 160 + n:] = white_image[:, 160 + n:]
+        # if extent[0] > 0:
+        #
+        #     image1 = self.mask[coord[1]:coord[1] + coord[3], coord[0]:coord[0] + coord[2]]
+        #     img_name = "img_%s.jpeg" % self.counter
+        #     path = os.path.join(config.IMG_OUT_DIR, img_name)
+        #     cv2.imwrite(path, image1)
+        #     cv2.imshow('image', image1)
+        #     cv2.waitKey(1)
+            # is_x_belongs = self.x_range[0] < coord[0] < self.x_range[1]
+            # is_x_max_belongs = self.x_range[0] < coord[0] + coord[2] < self.x_range[1]
+            # is_y_belongs = self.y_range[0] < coord[1] < self.y_range[1]
+            # is_y_max_belongs = self.y_range[0] < coord[1] + coord[3] < self.y_range[1]
+
+    def coeff_calc(self):
+        self.d_result = []
+        _, cnts, _ = cv2.findContours(self.filled_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        for arr in cnts:
+            a_contour = cv2.contourArea(arr)
+            x, y, w, h = cv2.boundingRect(arr)
+            a_rect = w * h
+            p_rect = 2 * (h + w)
+
+            if float(h) / w > 0.7:
+                k = 1.0
+            else:
+                k = -1.0
+
+            hull = cv2.convexHull(arr)
+            hull_area = cv2.contourArea(hull)
+            solidity = round(float(a_contour) / hull_area, 3)
+            extent = round(float(a_contour) / a_rect, 3)
+            # rect = cv2.minAreaRect(arr)
+            # box = cv2.boxPoints(rect)
+            # box = np.int0(box)
+
+            # coeff(k * ((2.0 * w * h + 2 * w ** 2 + h) / w), 1) # Kirill suggestion
+            rect_coeff = round(a_contour * k * ((h ** 2 + 2 * h * w + w ** 2) / (h * w * 4.0)), 3)
+            self.d_result.append([arr, (x, y, w, h), rect_coeff, extent, solidity, a_contour, a_rect, p_rect])
+
+    def form_out_img(self):
+        self.orig_img_2 = copy.copy(self.orig_img_1)
+        self.extent_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0], 3), np.uint8)
+        self.data_img = np.zeros((config.PROC_IMG_RES[1] * 4, config.PROC_IMG_RES[0], 3), np.uint8)
+        self.blank_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0] * 2, 3), np.uint8)
+
+        self.draw_on_mog_mask()
+        self.draw_on_filtered_img()
+        self.draw_on_filled_img()
+        self.draw_on_orig_img_1()
+        self.draw_on_orig_img_2()
+        self.draw_on_extent_img()
+        self.draw_on_data_img()
+        self.draw_on_blank_img()
+        self.mog_mask = cv2.cvtColor(self.mog_mask, cv2.COLOR_GRAY2BGR)
+        self.filtered_img = cv2.cvtColor(self.filtered_img, cv2.COLOR_GRAY2BGR)
+        self.filled_img = cv2.cvtColor(self.filled_img, cv2.COLOR_GRAY2BGR)
+
+        h_stack1 = np.hstack((self.mog_mask, self.filtered_img))
+        h_stack2 = np.hstack((self.filled_img, self.extent_img))
+        h_stack3 = np.hstack((self.orig_img_2, self.orig_img_1))
+        h_stack4 = self.blank_img
+
+        self.out_img = np.vstack((h_stack1, h_stack2, h_stack3, h_stack4))
+        self.out_img = np.hstack((self.out_img, self.data_img))
+
+    def draw_on_mog_mask(self):
+        cv2.putText(self.mog_mask, str("MOG2 mask"), (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                    (255, 255, 255), 1, cv2.LINE_AA)
+
+    def draw_on_filtered_img(self):
+        cv2.putText(self.filtered_img, str("Filtered image"), (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                    (255, 255, 255), 1, cv2.LINE_AA)
+
+    def draw_on_filled_img(self):
+        cv2.putText(self.filled_img, str("Filled image"), (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                    (255, 255, 255), 1, cv2.LINE_AA)
+
+    def draw_on_orig_img_1(self):
+        cv2.putText(self.orig_img_1, "Rectangle area", (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                    (0, 0, 255), 1, cv2.LINE_AA)
+
+        for i in range(len(self.d_result)):
+            x, y, w, h = self.d_result[i][1]
+            cv2.rectangle(self.orig_img_1, (x, y), (x + w, y + h), (0, 255, 0), 1)
+            cv2.putText(self.orig_img_1, str(i), (x + 5, y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                         (0, 0, 255), 1, cv2.LINE_AA)
-            # cv2.putText(img, "w = %s" % str(w), (10, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
-            #             (0,50, 200), 1, cv2.LINE_AA)
-            # cv2.putText(img, "h = %s" % str(h), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
-            #             (0, 50, 200), 1, cv2.LINE_AA)
-            # cv2.putText(img, "h/w = %s" % str(float(h)/w), (100, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
-            #             (0, 50, 200), 1, cv2.LINE_AA)
-            # cv2.drawContours(img, cnts, -1, (0,255,0), 3)
 
-    def save_image(self, det_res):
+    def draw_on_orig_img_2(self):
+        cv2.putText(self.orig_img_2, "Contour area", (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                    (0, 0, 255), 1, cv2.LINE_AA)
+        cntrs = []
+        for i in range(len(self.d_result)):
+            cntrs.append(self.d_result[i][0])
+        cv2.drawContours(self.orig_img_2, cntrs, -1, (0, 255, 0), 1)
+
+    def draw_on_extent_img(self):
+        cv2.putText(self.extent_img, "Split", (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                    (255, 255, 255), 0, cv2.LINE_AA)
+
+    def draw_on_data_img(self):
+        obj_y0 = 15
+        obj_dy = 0
+        interval = 20
+
+        for i in range(len(self.d_result)):
+            cv2.putText(self.data_img, "Object %s:" % i, (15, obj_y0 + obj_dy), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                        (0, 0, 255), 1, cv2.LINE_AA)
+            obj_dy += interval
+            cv2.putText(self.data_img, "x: %s, y: %s, w: %s, h: %s, " % (self.d_result[i][1][0], self.d_result[i][1][1],
+                                                                         self.d_result[i][1][2],
+                                                                         self.d_result[i][1][3]), (15, obj_y0 + obj_dy),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+            obj_dy += interval
+            cv2.putText(self.data_img, "h/w ratio: %s" % round((float(self.d_result[i][1][3])/self.d_result[i][1][2]), 3), (15, obj_y0 + obj_dy),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                        (255, 255, 255), 1, cv2.LINE_AA)
+            obj_dy += interval
+            is_coeff_belongs = config.COEFF_RANGE[0] < self.d_result[i][2] < config.COEFF_RANGE[1]
+            if is_coeff_belongs:
+                color = (0, 0, 255)
+            else:
+                color = (255, 255, 255)
+            cv2.putText(self.data_img, "Rectangle coeff: %s" % self.d_result[i][2], (15, obj_y0 + obj_dy), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                        color, 1, cv2.LINE_AA)
+            obj_dy += interval
+            cv2.putText(self.data_img, "Rectangle area: %s" % self.d_result[i][6], (15, obj_y0 + obj_dy), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                        (255, 255, 255), 1, cv2.LINE_AA)
+            obj_dy += interval
+            cv2.putText(self.data_img, "Rectangle perimeter: %s" % self.d_result[i][7], (15, obj_y0 + obj_dy),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                        (255, 255, 255), 1, cv2.LINE_AA)
+            obj_dy += interval
+            cv2.putText(self.data_img, "Contour area: %s" % self.d_result[i][5], (15, obj_y0 + obj_dy), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                        (255, 255, 255), 1, cv2.LINE_AA)
+            obj_dy += interval
+            cv2.putText(self.data_img, "Extent coeff: %s" % self.d_result[i][3], (15, obj_y0 + obj_dy), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                        (255, 255, 255), 1, cv2.LINE_AA)
+            obj_dy += interval
+
+            # self.d_result.append([arr, (x, y, w, h), rect_coeff, extent, solidity, a_contour, a_rect, p_rect])
+    def draw_on_blank_img(self):
+        cv2.putText(self.blank_img, str(self.frame_m_status), (250, 100), cv2.FONT_HERSHEY_SIMPLEX, 2,
+                    (255, 255, 255), 1, cv2.LINE_AA)
+
+    def save_image(self):
         # Save JPEG with proper name
         img_name = "img_%s.jpeg" % self.counter
         path = os.path.join(config.IMG_OUT_DIR, img_name)
-        cv2.imwrite(path, self.img)
+        cv2.imwrite(path, self.out_img)
+        # string = ""
+        # for i in range(len(det_res)):
+        #     if i > 0:
+        #         string += "\n"
+        #     for k in range(len(det_res[i])):
+        #         for l in range(len(det_res[i][k])):
+        #             string += str(det_res[i][k][l]) + ", "
+        #     string = string[:-2]
+        #
+        # # Parser for csv in exif
+        # # a = []
+        # # reader = csv.reader(string.split('\n'), delimiter=',')
+        # # for row in reader:
+        # #     a.append(row)
+        #
+        # # Write exif to saved JPEG
+        # metadata = pyexiv2.ImageMetadata(path)
+        # metadata.read()
+        # metadata['Exif.Image.Software'] = pyexiv2.ExifTag('Exif.Image.Software', 'OpenCV-3.2.0-dev, pyexiv2')
+        # metadata['Exif.Image.Artist'] = pyexiv2.ExifTag('Exif.Image.Artist', 'Ivan Matveev')
+        # metadata['Exif.Photo.UserComment'] = pyexiv2.ExifTag('Exif.Photo.UserComment', string)
+        # metadata.write()
 
-        # Write exif to saved JPEG
-        metadata = pyexiv2.ImageMetadata(path)
-        metadata.read()
-        metadata['Exif.Image.Software'] = pyexiv2.ExifTag('Exif.Image.Software', 'OpenCV-3.2.0-dev, pyexiv2')
-        metadata['Exif.Image.Artist'] = pyexiv2.ExifTag('Exif.Image.Artist', 'Ivan Matveev')
-        metadata['Exif.Photo.UserComment'] = pyexiv2.ExifTag('Exif.Photo.UserComment', "status:%s data:%s" %
-                                                             (config.MOTION_STATUS, det_res))
 
-        metadata['Exif.Photo.UserComment'] = pyexiv2.ExifTag('Exif.Photo.UserComment', 'status:%s' %
-                                                             config.MOTION_STATUS)
-        metadata.write()
+
+
+    @staticmethod
+    def form_data(det_res):
+        string = ""
+        for i in range(len(det_res)):
+            for k in range(len(det_res[i])):
+                for l in range(len(det_res[i][k])):
+                    string += str(det_res[i][k][l]) + ", "
+            string = string[:-2]
+            string += "\n"
+        return string
 
     # Stop and quit the thread operation.
     def quit(self):
         self.running = False
         self.stop_event.clear()
         logger.info("Grabber has quit")
-
-
-
-
-
-
-
 
