@@ -11,7 +11,7 @@ COEFF_RANGE = (1500, 12000)
 # Global variables for internal usage
 MOTION_STATUS = False            # Initial status of motion
 
-IMG_IN_DIR = "/home/ivan/test_ir/origin/05.10.17_5"
-IMG_OUT_DIR = "/home/ivan/test_ir/detection/05.10.17_5"
+IMG_IN_DIR = "/home/ivan/test_ir/origin/05.10.17_4"
+IMG_OUT_DIR = "/home/ivan/test_ir/detection/05.10.17_4"
 
 
