@@ -10,6 +10,7 @@ import pyexiv2
 import os
 import numpy as np
 import copy
+import matplotlib.pyplot as plt
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ class Detector(threading.Thread):
         self.running = False
         self.stop_event = stop_ev
 
-        self.mog = cv2.createBackgroundSubtractorMOG2()
+        self.mog = cv2.createBackgroundSubtractorMOG2(detectShadows=True)
         if config.F_KERNEL_SIZE[0] > 0 and config.F_KERNEL_SIZE[1] > 0:
             self.filtering_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, config.F_KERNEL_SIZE)
 
@@ -55,11 +56,13 @@ class Detector(threading.Thread):
             logger.debug("Taking image...")
             self.orig_img_1 = cv2.imread(glob.glob(os.path.join(config.IMG_IN_DIR, "img_%s_*.jpeg" % self.counter))[0])
             self.preprocessing()
+            # cv2.imshow('image', self.filled_img)
+            # cv2.waitKey(0)
             self.d_result = self.coeff_calc(self.filled_img)
 
             self.extent_img = self.check_on_extent(self.filled_img, self.d_result)
-            print self.extent_img.shape[:2]
-            #
+            # print self.extent_img.shape[:2]
+
             self.e_result = self.coeff_calc(self.extent_img)
 
             self.detect(self.d_result)
@@ -74,7 +77,7 @@ class Detector(threading.Thread):
             # self.save_image()
 
             self.counter += 1
-            time.sleep(0.2)
+            time.sleep(0)
             # self.out_data += self.formData(det_res)
         # file = open("/home/ivan/test_ir/data_1000.txt", "w")
         # file.write(self.out_data)
@@ -84,7 +87,9 @@ class Detector(threading.Thread):
 
     def preprocessing(self):
         self.orig_img_1 = resize(self.orig_img_1, width=config.PROC_IMG_RES[0], height=config.PROC_IMG_RES[1])
+
         self.mog_mask = self.mog.apply(self.orig_img_1)
+        _, self.mog_mask = cv2.threshold(self.mog_mask, 127, 255, cv2.THRESH_BINARY)
 
         if config.F_KERNEL_SIZE[0] > 0 and config.F_KERNEL_SIZE[1] > 0:
             self.filtered_img = cv2.morphologyEx(self.mog_mask, cv2.MORPH_OPEN, self.filtering_kernel)
@@ -175,7 +180,8 @@ class Detector(threading.Thread):
 
             hull = cv2.convexHull(arr)
             hull_area = cv2.contourArea(hull)
-            solidity = round(float(a_contour) / hull_area, 3)
+            # solidity = round(float(a_contour) / hull_area, 3)
+            solidity = 0
             extent = round(float(a_contour) / a_rect, 3)
             # rect = cv2.minAreaRect(arr)
             # box = cv2.boxPoints(rect)
@@ -191,7 +197,7 @@ class Detector(threading.Thread):
         self.orig_img_2 = copy.copy(self.orig_img_1)
         self.data_img = np.zeros((config.PROC_IMG_RES[1] * 4, config.PROC_IMG_RES[0], 3), np.uint8)
         self.blank_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0] * 2, 3), np.uint8)
-        #self.extent_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0]), np.uint8)
+        self.extent_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0]), np.uint8)
 
         self.draw_on_mog_mask()
         self.draw_on_filtered_img()
@@ -256,6 +262,7 @@ class Detector(threading.Thread):
         obj_dy = 0
         interval = 20
 
+        # [arr, (x, y, w, h), rect_coeff, extent, solidity, a_contour, a_rect, p_rect]
         for i in range(len(self.d_result)):
             cv2.putText(self.data_img, "Object %s:" % i, (15, obj_y0 + obj_dy), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                         (0, 0, 255), 1, cv2.LINE_AA)
