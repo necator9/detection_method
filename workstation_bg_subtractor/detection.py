@@ -10,7 +10,7 @@ import pyexiv2
 import os
 import numpy as np
 import copy
-import matplotlib.pyplot as plt
+import sqlite3
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +54,15 @@ class Detector(threading.Thread):
         while (self.counter < ((len(glob.glob(os.path.join(config.IMG_IN_DIR, "*.jpeg")))) - 1)) and self.running:
 
             logger.debug("Taking image...")
+            db = DbStore("db1")
+            db.set_params("abc", 1)
+            db.db_write()
+            exit(0)
             self.orig_img_1 = cv2.imread(glob.glob(os.path.join(config.IMG_IN_DIR, "img_%s_*.jpeg" % self.counter))[0])
             self.preprocessing()
+
+
+
             # cv2.imshow('image', self.filled_img)
             # cv2.waitKey(0)
             self.d_result = self.coeff_calc(self.filled_img)
@@ -298,7 +305,6 @@ class Detector(threading.Thread):
                         (255, 255, 255), 1, cv2.LINE_AA)
             obj_dy += interval
 
-            # self.d_result.append([arr, (x, y, w, h), rect_coeff, extent, solidity, a_contour, a_rect, p_rect])
     def draw_on_blank_img(self):
         cv2.putText(self.blank_img, str(self.frame_m_status), (250, 100), cv2.FONT_HERSHEY_SIMPLEX, 2,
                     (255, 255, 255), 1, cv2.LINE_AA)
@@ -350,4 +356,53 @@ class Detector(threading.Thread):
         self.running = False
         self.stop_event.clear()
         logger.info("Grabber has quit")
+
+
+class DbStore:
+    def __init__(self, db_name):
+        self.db_name = db_name
+        self.db = sqlite3.connect(self.db_name)
+        self.img_name = []
+        self.d_parameters = []
+
+    def set_params(self, img_name, d_parameters):
+        self.img_name = img_name
+        self.d_parameters = d_parameters
+
+    def db_write(self, ):
+        self.db = sqlite3.connect(self.db_name)
+        cur = self.db.cursor()
+
+
+        cur.execute('''CREATE TABLE %s (Status TEXT, 
+                                        Rect_coeff REAL, 
+                                        hw_ratio REAL, 
+                                        Contour_area REAL, 
+                                        Rect_area REAL, 
+                                        Rect_perimeter REAL, 
+                                        Extent_coeff REAL, 
+                                        x REAL, 
+                                        y REAL, 
+                                        w REAL, 
+                                        h REAL )''' % self.img_name)
+        # self.d_result.append([arr, (x, y, w, h), rect_coeff, extent, solidity, a_contour, a_rect, p_rect])
+
+        cur.execute('''INSERT INTO %s(Status, 
+                                        Rect_coeff, 
+                                        hw_ratio, 
+                                        Contour_area,
+                                        Rect_area,
+                                        Rect_perimeter,
+                                        Extent_coeff,
+                                        x,
+                                        y,
+                                        w,
+                                        h) VALUES(?,?,?,?,?,?,?,?,?,?,?)'''
+                    % self.img_name, (str(config.MOTION_STATUS), 2, 3, 4, 5, 6, 7, 8, 9, 10, 11))
+
+        self.db.commit()
+
+    def quit(self):
+        self.db.close()
+
 
