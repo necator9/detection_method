@@ -29,7 +29,7 @@ class Detector(threading.Thread):
         self.x_range = (config.MARGIN[0], config.PROC_IMG_RES[0] - config.MARGIN[0])
         self.y_range = (config.MARGIN[1], config.PROC_IMG_RES[1] - config.MARGIN[1])
 
-        self.orig_img_1 = []
+        self.r_orig_img = []
         self.orig_img_2 = []
         self.mog_mask = []
         self.filled_img = []
@@ -38,12 +38,7 @@ class Detector(threading.Thread):
         self.extent_img = []
         self.data_img = []
         self.blank_img = []
-        self.bg_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0], 3), np.uint8)
-        self.rect_mask = []
 
-        self.d_result = []
-        self.e_result = []
-        self.frame_m_status = False
         self.counter = 0
 
     # Main thread routine
@@ -52,39 +47,45 @@ class Detector(threading.Thread):
         self.running = True
 
         while (self.counter < ((len(glob.glob(os.path.join(config.IMG_IN_DIR, "*.jpeg")))) - 1)) and self.running:
+            orig_img = cv2.imread(glob.glob(os.path.join(config.IMG_IN_DIR, "img_%s_*.jpeg" % self.counter))[0])
+            self.r_orig_img, self.mog_mask, self.filtered_img, self.filled_img = self.process_img(orig_img)
 
-            logger.debug("Taking image...")
-            db = DbStore("db1")
-            db.set_params("abc", 1)
-            db.db_write()
-            exit(0)
-            self.orig_img_1 = cv2.imread(glob.glob(os.path.join(config.IMG_IN_DIR, "img_%s_*.jpeg" % self.counter))[0])
-            self.preprocessing()
+            coeffs = DStructure()
+            self.coeff_calc(self.filled_img, coeffs)
+            config.MOTION_STATUS = self.detect(coeffs)
 
+            # self.extent_img = self.check_on_extent(coeffs)
+            # e_coeffs = DStructure()
+            # self.coeff_calc(self.extent_img, coeffs)
+            # config.MOTION_STATUS = self.detect(e_coeffs)
 
-
-            # cv2.imshow('image', self.filled_img)
-            # cv2.waitKey(0)
-            self.d_result = self.coeff_calc(self.filled_img)
-
-            self.extent_img = self.check_on_extent(self.filled_img, self.d_result)
-            # print self.extent_img.shape[:2]
-
-            self.e_result = self.coeff_calc(self.extent_img)
-
-            self.detect(self.d_result)
-
-            self.form_out_img()
-
+            self.form_out_img(coeffs)
             cv2.imshow('image', self.out_img)
             cv2.waitKey(1)
 
 
 
-            # self.save_image()
 
             self.counter += 1
             time.sleep(0)
+
+            # db = DbStore("db1")
+            # db.set_params("abc", 1)
+            # db.db_write()
+            # exit(0)
+
+            # cv2.imshow('image', self.filled_img)
+            # cv2.waitKey(0)
+
+
+            # print self.extent_img.shape[:2]
+
+            # self.e_result = self.coeff_calc(self.extent_img)
+
+
+            # self.save_image()
+
+
             # self.out_data += self.formData(det_res)
         # file = open("/home/ivan/test_ir/data_1000.txt", "w")
         # file.write(self.out_data)
@@ -92,128 +93,92 @@ class Detector(threading.Thread):
 
         self.quit()
 
-    def preprocessing(self):
-        self.orig_img_1 = resize(self.orig_img_1, width=config.PROC_IMG_RES[0], height=config.PROC_IMG_RES[1])
-
-        self.mog_mask = self.mog.apply(self.orig_img_1)
-        _, self.mog_mask = cv2.threshold(self.mog_mask, 127, 255, cv2.THRESH_BINARY)
+    def process_img(self, orig_img):
+        r_orig_img = resize(orig_img, width=config.PROC_IMG_RES[0], height=config.PROC_IMG_RES[1])
+        mog_mask = self.mog.apply(r_orig_img)
+        _, mog_mask = cv2.threshold(mog_mask, 127, 255, cv2.THRESH_BINARY)
 
         if config.F_KERNEL_SIZE[0] > 0 and config.F_KERNEL_SIZE[1] > 0:
-            self.filtered_img = cv2.morphologyEx(self.mog_mask, cv2.MORPH_OPEN, self.filtering_kernel)
+            filtered_img = cv2.morphologyEx(mog_mask, cv2.MORPH_OPEN, self.filtering_kernel)
         else:
-            self.filtered_img = copy.copy(self.mog_mask)
+            filtered_img = copy.copy(mog_mask)
 
-        self.filled_img = cv2.dilate(self.filtered_img, None, iterations=3)
+        filled_img = cv2.dilate(filtered_img, None, iterations=3)
 
-    def detect(self, d_result):
+        return r_orig_img, mog_mask, filtered_img, filled_img
+
+
+    @staticmethod
+    def detect(coeffs):
         config.MOTION_STATUS = False
-        self.frame_m_status = False
 
-        for i in range(len(d_result)):
-            is_coeff_belongs = config.COEFF_RANGE[0] < d_result[i][2] < config.COEFF_RANGE[1]
+        for coeff in coeffs.rect_coef_arr:
+            is_coeff_belongs = config.COEFF_RANGE[0] < coeff < config.COEFF_RANGE[1]
+
             if is_coeff_belongs:
-                config.MOTION_STATUS = True
-                self.frame_m_status = True
+                coeffs.add_o_status(o_status=True)
                 logging.info("Motion detected")
             else:
                 config.MOTION_STATUS = False
+                coeffs.add_o_status(o_status=False)
 
-    def check_on_extent(self, filled_img, d_result):
-        print type(filled_img)
-        if type(filled_img) is np.ndarray:
-            print "kek"
-        else:
-            print "shmek"
-        if len(d_result) > 0 and type(filled_img) is np.ndarray > 0:
-            n = 1
-            for i in range(len(d_result)):
+        return any(coeffs.o_status_arr)
 
-                is_coeff_belongs = -20000 < d_result[i][2] < -10000
-                if d_result[i][3] < 0.6 and is_coeff_belongs:
-                    x, y, w, h = d_result[i][1]
-                    self.rect_mask = np.zeros((h, w), np.uint8)
-                    self.rect_mask[:, :] = filled_img[y:y + h, x:x + w]
+    def check_on_extent(self, coeffs):
+        for extent, rect_coeff, x, y, w, h in zip(coeffs.extent_arr, coeffs.rect_coef_arr,
+                                                  coeffs.x_arr, coeffs.y_arr, coeffs.w_arr, coeffs.h_arr):
 
-                    self.bg_img = np.zeros((h, w), np.uint8)
-                    self.bg_img[:, :w/2 - n] = self.rect_mask[:, :w / 2 - n]
-                    self.bg_img[:, w / 2 + n:] = self.rect_mask[:, w / 2 + n:]
+            is_extent = extent < 0.6
+            is_rect_coeff = -20000 < rect_coeff < -10000
 
-                    filled_img[y:y + h, x:x + w] = self.bg_img[:, :]
-
-                    return filled_img
-        else:
-            filled_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0]), np.uint8)
-            return filled_img
-
-                # cv2.imshow('im', self.filled_img)
+            if is_extent and is_rect_coeff:
+                ex_filled = copy.copy(self.filled_img[y:y + h, x:x + w])
+                cv2.line(ex_filled, (int(w/2), 0), (int(w/2), h), (0, 0, 0), 2)
+                # cv2.imshow('img', ex_filled)
                 # cv2.waitKey(0)
+            else:
+                ex_filled = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0]), np.uint8)
+        else:
+            ex_filled = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0]), np.uint8)
+
+        return ex_filled
 
 
-                # self.bg_img[:, : w/2 - n] = self.filled_img[y:y + h, x: (x + w) / 2 - 1]
-
-                # self.bg_img[:, w / 2 - 1] = self.filled_img[y:y + h, x:((x + w / 2) - 1)]
-                #self.test_img[:, :] = self.filled_img[y:y + h, ((x + w / 2) + 1):x+w]
-
-
-                # black_image[:, :160 - n] = white_image[:, :160 - n]
-                # black_image[:, 160 + n:] = white_image[:, 160 + n:]
-        # if extent[0] > 0:
-        #
-        #     image1 = self.mask[coord[1]:coord[1] + coord[3], coord[0]:coord[0] + coord[2]]
-        #     img_name = "img_%s.jpeg" % self.counter
-        #     path = os.path.join(config.IMG_OUT_DIR, img_name)
-        #     cv2.imwrite(path, image1)
-        #     cv2.imshow('image', image1)
-        #     cv2.waitKey(1)
-            # is_x_belongs = self.x_range[0] < coord[0] < self.x_range[1]
-            # is_x_max_belongs = self.x_range[0] < coord[0] + coord[2] < self.x_range[1]
-            # is_y_belongs = self.y_range[0] < coord[1] < self.y_range[1]
-            # is_y_max_belongs = self.y_range[0] < coord[1] + coord[3] < self.y_range[1]
-
-    def coeff_calc(self, filled_img):
-        d_result = list()
+    @staticmethod
+    def coeff_calc(filled_img, coeffs):
         _, cnts, _ = cv2.findContours(filled_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        for arr in cnts:
-            a_contour = cv2.contourArea(arr)
-            x, y, w, h = cv2.boundingRect(arr)
-            a_rect = w * h
-            p_rect = 2 * (h + w)
+        for contour in cnts:
+            contour_a = cv2.contourArea(contour)
+            x, y, w, h = cv2.boundingRect(contour)
+            rect_a = w * h
+            rect_p = 2 * (h + w)
+            extent = round(float(contour_a) / rect_a, 3)
 
             if float(h) / w > 0.7:
                 k = 1.0
             else:
                 k = -1.0
 
-            hull = cv2.convexHull(arr)
-            hull_area = cv2.contourArea(hull)
-            # solidity = round(float(a_contour) / hull_area, 3)
-            solidity = 0
-            extent = round(float(a_contour) / a_rect, 3)
-            # rect = cv2.minAreaRect(arr)
-            # box = cv2.boxPoints(rect)
-            # box = np.int0(box)
-
             # coeff(k * ((2.0 * w * h + 2 * w ** 2 + h) / w), 1) # Kirill suggestion
-            rect_coeff = round(a_contour * k * ((h ** 2 + 2 * h * w + w ** 2) / (h * w * 4.0)), 3)
-            d_result.append([arr, (x, y, w, h), rect_coeff, extent, solidity, a_contour, a_rect, p_rect])
+            rect_coef = round(contour_a * k * ((h ** 2 + 2 * h * w + w ** 2) / (h * w * 4.0)), 3)
+            coeffs.add(contour=contour, x=x, y=y, w=w, h=h, rect_coef=rect_coef, extent=extent, contour_a=contour_a,
+                       rect_a=rect_a, rect_p=rect_p)
 
-        return d_result
-
-    def form_out_img(self):
-        self.orig_img_2 = copy.copy(self.orig_img_1)
-        self.data_img = np.zeros((config.PROC_IMG_RES[1] * 4, config.PROC_IMG_RES[0], 3), np.uint8)
-        self.blank_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0] * 2, 3), np.uint8)
-        self.extent_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0]), np.uint8)
+    def form_out_img(self, coeffs):
+        self.orig_img_2 = copy.copy(self.r_orig_img)
+        self.blank_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0], 3), np.uint8)
+        self.data_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0], 3), np.uint8)
+        # self.extent_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0]), np.uint8)
 
         self.draw_on_mog_mask()
         self.draw_on_filtered_img()
         self.draw_on_filled_img()
-        self.draw_on_orig_img_1()
-        self.draw_on_orig_img_2()
+        self.draw_on_orig_img_1(coeffs)
+        self.draw_on_orig_img_2(coeffs)
         self.draw_on_extent_img()
-        self.draw_on_data_img()
-        self.draw_on_blank_img()
+        self.draw_on_data_img(coeffs)
+        # self.draw_on_blank_img()
 
         self.extent_img = cv2.cvtColor(self.extent_img, cv2.COLOR_GRAY2BGR)
         self.mog_mask = cv2.cvtColor(self.mog_mask, cv2.COLOR_GRAY2BGR)
@@ -222,13 +187,13 @@ class Detector(threading.Thread):
 
         print 1, self.filled_img.shape[:2]
         print 2, self.blank_img.shape[:2]
-        h_stack1 = np.hstack((self.mog_mask, self.filtered_img))
-        h_stack2 = np.hstack((self.filled_img, self.extent_img))
-        h_stack3 = np.hstack((self.orig_img_2, self.orig_img_1))
-        h_stack4 = self.blank_img
+        print 3, self.extent_img.shape[:2]
 
-        self.out_img = np.vstack((h_stack1, h_stack2, h_stack3, h_stack4))
-        self.out_img = np.hstack((self.out_img, self.data_img))
+        h_stack1 = np.hstack((self.mog_mask, self.filtered_img, self.filled_img))
+        h_stack2 = np.hstack((self.extent_img, self.data_img, self.blank_img))
+        h_stack3 = np.hstack((self.orig_img_2, self.r_orig_img, self.blank_img))
+
+        self.out_img = np.vstack((h_stack1, h_stack2, h_stack3))
 
     def draw_on_mog_mask(self):
         cv2.putText(self.mog_mask, str("MOG2 mask"), (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
@@ -242,71 +207,29 @@ class Detector(threading.Thread):
         cv2.putText(self.filled_img, str("Filled image"), (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
                     (255, 255, 255), 1, cv2.LINE_AA)
 
-    def draw_on_orig_img_1(self):
-        cv2.putText(self.orig_img_1, "Rectangle area", (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+    def draw_on_orig_img_1(self, coeffs):
+        cv2.putText(self.r_orig_img, "Rectangle area", (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
                     (0, 0, 255), 1, cv2.LINE_AA)
 
-        for i in range(len(self.d_result)):
-            x, y, w, h = self.d_result[i][1]
-            cv2.rectangle(self.orig_img_1, (x, y), (x + w, y + h), (0, 255, 0), 1)
-            cv2.putText(self.orig_img_1, str(i), (x + 5, y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+        for i in range(len(coeffs.rect_coef_arr)):
+            x, y, w, h = coeffs.x_arr[i], coeffs.y_arr[i], coeffs.w_arr[i], coeffs.h_arr[i]
+            cv2.rectangle(self.r_orig_img, (x, y), (x + w, y + h), (0, 255, 0), 1)
+            cv2.putText(self.r_orig_img, str(i), (x + 5, y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                        (0, 0, 255), 1, cv2.LINE_AA)
+            cv2.putText(self.r_orig_img, str(coeffs.rect_coef_arr[i]), (x + 5, y + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                         (0, 0, 255), 1, cv2.LINE_AA)
 
-    def draw_on_orig_img_2(self):
+    def draw_on_orig_img_2(self, coeffs):
         cv2.putText(self.orig_img_2, "Contour area", (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
                     (0, 0, 255), 1, cv2.LINE_AA)
-        cntrs = []
-        for i in range(len(self.d_result)):
-            cntrs.append(self.d_result[i][0])
-        cv2.drawContours(self.orig_img_2, cntrs, -1, (0, 255, 0), 1)
+        cv2.drawContours(self.orig_img_2, coeffs.contour_arr, -1, (0, 255, 0), 1)
 
     def draw_on_extent_img(self):
         cv2.putText(self.extent_img, "Split", (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
                     (255, 255, 255), 0, cv2.LINE_AA)
 
-    def draw_on_data_img(self):
-        obj_y0 = 15
-        obj_dy = 0
-        interval = 20
-
-        # [arr, (x, y, w, h), rect_coeff, extent, solidity, a_contour, a_rect, p_rect]
-        for i in range(len(self.d_result)):
-            cv2.putText(self.data_img, "Object %s:" % i, (15, obj_y0 + obj_dy), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                        (0, 0, 255), 1, cv2.LINE_AA)
-            obj_dy += interval
-            cv2.putText(self.data_img, "x: %s, y: %s, w: %s, h: %s, " % (self.d_result[i][1][0], self.d_result[i][1][1],
-                                                                         self.d_result[i][1][2],
-                                                                         self.d_result[i][1][3]), (15, obj_y0 + obj_dy),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
-            obj_dy += interval
-            cv2.putText(self.data_img, "h/w ratio: %s" % round((float(self.d_result[i][1][3])/self.d_result[i][1][2]), 3), (15, obj_y0 + obj_dy),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.4,
-                        (255, 255, 255), 1, cv2.LINE_AA)
-            obj_dy += interval
-            is_coeff_belongs = config.COEFF_RANGE[0] < self.d_result[i][2] < config.COEFF_RANGE[1]
-            if is_coeff_belongs:
-                color = (0, 0, 255)
-            else:
-                color = (255, 255, 255)
-            cv2.putText(self.data_img, "Rectangle coeff: %s" % self.d_result[i][2], (15, obj_y0 + obj_dy), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
-                        color, 1, cv2.LINE_AA)
-            obj_dy += interval
-            cv2.putText(self.data_img, "Rectangle area: %s" % self.d_result[i][6], (15, obj_y0 + obj_dy), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
-                        (255, 255, 255), 1, cv2.LINE_AA)
-            obj_dy += interval
-            cv2.putText(self.data_img, "Rectangle perimeter: %s" % self.d_result[i][7], (15, obj_y0 + obj_dy),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.4,
-                        (255, 255, 255), 1, cv2.LINE_AA)
-            obj_dy += interval
-            cv2.putText(self.data_img, "Contour area: %s" % self.d_result[i][5], (15, obj_y0 + obj_dy), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
-                        (255, 255, 255), 1, cv2.LINE_AA)
-            obj_dy += interval
-            cv2.putText(self.data_img, "Extent coeff: %s" % self.d_result[i][3], (15, obj_y0 + obj_dy), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
-                        (255, 255, 255), 1, cv2.LINE_AA)
-            obj_dy += interval
-
-    def draw_on_blank_img(self):
-        cv2.putText(self.blank_img, str(self.frame_m_status), (250, 100), cv2.FONT_HERSHEY_SIMPLEX, 2,
+    def draw_on_data_img(self, coeffs):
+        cv2.putText(self.data_img, str(any(coeffs.o_status_arr)), (80, 95), cv2.FONT_HERSHEY_SIMPLEX, 2,
                     (255, 255, 255), 1, cv2.LINE_AA)
 
     def save_image(self):
@@ -356,6 +279,36 @@ class Detector(threading.Thread):
         self.running = False
         self.stop_event.clear()
         logger.info("Grabber has quit")
+
+
+class DStructure:
+    def __init__(self):
+        self.o_status_arr = []
+        self.contour_arr = []
+        self.x_arr = []
+        self.y_arr = []
+        self.w_arr = []
+        self.h_arr = []
+        self.rect_coef_arr = []
+        self.extent_arr = []
+        self.contour_a_arr = []
+        self.rect_a_arr = []
+        self.rect_p_arr = []
+
+    def add(self, contour, x, y, w, h, rect_coef, extent, contour_a, rect_a, rect_p):
+        self.contour_arr.append(contour)
+        self.x_arr.append(x)
+        self.y_arr.append(y)
+        self.w_arr.append(w)
+        self.h_arr.append(h)
+        self.rect_coef_arr.append(rect_coef)
+        self.extent_arr.append(extent)
+        self.contour_a_arr.append(contour_a)
+        self.rect_a_arr.append(rect_a)
+        self.rect_p_arr.append(rect_p)
+
+    def add_o_status(self, o_status):
+        self.o_status_arr.append(o_status)
 
 
 class DbStore:
