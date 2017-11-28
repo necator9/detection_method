@@ -12,7 +12,7 @@ COEFF_RANGE = (1500, 12000)
 MOTION_STATUS = False            # Initial status of motion
 
 IMG_IN_DIR = "/home/ivan/test_ir/origin/05.10.17_4"
-# IMG_OUT_DIR = "/home/ivan/test_ir/detection/05.10.17_4"
+IMG_OUT_DIR = "/home/ivan/test_ir/detection/05.10.17_4_new"
 
 # IMG_IN_DIR = "/home/ivan/test_ir/origin/25.10.17_3"
 # IMG_OUT_DIR = "/home/ivan/test_ir/detection/25.10.17_3"
