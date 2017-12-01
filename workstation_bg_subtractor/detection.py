@@ -25,9 +25,7 @@ class Detector(threading.Thread):
         if config.F_KERNEL_SIZE[0] > 0 and config.F_KERNEL_SIZE[1] > 0:
             self.filtering_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, config.F_KERNEL_SIZE)
 
-        self.db_name = "DataBase"
         self.img_name = str()
-        self.out_data = ""
         self.x_range = (config.MARGIN[0], config.PROC_IMG_RES[0] - config.MARGIN[0])
         self.y_range = (config.MARGIN[1], config.PROC_IMG_RES[1] - config.MARGIN[1])
 
@@ -46,8 +44,10 @@ class Detector(threading.Thread):
 
     # Main thread routine
     def run(self):
-        if os.path.exists("db1"):
-            os.remove("db1")
+
+        self.db_name = os.path.join(config.IMG_OUT_DIR, self.db_name)
+        self.db = DbStore(self.db_name)
+
         logger.info("Grabber started")
         self.running = True
         files_in_dir = (len(glob.glob(os.path.join(config.IMG_IN_DIR, "*.jpeg")))) - 1
@@ -56,6 +56,7 @@ class Detector(threading.Thread):
             path_to_img = glob.glob(os.path.join(config.IMG_IN_DIR, "img_%s_*.jpeg" % self.counter))[0]
             self.img_name = path_to_img.split("/")[-1]
             record_name = "img_%s" % str(self.counter).zfill(4)
+
             # print self.img_name
             orig_img = cv2.imread(path_to_img)
             self.res_orig_img, self.mog_mask, self.filtered_img, self.filled_img = self.process_img(orig_img)
@@ -68,38 +69,28 @@ class Detector(threading.Thread):
             self.coeff_calc(self.ex_filled_img, e_coeffs)
             self.detect(e_coeffs)
 
-            # self.form_out_img(coeffs, e_coeffs)
-            # cv2.imshow('image', self.out_img)
-            # cv2.waitKey(1)
+            if config.SHOW_IMG:
+                self.form_out_img(coeffs, e_coeffs)
+                cv2.imshow('Detection', self.out_img)
+                cv2.waitKey(1)
 
-            db = DbStore(self.db_name)
-            db.db_write(coeffs, record_name)
+            if config.WRITE_TO_DB:
+                self.db.db_write(coeffs, record_name)
 
-            # self.save_image()
+            if config.SAVE_IMG:
+                self.save_image()
 
             self.counter += 1
             time.sleep(0)
 
-
-
-
-            # cv2.imshow('image', self.filled_img)
-            # cv2.waitKey(0)
-
-
-            # print self.extent_img.shape[:2]
-
-            # self.e_result = self.coeff_calc(self.extent_img)
-
-
-
-
-            # self.out_data += self.formData(det_res)
-        # file = open("/home/ivan/test_ir/data_1000.txt", "w")
-        # file.write(self.out_data)
-        # file.close()
-
+        self.db.quit()
         self.quit()
+
+    def check_on_exist(self):
+        i = 0
+        db_name = os.path.join(config.IMG_OUT_DIR, self.db_name)
+        while os.path.exists(self.db_name):
+            self.db_name += ""
 
     def process_img(self, orig_img):
         r_orig_img = resize(orig_img, width=config.PROC_IMG_RES[0], height=config.PROC_IMG_RES[1])
@@ -219,7 +210,6 @@ class Detector(threading.Thread):
             cv2.putText(img, str(i + 1), (x + 5, y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                         (0, 0, 255), 1, cv2.LINE_AA)
 
-
     @staticmethod
     def draw_contour_area(img, coeffs):
         cv2.drawContours(img, coeffs.contour_arr, -1, (0, 255, 0), 1)
@@ -312,33 +302,16 @@ class DbStore:
         self.db = sqlite3.connect(self.db_name)
         cur = self.db.cursor()
 
-        cur.execute('''CREATE TABLE %s (Status TEXT, 
-                                        Rect_coeff REAL, 
-                                        hw_ratio REAL, 
-                                        Contour_area REAL, 
-                                        Rect_area REAL, 
-                                        Rect_perimeter REAL, 
-                                        Extent_coeff REAL, 
-                                        x REAL, 
-                                        y REAL, 
-                                        w REAL, 
-                                        h REAL )''' % self.img_name)
+        cur.execute('''CREATE TABLE %s (Status TEXT, Rect_coeff REAL, hw_ratio REAL, Contour_area REAL, Rect_area REAL, 
+                                        Rect_perimeter REAL, Extent_coeff REAL, x REAL, y REAL, w REAL, h REAL )'''
+                                        % self.img_name)
 
-        cur.executemany('''INSERT INTO %s(Status, 
-                                        Rect_coeff, 
-                                        hw_ratio, 
-                                        Contour_area,
-                                        Rect_area,
-                                        Rect_perimeter,
-                                        Extent_coeff,
-                                        x,
-                                        y,
-                                        w,
-                                        h) VALUES(?,?,?,?,?,?,?,?,?,?,?)''' % self.img_name, (self.d_parameters.get_arr()))
-
-        self.db.commit()
+        cur.executemany('''INSERT INTO %s(Status, Rect_coeff, hw_ratio, Contour_area, Rect_area, Rect_perimeter,
+                                        Extent_coeff, x, y, w, h) VALUES(?,?,?,?,?,?,?,?,?,?,?)'''
+                                        % self.img_name, (self.d_parameters.get_arr()))
 
     def quit(self):
+        self.db.commit()
         self.db.close()
 
 
