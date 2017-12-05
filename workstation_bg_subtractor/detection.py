@@ -26,6 +26,10 @@ class Detector(threading.Thread):
             self.filtering_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, config.F_KERNEL_SIZE)
 
         self.img_name = str()
+
+        if config.WRITE_TO_DB:
+            self.db = DbStore(self.gen_db_name("Database"))
+
         self.x_range = (config.MARGIN[0], config.PROC_IMG_RES[0] - config.MARGIN[0])
         self.y_range = (config.MARGIN[1], config.PROC_IMG_RES[1] - config.MARGIN[1])
 
@@ -44,10 +48,6 @@ class Detector(threading.Thread):
 
     # Main thread routine
     def run(self):
-
-        self.db_name = os.path.join(config.IMG_OUT_DIR, self.db_name)
-        self.db = DbStore(self.db_name)
-
         logger.info("Grabber started")
         self.running = True
         files_in_dir = (len(glob.glob(os.path.join(config.IMG_IN_DIR, "*.jpeg")))) - 1
@@ -86,11 +86,16 @@ class Detector(threading.Thread):
         self.db.quit()
         self.quit()
 
-    def check_on_exist(self):
+    @staticmethod
+    def gen_db_name(db_name):
         i = 0
-        db_name = os.path.join(config.IMG_OUT_DIR, self.db_name)
-        while os.path.exists(self.db_name):
-            self.db_name += ""
+        while True:
+            db_name_plus_counter = db_name + "_%s" % str(i).zfill(3)
+            db_path_plus_name = os.path.join(config.IMG_OUT_DIR, db_name_plus_counter)
+            if not os.path.exists(db_path_plus_name):
+                return db_path_plus_name
+            else:
+                i += 1
 
     def process_img(self, orig_img):
         r_orig_img = resize(orig_img, width=config.PROC_IMG_RES[0], height=config.PROC_IMG_RES[1])
