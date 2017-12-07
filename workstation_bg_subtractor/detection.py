@@ -43,7 +43,7 @@ class Detector(threading.Thread):
         self.orig_status_img = list()
         self.ex_status_img = list()
         self.ex_orig_img = list()
-
+        
         self.counter = 0
 
     # Main thread routine
