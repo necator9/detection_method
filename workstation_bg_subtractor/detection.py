@@ -55,9 +55,7 @@ class Detector(threading.Thread):
         while self.counter < files_in_dir and self.running:
             path_to_img = glob.glob(os.path.join(config.IMG_IN_DIR, "img_%s_*.jpeg" % self.counter))[0]
             self.img_name = path_to_img.split("/")[-1]
-            record_name = "img_%s" % str(self.counter).zfill(4)
 
-            # print self.img_name
             orig_img = cv2.imread(path_to_img)
             self.res_orig_img, self.mog_mask, self.filtered_img, self.filled_img = self.process_img(orig_img)
             coeffs = DStructure()
@@ -75,15 +73,21 @@ class Detector(threading.Thread):
                 cv2.waitKey(1)
 
             if config.WRITE_TO_DB:
-                self.db.db_write(coeffs, record_name)
+                self.db.db_write(coeffs, self.counter)
 
             if config.SAVE_IMG:
                 self.save_image()
 
+            if not self.check_length(coeffs):
+                logger.error("Exiting main loop. Check on length failed")
+                break
+
             self.counter += 1
             time.sleep(0)
 
-        self.db.quit()
+        if config.WRITE_TO_DB:
+            self.db.quit()
+
         self.quit()
 
     @staticmethod
@@ -164,6 +168,17 @@ class Detector(threading.Thread):
             rect_coef = round(contour_a * k * ((h ** 2 + 2 * h * w + w ** 2) / (h * w * 4.0)), 3)
             coeffs.add(contour=contour, x=x, y=y, w=w, h=h, rect_coef=rect_coef, extent=extent,
                        contour_a=contour_a, rect_a=rect_a, rect_p=rect_p)
+
+    @staticmethod
+    def check_length(coeffs):
+        reference_len = len(coeffs.o_status_arr)
+        for attr, value in coeffs.__dict__.iteritems():
+            if len(value) != reference_len:
+                logger.error("Data structure error. Length of %s != reference_len" % attr)
+
+                return False
+
+        return True
 
     def form_out_img(self, coeffs, e_coeffs):
         self.res_orig_img_2 = copy.copy(self.res_orig_img)
@@ -298,22 +313,24 @@ class DbStore:
     def __init__(self, db_name):
         self.db_name = db_name
         self.db = sqlite3.connect(self.db_name)
-        self.img_name = str()
+        self.table_name = str()
         self.d_parameters = list()
 
-    def db_write(self, coeffs, img_name):
+    def db_write(self, coeffs, counter):
+        self.table_name = "img_%s" % str(counter).zfill(4)
         self.d_parameters = coeffs
-        self.img_name = img_name
         self.db = sqlite3.connect(self.db_name)
         cur = self.db.cursor()
 
         cur.execute('''CREATE TABLE %s (Status TEXT, Rect_coeff REAL, hw_ratio REAL, Contour_area REAL, Rect_area REAL, 
                                         Rect_perimeter REAL, Extent_coeff REAL, x REAL, y REAL, w REAL, h REAL )'''
-                                        % self.img_name)
+                    % self.table_name)
 
         cur.executemany('''INSERT INTO %s(Status, Rect_coeff, hw_ratio, Contour_area, Rect_area, Rect_perimeter,
                                         Extent_coeff, x, y, w, h) VALUES(?,?,?,?,?,?,?,?,?,?,?)'''
-                                        % self.img_name, (self.d_parameters.get_arr()))
+                        % self.table_name, (self.d_parameters.get_arr()))
+
+        self.db.commit()
 
     def quit(self):
         self.db.commit()
