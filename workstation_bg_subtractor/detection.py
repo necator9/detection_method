@@ -11,7 +11,6 @@ import copy
 import sqlite3
 import os
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -28,7 +27,9 @@ class Detector(threading.Thread):
         self.img_name = str()
 
         if config.WRITE_TO_DB:
-            self.db = DbStore(self.gen_db_name("Database"))
+            db_name = self.gen_name("Database")
+            self.db = DbStore(db_name)
+            logger.info("Database name: %s" % db_name)
 
         self.x_range = (config.MARGIN[0], config.PROC_IMG_RES[0] - config.MARGIN[0])
         self.y_range = (config.MARGIN[1], config.PROC_IMG_RES[1] - config.MARGIN[1])
@@ -43,17 +44,14 @@ class Detector(threading.Thread):
         self.orig_status_img = list()
         self.ex_status_img = list()
         self.ex_orig_img = list()
-        
-        self.counter = 0
 
     # Main thread routine
     def run(self):
-        logger.info("Grabber started")
+        logger.info("Detection has started")
         self.running = True
-        files_in_dir = (len(glob.glob(os.path.join(config.IMG_IN_DIR, "*.jpeg")))) - 1
 
-        while self.counter < files_in_dir and self.running:
-            path_to_img = glob.glob(os.path.join(config.IMG_IN_DIR, "img_%s_*.jpeg" % self.counter))[0]
+        while config.COUNTER < config.IMG_IN_DIR and self.running:
+            path_to_img = glob.glob(os.path.join(config.IN_DIR, "img_%s_*.jpeg" % config.COUNTER))[0]
             self.img_name = path_to_img.split("/")[-1]
 
             orig_img = cv2.imread(path_to_img)
@@ -67,22 +65,25 @@ class Detector(threading.Thread):
             self.coeff_calc(self.ex_filled_img, e_coeffs)
             self.detect(e_coeffs)
 
-            if config.SHOW_IMG:
+            if config.SHOW_IMG or config.WRITE_TO_DB:
                 self.form_out_img(coeffs, e_coeffs)
-                cv2.imshow('Detection', self.out_img)
-                cv2.waitKey(1)
+
+                if config.SHOW_IMG:
+                    cv2.imshow('Detection', self.out_img)
+                    cv2.waitKey(1)
+                    time.sleep(0.1)
+
+                if config.SAVE_IMG:
+                    self.save_image()
 
             if config.WRITE_TO_DB:
-                self.db.db_write(coeffs, self.counter)
-
-            if config.SAVE_IMG:
-                self.save_image()
+                self.db.db_write(coeffs, config.COUNTER)
 
             if not self.check_length(coeffs):
                 logger.error("Exiting main loop. Check on length failed")
                 break
 
-            self.counter += 1
+            config.COUNTER += 1
             time.sleep(0)
 
         if config.WRITE_TO_DB:
@@ -91,18 +92,23 @@ class Detector(threading.Thread):
         self.quit()
 
     @staticmethod
-    def gen_db_name(db_name):
+    def gen_name(db_name):
         i = 0
         while True:
-            db_name_plus_counter = db_name + "_%s" % str(i).zfill(3)
-            db_path_plus_name = os.path.join(config.IMG_OUT_DIR, db_name_plus_counter)
-            if not os.path.exists(db_path_plus_name):
-                return db_path_plus_name
+            name_plus_counter = db_name + "_%s" % str(i).zfill(3)
+            path_plus_name = os.path.join(config.OUT_DIR, name_plus_counter)
+            if not os.path.exists(path_plus_name):
+                return path_plus_name
             else:
                 i += 1
 
     def process_img(self, orig_img):
         r_orig_img = resize(orig_img, width=config.PROC_IMG_RES[0], height=config.PROC_IMG_RES[1])
+
+        if config.PROC_IMG_RES[0] != r_orig_img.shape[:2][1] or config.PROC_IMG_RES[1] != r_orig_img.shape[:2][0]:
+            config.PROC_IMG_RES[0] = r_orig_img.shape[:2][1]
+            config.PROC_IMG_RES[1] = r_orig_img.shape[:2][0]
+
         mog_mask = self.mog.apply(r_orig_img)
         _, mog_mask = cv2.threshold(mog_mask, 127, 255, cv2.THRESH_BINARY)
 
@@ -117,12 +123,12 @@ class Detector(threading.Thread):
 
     @staticmethod
     def detect(coeffs):
-        for coeff in coeffs.rect_coef_arr:
-            is_coeff_belongs = config.COEFF_RANGE[0] < coeff < config.COEFF_RANGE[1]
+        for coeff, extent in zip(coeffs.rect_coef_arr, coeffs.extent_arr):
+            is_rect_coeff_belongs = config.COEFF_RANGE[0] < coeff < config.COEFF_RANGE[1]
+            is_extent_belongs = extent > config.EXTENT_THRESHOLD
 
-            if is_coeff_belongs:
+            if is_rect_coeff_belongs and is_extent_belongs:
                 coeffs.add_o_status(o_status=True)
-                logging.info("Motion detected")
             else:
                 coeffs.add_o_status(o_status=False)
 
@@ -207,9 +213,9 @@ class Detector(threading.Thread):
         self.filtered_img = cv2.cvtColor(self.filtered_img, cv2.COLOR_GRAY2BGR)
         self.filled_img = cv2.cvtColor(self.filled_img, cv2.COLOR_GRAY2BGR)
 
-        # print 1, self.filled_img.shape[:2]
-        # print 2, self.ex_status_img.shape[:2]
-        # print 3, self.ex_filled_img.shape[:2]
+        # print 1, self.res_orig_img_2.shape[:2]
+        # print 2, self.res_orig_img.shape[:2]
+        # print 3, self.orig_status_img.shape[:2]
 
         h_stack1 = np.hstack((self.mog_mask, self.filtered_img, self.filled_img))
         h_stack2 = np.hstack((self.res_orig_img_2, self.res_orig_img, self.orig_status_img))
@@ -246,7 +252,7 @@ class Detector(threading.Thread):
     def save_image(self):
         # Save JPEG with proper name
         img_name = self.img_name
-        path = os.path.join(config.IMG_OUT_DIR, img_name)
+        path = os.path.join(config.OUT_DIR, img_name)
         cv2.imwrite(path, self.out_img)
 
     @staticmethod
@@ -269,17 +275,17 @@ class Detector(threading.Thread):
 
 class DStructure:
     def __init__(self):
-        self.o_status_arr = []
-        self.contour_arr = []
-        self.x_arr = []
-        self.y_arr = []
-        self.w_arr = []
-        self.h_arr = []
-        self.rect_coef_arr = []
-        self.extent_arr = []
-        self.contour_a_arr = []
-        self.rect_a_arr = []
-        self.rect_p_arr = []
+        self.o_status_arr = list()
+        self.contour_arr = list()
+        self.x_arr = list()
+        self.y_arr = list()
+        self.w_arr = list()
+        self.h_arr = list()
+        self.rect_coef_arr = list()
+        self.extent_arr = list()
+        self.contour_a_arr = list()
+        self.rect_a_arr = list()
+        self.rect_p_arr = list()
 
     def add(self, contour, x, y, w, h, rect_coef, extent, contour_a, rect_a, rect_p):
         self.contour_arr.append(contour)
