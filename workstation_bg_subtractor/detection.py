@@ -56,13 +56,13 @@ class Detector(threading.Thread):
 
             orig_img = cv2.imread(path_to_img)
             self.res_orig_img, self.mog_mask, self.filtered_img, self.filled_img = self.process_img(orig_img)
-            coeffs = DStructure()
-            self.coeff_calc(self.filled_img, coeffs)
+
+            coeffs = self.coeff_calc(self.filled_img)
             self.detect(coeffs)
 
             self.ex_filled_img, self.ex_orig_img = self.check_on_extent(coeffs)
-            e_coeffs = DStructure()
-            self.coeff_calc(self.ex_filled_img, e_coeffs)
+
+            e_coeffs = self.coeff_calc(self.ex_filled_img)
             self.detect(e_coeffs)
 
             if config.SHOW_IMG or config.WRITE_TO_DB:
@@ -155,7 +155,8 @@ class Detector(threading.Thread):
                    np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0], 3), np.uint8)
 
     @staticmethod
-    def coeff_calc(filled_img, coeffs):
+    def coeff_calc(filled_img):
+        coeffs = DStructure()
         _, cnts, _ = cv2.findContours(filled_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         for contour in cnts:
@@ -174,6 +175,8 @@ class Detector(threading.Thread):
             rect_coef = round(contour_a * k * ((h ** 2 + 2 * h * w + w ** 2) / (h * w * 4.0)), 3)
             coeffs.add(contour=contour, x=x, y=y, w=w, h=h, rect_coef=rect_coef, extent=extent,
                        contour_a=contour_a, rect_a=rect_a, rect_p=rect_p)
+
+        return coeffs
 
     @staticmethod
     def check_length(coeffs):
@@ -343,3 +346,7 @@ class DbStore:
         self.db.close()
 
 
+class Test:
+    def __init__(self):
+        self.a = 1
+        self.b = 2
