@@ -10,6 +10,7 @@ import numpy as np
 import copy
 import sqlite3
 import os
+import csv
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,10 @@ class Detector(threading.Thread):
             self.db = DbStore(db_name)
             logger.info("Database name: %s" % db_name)
 
+        if config.WRITE_TO_CSV:
+            csv_name = self.gen_name("csv_file")
+            self.csv = CSVstore(csv_name)
+
         self.x_range = (config.MARGIN[0], config.PROC_IMG_RES[0] - config.MARGIN[0])
         self.y_range = (config.MARGIN[1], config.PROC_IMG_RES[1] - config.MARGIN[1])
 
@@ -45,6 +50,10 @@ class Detector(threading.Thread):
         self.ex_status_img = list()
         self.ex_orig_img = list()
 
+        self.red_x_border = list()
+        self.red_y_border = list()
+
+        self.coeffs = list()
     # Main thread routine
     def run(self):
         logger.info("Detection has started")
@@ -57,16 +66,16 @@ class Detector(threading.Thread):
             orig_img = cv2.imread(path_to_img)
             self.res_orig_img, self.mog_mask, self.filtered_img, self.filled_img = self.process_img(orig_img)
 
-            coeffs = self.coeff_calc(self.filled_img)
-            self.detect(coeffs)
+            self.coeffs = list()
+            self.coeffs.append(self.coeff_calc(self.filled_img))
 
-            self.ex_filled_img, self.ex_orig_img = self.check_on_extent(coeffs)
+            self.ex_filled_img, self.ex_orig_img = self.check_on_extent(self.coeffs)
+            self.coeffs.append(self.coeff_calc(self.ex_filled_img))
 
-            e_coeffs = self.coeff_calc(self.ex_filled_img)
-            self.detect(e_coeffs)
+            self.detect()
 
-            if config.SHOW_IMG or config.WRITE_TO_DB:
-                self.form_out_img(coeffs, e_coeffs)
+            if config.SHOW_IMG or config.SAVE_IMG:
+                self.form_out_img()
 
                 if config.SHOW_IMG:
                     cv2.imshow('Detection', self.out_img)
@@ -77,17 +86,22 @@ class Detector(threading.Thread):
                     self.save_image()
 
             if config.WRITE_TO_DB:
-                self.db.db_write(coeffs, config.COUNTER)
+                self.db.db_write(self.coeffs[0], config.COUNTER)
 
-            if not self.check_length(coeffs):
+            if config.WRITE_TO_CSV:
+                self.csv.write(self.coeffs[1], self.img_name)
+
+            if not self.check_length(self.coeffs[0]):
                 logger.error("Exiting main loop. Check on length failed")
                 break
 
             config.COUNTER += 1
-            time.sleep(0)
 
         if config.WRITE_TO_DB:
             self.db.quit()
+
+        if config.WRITE_TO_CSV:
+            self.csv.quit()
 
         self.quit()
 
@@ -105,39 +119,64 @@ class Detector(threading.Thread):
     def process_img(self, orig_img):
         r_orig_img = resize(orig_img, width=config.PROC_IMG_RES[0], height=config.PROC_IMG_RES[1])
 
-        if config.PROC_IMG_RES[0] != r_orig_img.shape[:2][1] or config.PROC_IMG_RES[1] != r_orig_img.shape[:2][0]:
+        if config.PROC_IMG_RES[0] != r_orig_img.shape[:2][1] or config.PROC_IMG_RES[1] != r_orig_img.shape[:2][0]: # Remake to run once in loop
             config.PROC_IMG_RES[0] = r_orig_img.shape[:2][1]
             config.PROC_IMG_RES[1] = r_orig_img.shape[:2][0]
 
         mog_mask = self.mog.apply(r_orig_img)
         _, mog_mask = cv2.threshold(mog_mask, 127, 255, cv2.THRESH_BINARY)
 
+        test = copy.copy(r_orig_img)
+        # test[np.where((test > [225, 225, 225]).all(axis=2))] = [0, 255, 0]
+
         if config.F_KERNEL_SIZE[0] > 0 and config.F_KERNEL_SIZE[1] > 0:
             filtered_img = cv2.morphologyEx(mog_mask, cv2.MORPH_OPEN, self.filtering_kernel)
         else:
             filtered_img = copy.copy(mog_mask)
 
-        filled_img = cv2.dilate(filtered_img, None, iterations=3)
+        filtered_img[np.where((test > [220, 220, 220]).all(axis=2))] = [0]
+
+        filled_img = cv2.dilate(filtered_img, None, iterations=config.DILATE_ITERATIONS)
 
         return r_orig_img, mog_mask, filtered_img, filled_img
 
+    def detect(self):
+        for coeffs in self.coeffs:
+            for coeff, extent, x, w in zip(coeffs.rect_coef_arr, coeffs.extent_arr, coeffs.x_arr, coeffs.w_arr):
+                is_rect_coeff_belongs = self.check_rect_coeff(coeff)
+                is_extent_belongs = self.check_extent(extent)
+                is_margin_crossed = self.check_margin(x, w)
+
+                if is_rect_coeff_belongs and is_extent_belongs and not is_margin_crossed:
+                    coeffs.add_o_status(o_status=True)
+                else:
+                    coeffs.add_o_status(o_status=False)
+
     @staticmethod
-    def detect(coeffs):
-        for coeff, extent in zip(coeffs.rect_coef_arr, coeffs.extent_arr):
-            is_rect_coeff_belongs = config.COEFF_RANGE[0] < coeff < config.COEFF_RANGE[1]
-            is_extent_belongs = extent > config.EXTENT_THRESHOLD
+    def check_rect_coeff(coeff):
 
-            if is_rect_coeff_belongs and is_extent_belongs:
-                coeffs.add_o_status(o_status=True)
-            else:
-                coeffs.add_o_status(o_status=False)
+        return config.COEFF_RANGE[0] < coeff < config.COEFF_RANGE[1]
 
-    def check_on_extent(self, coeffs):
+    @staticmethod
+    def check_extent(extent):
+
+        return extent > config.EXTENT_THRESHOLD
+
+    @staticmethod
+    def check_margin(x, w):
+        x_margin = config.X_MARGIN
+        x_left = not (x_margin < x < config.PROC_IMG_RES[0] - x_margin)
+        x_right = not (x_margin < x + w < config.PROC_IMG_RES[0] - x_margin)
+
+        return x_left or x_right
+
+    def check_on_extent(self, d_structs):
+        coeffs = d_structs[0]
         for extent, rect_coeff, x, y, w, h in zip(coeffs.extent_arr, coeffs.rect_coef_arr,
                                                   coeffs.x_arr, coeffs.y_arr, coeffs.w_arr, coeffs.h_arr):
 
             is_extent = extent < 0.6
-            is_rect_coeff = -20000 < rect_coeff < -10000
+            is_rect_coeff = -20000 < rect_coeff < -10000  # Try to reduce to -5000 or so
 
             if is_extent and is_rect_coeff:
                 ex_filled = copy.copy(self.filled_img)
@@ -189,10 +228,15 @@ class Detector(threading.Thread):
 
         return True
 
-    def form_out_img(self, coeffs, e_coeffs):
+    def form_out_img(self):
         self.res_orig_img_2 = copy.copy(self.res_orig_img)
         self.ex_status_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0], 3), np.uint8)
         self.orig_status_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0], 3), np.uint8)
+
+        self.red_x_border = np.zeros((config.PROC_IMG_RES[1], 1, 3), np.uint8)
+        self.red_x_border[:] = (0, 0, 255)
+        self.red_y_border = np.zeros((1, config.PROC_IMG_RES[0] * 3 + 2, 3), np.uint8)
+        self.red_y_border[:] = (0, 0, 255)
 
         self.put_name(self.mog_mask, "MOG2 mask")
         self.put_name(self.filtered_img, "Filtered image")
@@ -204,27 +248,29 @@ class Detector(threading.Thread):
         self.put_name(self.orig_status_img, "Original status")
         self.put_name(self.ex_status_img, "Status after division by extent")
 
-        self.put_status(self.orig_status_img, coeffs)
-        self.put_status(self.ex_status_img, e_coeffs)
+        self.put_line(self.res_orig_img)
 
-        self.draw_rect_area(self.res_orig_img, coeffs)
-        self.draw_rect_area(self.ex_orig_img, e_coeffs)
-        self.draw_contour_area(self.res_orig_img_2, coeffs)
+        self.put_status(self.orig_status_img, self.coeffs[0])
+        self.put_status(self.ex_status_img, self.coeffs[1])
+
+        self.draw_rect_area(self.res_orig_img, self.coeffs[0])
+        self.draw_rect_area(self.ex_orig_img, self.coeffs[1])
+        self.draw_contour_area(self.res_orig_img_2, self.coeffs[0])
 
         self.ex_filled_img = cv2.cvtColor(self.ex_filled_img, cv2.COLOR_GRAY2BGR)
         self.mog_mask = cv2.cvtColor(self.mog_mask, cv2.COLOR_GRAY2BGR)
         self.filtered_img = cv2.cvtColor(self.filtered_img, cv2.COLOR_GRAY2BGR)
         self.filled_img = cv2.cvtColor(self.filled_img, cv2.COLOR_GRAY2BGR)
 
-        # print 1, self.res_orig_img_2.shape[:2]
-        # print 2, self.res_orig_img.shape[:2]
-        # print 3, self.orig_status_img.shape[:2]
+        # print 1, self.mog_mask.shape[:2]
+        # print 2, self.filled_img.shape[:2]
+        # print 3, self.filled_img.shape[:2]
 
-        h_stack1 = np.hstack((self.mog_mask, self.filtered_img, self.filled_img))
-        h_stack2 = np.hstack((self.res_orig_img_2, self.res_orig_img, self.orig_status_img))
-        h_stack3 = np.hstack((self.ex_filled_img, self.ex_orig_img, self.ex_status_img))
+        h_stack1 = np.hstack((self.mog_mask, self.red_x_border, self.filtered_img, self.red_x_border, self.filled_img))
+        h_stack2 = np.hstack((self.res_orig_img_2, self.red_x_border, self.res_orig_img, self.red_x_border, self.orig_status_img))
+        h_stack3 = np.hstack((self.ex_filled_img, self.red_x_border, self.ex_orig_img, self.red_x_border, self.ex_status_img))
 
-        self.out_img = np.vstack((h_stack1, h_stack2, h_stack3))
+        self.out_img = np.vstack((h_stack1, self.red_y_border, h_stack2, self.red_y_border, h_stack3))
 
     @staticmethod
     def put_name(img, text):
@@ -259,15 +305,19 @@ class Detector(threading.Thread):
         cv2.imwrite(path, self.out_img)
 
     @staticmethod
-    def form_data(det_res):
-        string = ""
-        for i in range(len(det_res)):
-            for k in range(len(det_res[i])):
-                for l in range(len(det_res[i][k])):
-                    string += str(det_res[i][k][l]) + ", "
-            string = string[:-2]
-            string += "\n"
-        return string
+    def put_line(img):
+        x_left_up = config.X_MARGIN
+        y_left_up = 0
+        x_left_down = x_left_up
+        y_left_down = config.PROC_IMG_RES[1]
+
+        x_right_up = config.PROC_IMG_RES[0] - config.X_MARGIN - 1
+        y_right_up = 0
+        x_right_down = x_right_up
+        y_right_down = y_left_down
+
+        cv2.line(img, (x_left_up, y_left_up), (x_left_down, y_left_down), (255, 0, 0), 1)
+        cv2.line(img, (x_right_up, y_right_up), (x_right_down, y_right_down), (255, 0, 0), 1)
 
     # Stop and quit the thread operation.
     def quit(self):
@@ -306,14 +356,14 @@ class DStructure:
         self.o_status_arr.append(o_status)
 
     def get_arr(self):
-        arr = []
+        arr = list()
         if len(self.o_status_arr) > 0:
             for i in range(len(self.o_status_arr)):
-                arr.append((self.o_status_arr[i], self.rect_coef_arr[i], round(float(self.h_arr[i])/self.w_arr[i], 3),
+                arr.append([self.o_status_arr[i], self.rect_coef_arr[i], round(float(self.h_arr[i])/self.w_arr[i], 3),
                             self.contour_a_arr[i], self.rect_a_arr[i], self.rect_p_arr[i], self.extent_arr[i],
-                            self.x_arr[i], self.y_arr[i], self.w_arr[i], self.h_arr[i]))
+                            self.x_arr[i], self.y_arr[i], self.w_arr[i], self.h_arr[i]])
         else:
-            arr.append((None, None, None, None, None, None, None, None, None, None, None))
+            arr.append([None] * 11)
 
         return arr
 
@@ -346,7 +396,27 @@ class DbStore:
         self.db.close()
 
 
-class Test:
-    def __init__(self):
-        self.a = 1
-        self.b = 2
+class CSVstore:
+    def __init__(self, name):
+        self.name = name + ".csv"
+        print self.name
+        fieldnames = ["Img_name", "Object_no", "Status", "Rect_coeff", "hw_ratio", "Contour_area", "Rect_area",
+                      "Rect_perimeter", "Extent_coeff", "x", "y", "w", "h"]
+        self.f = open(name, 'w')
+        self.writer = csv.DictWriter(self.f, fieldnames=fieldnames)
+        self.writer.writeheader()
+
+    def write(self, coeffs, img_name):
+        for i in range(len(coeffs.o_status_arr)):
+            if coeffs.rect_coef_arr[i] < -15000:
+                continue
+            self.writer.writerow({"Img_name": img_name, "Object_no": i + 1, "Status": coeffs.o_status_arr[i],
+                                  "Rect_coeff": coeffs.rect_coef_arr[i],
+                                  "hw_ratio": round(float(coeffs.h_arr[i])/coeffs.w_arr[i], 3),
+                                  "Contour_area": coeffs.contour_a_arr[i], "Rect_area": coeffs.rect_a_arr[i],
+                                  "Rect_perimeter": coeffs.rect_p_arr[i], "Extent_coeff": coeffs.extent_arr[i],
+                                  "x": coeffs.x_arr[i], "y": coeffs.y_arr[i], "w": coeffs.w_arr[i], "h": coeffs.h_arr[i]})
+
+
+    def quit(self):
+        self.f.close()
