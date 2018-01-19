@@ -14,11 +14,11 @@ X_MARGIN = 0
 # Global variables for internal usage
 MOTION_STATUS = bool()
 
-IN_DIR = "/home/ivan/test_ir/origin/05.10.17/1/"
-OUT_DIR = "/home/ivan/test_ir/detection/05.10.17/1_brightness/"
+IN_DIR = "/home/ivan/test_ir/origin/25.10.17/1/"
+OUT_DIR = "/home/ivan/test_ir/detection/25.10.17/1_brightness/"
 
-SAVE_IMG = True
-WRITE_TO_DB = True
+SAVE_IMG = False
+WRITE_TO_DB = False
 SHOW_IMG = False
 WRITE_TO_CSV = False
 

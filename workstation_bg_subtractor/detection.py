@@ -49,11 +49,13 @@ class Detector(threading.Thread):
         self.orig_status_img = list()
         self.ex_status_img = list()
         self.ex_orig_img = list()
+        self.brightness_mask = list()
 
         self.red_x_border = list()
         self.red_y_border = list()
 
         self.coeffs = list()
+
     # Main thread routine
     def run(self):
         logger.info("Detection has started")
@@ -64,10 +66,11 @@ class Detector(threading.Thread):
             self.img_name = path_to_img.split("/")[-1]
 
             orig_img = cv2.imread(path_to_img)
-            self.res_orig_img, self.mog_mask, self.filtered_img, self.filled_img = self.process_img(orig_img)
+            self.res_orig_img, self.mog_mask, self.filtered_img, self.filled_img, self.brightness_mask = \
+                self.process_img(orig_img)
 
             self.coeffs = list()
-            self.coeffs.append(self.coeff_calc(self.filled_img))
+            self.coeffs.append(self.coeff_calc(self.filled_img, self.brightness_mask))
 
             self.ex_filled_img, self.ex_orig_img = self.check_on_extent(self.coeffs)
             self.coeffs.append(self.coeff_calc(self.ex_filled_img))
@@ -126,19 +129,19 @@ class Detector(threading.Thread):
         mog_mask = self.mog.apply(r_orig_img)
         _, mog_mask = cv2.threshold(mog_mask, 127, 255, cv2.THRESH_BINARY)
 
-        test = copy.copy(r_orig_img)
-        # test[np.where((test > [225, 225, 225]).all(axis=2))] = [0, 255, 0]
-
         if config.F_KERNEL_SIZE[0] > 0 and config.F_KERNEL_SIZE[1] > 0:
             filtered_img = cv2.morphologyEx(mog_mask, cv2.MORPH_OPEN, self.filtering_kernel)
         else:
             filtered_img = copy.copy(mog_mask)
 
-        filtered_img[np.where((test > [220, 220, 220]).all(axis=2))] = [0]
+        brightness_mask = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0], 3), np.uint8)
+
+        brightness_mask[np.where((r_orig_img > [220, 220, 220]).all(axis=2))] = [255]
+        brightness_mask = cv2.cvtColor(brightness_mask, cv2.COLOR_BGR2GRAY)
 
         filled_img = cv2.dilate(filtered_img, None, iterations=config.DILATE_ITERATIONS)
 
-        return r_orig_img, mog_mask, filtered_img, filled_img
+        return r_orig_img, mog_mask, filtered_img, filled_img, brightness_mask
 
     def detect(self):
         for coeffs in self.coeffs:
@@ -194,13 +197,36 @@ class Detector(threading.Thread):
                    np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0], 3), np.uint8)
 
     @staticmethod
-    def coeff_calc(filled_img):
-        coeffs = DStructure()
+    def coeff_calc(filled_img, brightness_mask=None):
+        coef_ob = Obj_properties()
         _, cnts, _ = cv2.findContours(filled_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        if brightness_mask is not None:
+            _, br_cnts, _ = cv2.findContours(brightness_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         for contour in cnts:
             contour_a = cv2.contourArea(contour)
             x, y, w, h = cv2.boundingRect(contour)
+            if brightness_mask is not None:
+               X = set(range(x, x + w))
+               Y = set(range(y, y + h))
+
+               for br_contour in br_cnts:
+                   x_br, y_br, w_br, h_br = cv2.boundingRect(br_contour)
+                   X_br = set(range(x_br, x_br + w_br))
+                   Y_br = set(range(y_br, y_br + h_br))
+
+                   if len(X & X_br and Y & Y_br) > 0:
+                       x_cross_range = list(X & X_br and Y & Y_br)
+                       y_cross_range = list(Y & Y_br and X & X_br)
+                       x_cross_b_rect = x_cross_range[0]
+                       w_cross_b_rect = x_cross_range[-1] - x_cross_range[0]
+                       y_cross_b_rect = y_cross_range[0]
+                       h_cross_b_rect = y_cross_range[-1] - y_cross_range[0]
+                       coef_ob.add(x_br_cross=x_cross_b_rect, y_br_cross=y_cross_b_rect, w_br_cross=w_cross_b_rect,
+                                   h_br_cross=h_cross_b_rect)
+                       pass
+
             rect_a = w * h
             rect_p = 2 * (h + w)
             extent = round(float(contour_a) / rect_a, 3)
@@ -210,12 +236,23 @@ class Detector(threading.Thread):
             else:
                 k = -1.0
 
+
             # coeff(k * ((2.0 * w * h + 2 * w ** 2 + h) / w), 1) # Kirill suggestion
             rect_coef = round(contour_a * k * ((h ** 2 + 2 * h * w + w ** 2) / (h * w * 4.0)), 3)
-            coeffs.add(contour=contour, x=x, y=y, w=w, h=h, rect_coef=rect_coef, extent=extent,
-                       contour_a=contour_a, rect_a=rect_a, rect_p=rect_p)
+            coef_ob.add(contour=contour, x=x, y=y, w=w, h=h, rect_coef=rect_coef, extent=extent,
+                        contour_a=contour_a, rect_a=rect_a, rect_p=rect_p)
 
-        return coeffs
+
+            # mutual_area = list()
+            #
+            # for br_contour in br_cnts:
+            #     for br_x, br_y in br_contour[0]:
+            #         for x, y, w, h in zip(coef_ob.x_arr, coef_ob.y_arr, coef_ob.w_arr, coef_ob.h_arr):
+            #             if x <= br_x <= x + w:
+            #                 if y <= br_y <= y + h:
+            #                     pass
+
+        return coef_ob
 
     @staticmethod
     def check_length(coeffs):
@@ -326,26 +363,42 @@ class Detector(threading.Thread):
         logger.info("Grabber has quit")
 
 
-class DStructure:
+class Obj_properties:
+    # TODO change structure from lis
     def __init__(self):
         self.o_status_arr = list()
         self.contour_arr = list()
+
         self.x_arr = list()
         self.y_arr = list()
         self.w_arr = list()
         self.h_arr = list()
+
+        self.x_br_cross = list()
+        self.y_br_cross = list()
+        self.w_br_cross = list()
+        self.h_br_cross = list()
+
         self.rect_coef_arr = list()
         self.extent_arr = list()
         self.contour_a_arr = list()
         self.rect_a_arr = list()
         self.rect_p_arr = list()
 
-    def add(self, contour, x, y, w, h, rect_coef, extent, contour_a, rect_a, rect_p):
+    def add(self, contour, x, y, w, h, rect_coef, extent, contour_a, rect_a, rect_p, x_br_cross, y_br_cross,
+            w_br_cross, h_br_cross):
         self.contour_arr.append(contour)
+
         self.x_arr.append(x)
         self.y_arr.append(y)
         self.w_arr.append(w)
         self.h_arr.append(h)
+
+        self.x_br_cross.append(x_br_cross)
+        self.y_br_cross.append(y_br_cross)
+        self.w_br_cross.append(w_br_cross)
+        self.h_br_cross.append(h_br_cross)
+
         self.rect_coef_arr.append(rect_coef)
         self.extent_arr.append(extent)
         self.contour_a_arr.append(contour_a)
