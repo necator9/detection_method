@@ -34,28 +34,15 @@ class Detector(threading.Thread):
         self.x_range = (config.MARGIN[0], config.PROC_IMG_RES[0] - config.MARGIN[0])
         self.y_range = (config.MARGIN[1], config.PROC_IMG_RES[1] - config.MARGIN[1])
 
-        self.res_orig_img = list()
-        self.res_orig_img_2 = list()
-        self.mog_mask = list()
-        self.filled_img = list()
-        self.filtered_img = list()
-        self.ex_filled_img = list()
-        self.orig_status_img = list()
-        self.ex_status_img = list()
-        self.ex_orig_img = list()
-        self.brightness_mask = list()
-
         self.red_x_border = list()
         self.red_y_border = list()
-
-        self.coeffs = list()
 
     # Main thread routine
     def run(self):
         logger.info("Detection has started")
         self.running = True
 
-        pre_process = PreProcess()
+        img_fr = ImgFrame()
 
         while config.COUNTER < config.IMG_IN_DIR and self.running:
             path_to_img = glob.glob(os.path.join(config.IN_DIR, "img_%s_*.jpeg" % config.COUNTER))[0]
@@ -63,14 +50,13 @@ class Detector(threading.Thread):
 
             orig_img = cv2.imread(path_to_img)
 
-            img_fr = ImgFrame()  # TODO test to pass without instance directly
-            img_fr = pre_process.perform(img_fr, orig_img)
+            frame_struct = img_fr.process(orig_img)
 
-            data_frame = DataFrame(img_fr)
-            data_frame.gen_process()
+            data_frame = DataFrame()
+            data_frame.calculate(frame_struct)  # TODO Change to return data frame structure
 
             if config.SHOW_IMG or config.SAVE_IMG:
-                out_img = self.form_out_img(data_frame)
+                out_img = img_fr.form_out_img(data_frame)
 
                 if config.SHOW_IMG:
                     cv2.imshow('Detection', out_img)
@@ -101,7 +87,7 @@ class Detector(threading.Thread):
         self.quit()
 
     @staticmethod
-    def gen_name(db_name):
+    def __gen_name(db_name):
         i = 0
         while True:
             name_plus_counter = db_name + "_%s" % str(i).zfill(3)
@@ -122,105 +108,11 @@ class Detector(threading.Thread):
 
         return True
 
-    def form_out_img(self, frame):
-        # !!!!!!!!!!!!!!
-        self.ex_filled_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0]), np.uint8)
-        self.ex_orig_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0], 3), np.uint8)
-        # !!!!!!!!!!!!!
-        self.res_orig_img_2 = copy.copy(self.res_orig_img)
-        self.ex_status_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0], 3), np.uint8)
-        self.orig_status_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0], 3), np.uint8)
-
-        self.red_x_border = np.zeros((config.PROC_IMG_RES[1], 1, 3), np.uint8)
-        self.red_x_border[:] = (0, 0, 255)
-        self.red_y_border = np.zeros((1, config.PROC_IMG_RES[0] * 3 + 2, 3), np.uint8)
-        self.red_y_border[:] = (0, 0, 255)
-
-        self.put_name(self.mog_mask, "MOG2 mask")
-        self.put_name(self.filtered_img, "Filtered image")
-        self.put_name(self.filled_img, "Filled image")
-        self.put_name(self.res_orig_img, "Rectangle area")
-        self.put_name(self.res_orig_img_2, "Contour area")
-        self.put_name(self.ex_filled_img, "Division by extent (Filled image)")
-        self.put_name(self.ex_orig_img, "Division by extent (Original image)")
-        self.put_name(self.orig_status_img, "Original status")
-        self.put_name(self.ex_status_img, "Status after division by extent")
-
-        self.put_margin(self.res_orig_img)
-
-        self.put_status(self.orig_status_img, frame)
-        # self.put_status(self.ex_status_img, self.coeffs[1])
-
-        self.draw_rect_areas(self.res_orig_img, frame)
-        # self.draw_rect_area(self.ex_orig_img, self.coeffs[1])
-        self.draw_contour_areas(self.res_orig_img_2, frame)
-
-        self.ex_filled_img = cv2.cvtColor(self.ex_filled_img, cv2.COLOR_GRAY2BGR)
-        self.mog_mask = cv2.cvtColor(self.mog_mask, cv2.COLOR_GRAY2BGR)
-        self.filtered_img = cv2.cvtColor(self.filtered_img, cv2.COLOR_GRAY2BGR)
-        self.filled_img = cv2.cvtColor(self.filled_img, cv2.COLOR_GRAY2BGR)
-
-        # print 1, self.mog_mask.shape[:2]
-        # print 2, self.filled_img.shape[:2]
-        # print 3, self.filled_img.shape[:2]
-
-        h_stack1 = np.hstack((self.mog_mask, self.red_x_border, self.filtered_img, self.red_x_border, self.filled_img))
-        h_stack2 = np.hstack(
-            (self.res_orig_img_2, self.red_x_border, self.res_orig_img, self.red_x_border, self.orig_status_img))
-        h_stack3 = np.hstack(
-            (self.ex_filled_img, self.red_x_border, self.ex_orig_img, self.red_x_border, self.ex_status_img))
-
-        out_img = np.vstack((h_stack1, self.red_y_border, h_stack2, self.red_y_border, h_stack3))
-
-        return out_img
-
-    @staticmethod
-    def put_name(img, text):
-        cv2.putText(img, text, (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
-                    (255, 255, 255), 1, cv2.LINE_AA)
-
-    @staticmethod
-    def draw_rect_areas(img, frame):
-        for obj in frame.base_objects:
-            cv2.rectangle(img, (obj.x, obj.y), (obj.x + obj.w, obj.y + obj.h), (0, 255, 0), 1)
-            cv2.putText(img, str(obj.obj_id + 1), (obj.x + 5, obj.y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                        (0, 0, 255), 1, cv2.LINE_AA)
-
-    @staticmethod
-    def draw_contour_areas(img, frame):
-        cv2.drawContours(img, frame.base_contours, -1, (0, 255, 0), 1)
-
-    @staticmethod
-    def put_status(img, frame):
-        cv2.putText(img, str(frame.base_frame_status), (80, 95), cv2.FONT_HERSHEY_SIMPLEX, 2,
-                    (255, 255, 255), 1, cv2.LINE_AA)
-
-    def save_image(self, out_img):
-        # Save JPEG with proper name
-        img_name = self.img_name
-        path = os.path.join(config.OUT_DIR, img_name)
-        cv2.imwrite(path, out_img)
-
-    @staticmethod
-    def put_margin(img):
-        x_left_up = config.X_MARGIN
-        y_left_up = 0
-        x_left_down = x_left_up
-        y_left_down = config.PROC_IMG_RES[1]
-
-        x_right_up = config.PROC_IMG_RES[0] - config.X_MARGIN - 1
-        y_right_up = 0
-        x_right_down = x_right_up
-        y_right_down = y_left_down
-
-        cv2.line(img, (x_left_up, y_left_up), (x_left_down, y_left_down), (255, 0, 0), 1)
-        cv2.line(img, (x_right_up, y_right_up), (x_right_down, y_right_down), (255, 0, 0), 1)
-
     # Stop and quit the thread operation.
     def quit(self):
         self.running = False
         self.stop_event.clear()
-        logger.info("Grabber has quit")
+        logger.info("Detector has quit")
 
 
 class ObjParams(object):
@@ -299,39 +191,41 @@ class ObjParams(object):
         return x_left or x_right
 
 
-# class ImgFrame(object):
-#     def __init__(self):
-#         self.r_img = list()
-#         self.br_mask = list()
-#         self.mog_mask = list()
-#         self.filtered_mask = list()
-#         self.filled_mask = list()
+class ImgStructure(object):
+    def __init__(self, name=str()):
+        self.data = list()
+        self.name = name
 
 
-class PreProcess(object):
+class FrameStructure(object):
     def __init__(self):
+        self.orig_img = ImgStructure("Original image")
+        self.mog_mask = ImgStructure("MOG mask")
+        self.filtered_mask = ImgStructure("Filtered MOG mask")
+        self.filled_mask = ImgStructure("Filled MOG mask")
+        self.ex_filled_mask = ImgStructure("Extent-split mask")
+        self.br_mask = ImgStructure("Brightness mask")
+
+
+class ImgFrame(object):
+    def __init__(self):
+        self.fs = FrameStructure()
         self.__mog = cv2.createBackgroundSubtractorMOG2(detectShadows=True)
         self.__filtering_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, config.F_KERNEL_SIZE)
 
-        self.r_img = list()
-        self.mog_mask = list()
-        self.filtered_mask = list()
-        self.filled_mask = list()
-        self.br_mask = list()
-
-    def perform(self, frame, orig_img):
-        frame.r_img = resize(orig_img, width=config.PROC_IMG_RES[0], height=config.PROC_IMG_RES[1])
-        mog_mask = self.__mog.apply(frame.r_img)
-        _, frame.mog_mask = cv2.threshold(mog_mask, 127, 255, cv2.THRESH_BINARY)
+    def process(self, orig_img):
+        self.fs.orig_img.data = resize(orig_img, width=config.PROC_IMG_RES[0], height=config.PROC_IMG_RES[1])
+        mog_mask = self.__mog.apply(self.fs.orig_img.data)
+        _, self.fs.mog_mask.data = cv2.threshold(mog_mask, 127, 255, cv2.THRESH_BINARY)
 
         if config.F_KERNEL_SIZE[0] > 0 and config.F_KERNEL_SIZE[1] > 0:
-            frame.filtered_mask = cv2.morphologyEx(frame.mog_mask, cv2.MORPH_OPEN, self.__filtering_kernel)
+            self.fs.filtered_mask.data = cv2.morphologyEx(self.fs.mog_mask.data, cv2.MORPH_OPEN, self.__filtering_kernel)
         else:
-            frame.filtered_mask = copy.copy(frame.mog_mask)
+            self.fs.filtered_mask.data = copy.copy(self.fs.mog_mask.data)
 
-        frame.filled_mask = cv2.dilate(frame.filtered_mask, None, iterations=config.DILATE_ITERATIONS)
+        self.fs.filled_mask.data = cv2.dilate(self.fs.filtered_mask.data, None, iterations=config.DILATE_ITERATIONS)
 
-        return frame
+        return self.fs
 
  # def check_ratio(self):
     #     if config.PROC_IMG_RES[0] != self.res_in_img.shape[:2][1] or config.PROC_IMG_RES[1] != self.res_in_img.shape[:2][0]:  # Remake to run once in loop
@@ -339,23 +233,123 @@ class PreProcess(object):
     #         config.PROC_IMG_RES[1] = self.res_in_img.shape[:2][0]
 
 
+    def form_out_img(self, d_frame):
+        # !!!!!!!!!!!!!!
+        self.ex_filled_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0]), np.uint8)
+        self.ex_orig_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0], 3), np.uint8)
+        # !!!!!!!!!!!!!
+        self.res_orig_img_2 = copy.copy(self.fs.orig_img.data)
+        self.ex_status_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0], 3), np.uint8)
+        self.orig_status_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0], 3), np.uint8)
+
+        self.red_x_border = np.zeros((config.PROC_IMG_RES[1], 1, 3), np.uint8)
+        self.red_x_border[:] = (0, 0, 255)
+        self.red_y_border = np.zeros((1, config.PROC_IMG_RES[0] * 3 + 2, 3), np.uint8)
+        self.red_y_border[:] = (0, 0, 255)
+
+        for attr, value in self.fs.__dict__.iteritems():
+            print attr
+            self.put_name(value.data, value.name)
+
+
+        time.sleep(5)
+
+        self.put_name(self.mog_mask, "MOG2 mask")
+        self.put_name(self.filtered_img, "Filtered image")
+        self.put_name(self.filled_img, "Filled image")
+        self.put_name(self.res_orig_img, "Rectangle area")
+        self.put_name(self.res_orig_img_2, "Contour area")
+        self.put_name(self.ex_filled_img, "Division by extent (Filled image)")
+        self.put_name(self.ex_orig_img, "Division by extent (Original image)")
+        self.put_name(self.orig_status_img, "Original status")
+        self.put_name(self.ex_status_img, "Status after division by extent")
+
+        self.put_margin(self.res_orig_img)
+
+        self.put_status(self.orig_status_img, frame)
+        # self.put_status(self.ex_status_img, self.coeffs[1])
+
+        self.draw_rect_areas(self.res_orig_img, frame)
+        # self.draw_rect_area(self.ex_orig_img, self.coeffs[1])
+        self.draw_contour_areas(self.res_orig_img_2, frame)
+
+        self.ex_filled_img = cv2.cvtColor(self.ex_filled_img, cv2.COLOR_GRAY2BGR)
+        self.mog_mask = cv2.cvtColor(self.mog_mask, cv2.COLOR_GRAY2BGR)
+        self.filtered_img = cv2.cvtColor(self.filtered_img, cv2.COLOR_GRAY2BGR)
+        self.filled_img = cv2.cvtColor(self.filled_img, cv2.COLOR_GRAY2BGR)
+
+        # print 1, self.mog_mask.shape[:2]
+        # print 2, self.filled_img.shape[:2]
+        # print 3, self.filled_img.shape[:2]
+
+        h_stack1 = np.hstack(
+            (self.mog_mask, self.red_x_border, self.filtered_img, self.red_x_border, self.filled_img))
+        h_stack2 = np.hstack(
+            (self.res_orig_img_2, self.red_x_border, self.res_orig_img, self.red_x_border, self.orig_status_img))
+        h_stack3 = np.hstack(
+            (self.ex_filled_img, self.red_x_border, self.ex_orig_img, self.red_x_border, self.ex_status_img))
+
+        out_img = np.vstack((h_stack1, self.red_y_border, h_stack2, self.red_y_border, h_stack3))
+
+        return out_img
+
+    @staticmethod
+    def put_name(img, text):
+        cv2.putText(img, text, (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                    (255, 255, 255), 1, cv2.LINE_AA)
+
+    @staticmethod
+    def draw_rect_areas(img, frame):
+        for obj in frame.base_objects:
+            cv2.rectangle(img, (obj.x, obj.y), (obj.x + obj.w, obj.y + obj.h), (0, 255, 0), 1)
+            cv2.putText(img, str(obj.obj_id + 1), (obj.x + 5, obj.y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                        (0, 0, 255), 1, cv2.LINE_AA)
+
+    @staticmethod
+    def draw_contour_areas(img, frame):
+        cv2.drawContours(img, frame.base_contours, -1, (0, 255, 0), 1)
+
+    @staticmethod
+    def put_status(img, frame):
+        cv2.putText(img, str(frame.base_frame_status), (80, 95), cv2.FONT_HERSHEY_SIMPLEX, 2,
+                    (255, 255, 255), 1, cv2.LINE_AA)
+
+    def save_image(self, out_img):
+        # Save JPEG with proper name
+        img_name = self.img_name
+        path = os.path.join(config.OUT_DIR, img_name)
+        cv2.imwrite(path, out_img)
+
+    @staticmethod
+    def put_margin(img):
+        x_left_up = config.X_MARGIN
+        y_left_up = 0
+        x_left_down = x_left_up
+        y_left_down = config.PROC_IMG_RES[1]
+
+        x_right_up = config.PROC_IMG_RES[0] - config.X_MARGIN - 1
+        y_right_up = 0
+        x_right_down = x_right_up
+        y_right_down = y_left_down
+
+        cv2.line(img, (x_left_up, y_left_up), (x_left_down, y_left_down), (255, 0, 0), 1)
+        cv2.line(img, (x_right_up, y_right_up), (x_right_down, y_right_down), (255, 0, 0), 1)
+
+
 class DataFrame(object):
-    def __init__(self, img_fr):
-        self.img_fr = img_fr
+    def __init__(self):
         self.base_frame_status = None  # Can be False/True type
         self.ex_frame_status = None  # Can be False/True type
-
         self.base_objects = list()
         self.ex_objects = list()
-
         self.base_contours = list()
 
-    def gen_process(self):
-        self.base_objects, self.base_contours = self.__basic_process(filled_mask)
-        ex_filled_mask = self.__extent_split_process(filled_mask)
+    def calculate(self, fs):
+        self.base_objects, self.base_contours = self.__basic_process(fs.filled_mask.data)
+        ex_filled_mask = self.__extent_split_process(fs.filled_mask.data)
         self.ex_objects, _ = self.__basic_process(ex_filled_mask)
-        self.base_frame_status = self.take_frame_status(self.base_objects)
-        self.ex_frame_status = self.take_frame_status(self.ex_objects)
+        self.base_frame_status = self.__take_frame_status(self.base_objects)
+        self.ex_frame_status = self.__take_frame_status(self.ex_objects)
 
     @staticmethod
     def __basic_process(filled_mask):
@@ -382,9 +376,9 @@ class DataFrame(object):
 
         return ex_filled
 
-    def __brightness_process(self):
-        brightness_mask[np.where((self.res_in_img > [220, 220, 220]).all(axis=2))] = [255]
-        brightness_mask = cv2.cvtColor(brightness_mask, cv2.COLOR_BGR2GRAY)
+    # def __brightness_process(self):
+    #     brightness_mask[np.where((self.res_in_img > [220, 220, 220]).all(axis=2))] = [255]
+    #     brightness_mask = cv2.cvtColor(brightness_mask, cv2.COLOR_BGR2GRAY)
 
     @staticmethod
     def __take_frame_status(objects):
