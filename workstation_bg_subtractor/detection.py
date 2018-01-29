@@ -24,12 +24,12 @@ class Detector(threading.Thread):
 
         if config.WRITE_TO_DB:
             db_name = self.gen_name("Database")
-            self.db = DbStore(db_name)
+            self.db = DbSave(db_name)
             logger.info("Database name: %s" % db_name)
 
         if config.WRITE_TO_CSV:
             csv_name = self.gen_name("csv_file")
-            self.csv = CSVstore(csv_name)
+            self.csv = CsvSave(csv_name)
 
         self.x_range = (config.MARGIN[0], config.PROC_IMG_RES[0] - config.MARGIN[0])
         self.y_range = (config.MARGIN[1], config.PROC_IMG_RES[1] - config.MARGIN[1])
@@ -42,39 +42,36 @@ class Detector(threading.Thread):
         logger.info("Detection has started")
         self.running = True
 
-        img_fr = ImgFrame()
+        img_fr = PreProcess()
 
         while config.COUNTER < config.IMG_IN_DIR and self.running:
             path_to_img = glob.glob(os.path.join(config.IN_DIR, "img_%s_*.jpeg" % config.COUNTER))[0]
             self.img_name = path_to_img.split("/")[-1]
 
-            orig_img = cv2.imread(path_to_img)
-
-            frame_struct = img_fr.process(orig_img)
-
             data_frame = DataFrame()
-            data_frame.calculate(frame_struct)  # TODO Change to return data frame structure
+            draw_img = Draw()
+
+            data_frame.orig_img.data = cv2.imread(path_to_img)
+
+            draw_img.mog_mask.data, draw_img.filtered_mask.data = img_fr.process(data_frame)
+
+            draw_img.ex_filled_mask.data = data_frame.calculate()
 
             if config.SHOW_IMG or config.SAVE_IMG:
-                out_img = img_fr.form_out_img(data_frame)
+                draw_img.form_out_img(data_frame)
 
                 if config.SHOW_IMG:
-                    cv2.imshow('Detection', out_img)
-                    cv2.waitKey(1)
+                    draw_img.show()
                     time.sleep(0.1)
 
                 if config.SAVE_IMG:
-                    self.save_image(out_img)
+                    draw_img.save(self.img_name)
 
-            # if config.WRITE_TO_DB:
-            #     self.db.db_write(self.coeffs[0], config.COUNTER)
-            #
-            # if config.WRITE_TO_CSV:
-            #     self.csv.write(self.coeffs[1], self.img_name)
-            #
-            # if not self.check_length(self.coeffs[0]):
-            #     logger.error("Exiting main loop. Check on length failed")
-            #     break
+            if config.WRITE_TO_DB:
+                self.db.db_write(data_frame, config.COUNTER)
+
+            if config.WRITE_TO_CSV:
+                self.csv.write(data_frame.base_objects, self.img_name)
 
             config.COUNTER += 1
 
@@ -87,7 +84,7 @@ class Detector(threading.Thread):
         self.quit()
 
     @staticmethod
-    def __gen_name(db_name):
+    def gen_name(db_name):
         i = 0
         while True:
             name_plus_counter = db_name + "_%s" % str(i).zfill(3)
@@ -96,17 +93,6 @@ class Detector(threading.Thread):
                 return path_plus_name
             else:
                 i += 1
-
-    @staticmethod
-    def __check_length(coeffs):
-        reference_len = len(coeffs.o_status_arr)
-        for attr, value in coeffs.__dict__.iteritems():
-            if len(value) != reference_len:
-                logger.error("Data structure error. Length of %s != reference_len" % attr)
-
-                return False
-
-        return True
 
     # Stop and quit the thread operation.
     def quit(self):
@@ -124,23 +110,18 @@ class ObjParams(object):
         self.y = int()
         self.w = int()
         self.h = int()
+        self.h_w_ratio = float()
 
-        self.x_br_cross = int()
-        self.y_br_cross = int()
-        self.w_br_cross = int()
-        self.h_br_cross = int()
+        self.x_br_cr = list()
+        self.y_br_cr = list()
+        self.w_br_cr = list()
+        self.h_br_cr = list()
 
         self.contour_area = float()
         self.rect_coef = float()
         self.extent = float()
         self.rect_area = float()
         self.rect_perimeter = float()
-
-    def add_br_crossing(self, x_br_cross, y_br_cross, w_br_cross, h_br_cross):
-        self.x_br_cross = x_br_cross
-        self.y_br_cross = y_br_cross
-        self.w_br_cross = w_br_cross
-        self.h_br_cross = h_br_cross
 
     def process_obj(self, contour):
         self.calc_params(contour)
@@ -149,6 +130,7 @@ class ObjParams(object):
     def calc_params(self, contour):
         self.contour_area = cv2.contourArea(contour)
         self.x, self.y, self.w, self.h = cv2.boundingRect(contour)
+        self.h_w_ratio = round(float(self.h) / self.w, 3)
         self.rect_area = self.w * self.h
         self.rect_perimeter = 2 * (self.h + self.w)
         self.extent = round(float(self.contour_area) / self.rect_area, 3)
@@ -161,6 +143,7 @@ class ObjParams(object):
         # coeff(k * ((2.0 * w * h + 2 * w ** 2 + h) / w), 1) # Kirill suggestion
         self.rect_coef = round(self.contour_area * k * ((self.h ** 2 + 2 * self.h * self.w + self.w ** 2) /
                                                         (self.h * self.w * 4.0)), 3)
+    # TODO Transfer into dataframe class
 
     def detect(self):
         is_rect_coeff_belongs = self.check_rect_coeff(self.rect_coef)
@@ -191,165 +174,56 @@ class ObjParams(object):
         return x_left or x_right
 
 
-class ImgStructure(object):
-    def __init__(self, name=str()):
-        self.data = list()
-        self.name = name
-
-
-class FrameStructure(object):
+class PreProcess(object):
     def __init__(self):
-        self.orig_img = ImgStructure("Original image")
-        self.mog_mask = ImgStructure("MOG mask")
-        self.filtered_mask = ImgStructure("Filtered MOG mask")
-        self.filled_mask = ImgStructure("Filled MOG mask")
-        self.ex_filled_mask = ImgStructure("Extent-split mask")
-        self.br_mask = ImgStructure("Brightness mask")
-
-
-class ImgFrame(object):
-    def __init__(self):
-        self.fs = FrameStructure()
         self.__mog = cv2.createBackgroundSubtractorMOG2(detectShadows=True)
         self.__filtering_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, config.F_KERNEL_SIZE)
 
-    def process(self, orig_img):
-        self.fs.orig_img.data = resize(orig_img, width=config.PROC_IMG_RES[0], height=config.PROC_IMG_RES[1])
-        mog_mask = self.__mog.apply(self.fs.orig_img.data)
-        _, self.fs.mog_mask.data = cv2.threshold(mog_mask, 127, 255, cv2.THRESH_BINARY)
+    def process(self, d_frame):
+
+        orig_img = resize(d_frame.orig_img.data, width=config.PROC_IMG_RES[0], height=config.PROC_IMG_RES[1])
+
+        mog_mask = self.__mog.apply(orig_img)
+        _, mog_mask = cv2.threshold(mog_mask, 127, 255, cv2.THRESH_BINARY)
 
         if config.F_KERNEL_SIZE[0] > 0 and config.F_KERNEL_SIZE[1] > 0:
-            self.fs.filtered_mask.data = cv2.morphologyEx(self.fs.mog_mask.data, cv2.MORPH_OPEN, self.__filtering_kernel)
+            filtered_mask = cv2.morphologyEx(mog_mask, cv2.MORPH_OPEN, self.__filtering_kernel)
         else:
-            self.fs.filtered_mask.data = copy.copy(self.fs.mog_mask.data)
+            filtered_mask = copy.copy(mog_mask)
 
-        self.fs.filled_mask.data = cv2.dilate(self.fs.filtered_mask.data, None, iterations=config.DILATE_ITERATIONS)
+        filled_mask = cv2.dilate(filtered_mask, None, iterations=config.DILATE_ITERATIONS)
 
-        return self.fs
+        d_frame.orig_img.data = orig_img
+        d_frame.filled_mask.data = filled_mask
 
- # def check_ratio(self):
-    #     if config.PROC_IMG_RES[0] != self.res_in_img.shape[:2][1] or config.PROC_IMG_RES[1] != self.res_in_img.shape[:2][0]:  # Remake to run once in loop
-    #         config.PROC_IMG_RES[0] = self.res_in_img.shape[:2][1]
-    #         config.PROC_IMG_RES[1] = self.res_in_img.shape[:2][0]
+        return mog_mask, filtered_mask
 
-
-    def form_out_img(self, d_frame):
-        # !!!!!!!!!!!!!!
-        self.ex_filled_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0]), np.uint8)
-        self.ex_orig_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0], 3), np.uint8)
-        # !!!!!!!!!!!!!
-        self.res_orig_img_2 = copy.copy(self.fs.orig_img.data)
-        self.ex_status_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0], 3), np.uint8)
-        self.orig_status_img = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0], 3), np.uint8)
-
-        self.red_x_border = np.zeros((config.PROC_IMG_RES[1], 1, 3), np.uint8)
-        self.red_x_border[:] = (0, 0, 255)
-        self.red_y_border = np.zeros((1, config.PROC_IMG_RES[0] * 3 + 2, 3), np.uint8)
-        self.red_y_border[:] = (0, 0, 255)
-
-        for attr, value in self.fs.__dict__.iteritems():
-            print attr
-            self.put_name(value.data, value.name)
-
-
-        time.sleep(5)
-
-        self.put_name(self.mog_mask, "MOG2 mask")
-        self.put_name(self.filtered_img, "Filtered image")
-        self.put_name(self.filled_img, "Filled image")
-        self.put_name(self.res_orig_img, "Rectangle area")
-        self.put_name(self.res_orig_img_2, "Contour area")
-        self.put_name(self.ex_filled_img, "Division by extent (Filled image)")
-        self.put_name(self.ex_orig_img, "Division by extent (Original image)")
-        self.put_name(self.orig_status_img, "Original status")
-        self.put_name(self.ex_status_img, "Status after division by extent")
-
-        self.put_margin(self.res_orig_img)
-
-        self.put_status(self.orig_status_img, frame)
-        # self.put_status(self.ex_status_img, self.coeffs[1])
-
-        self.draw_rect_areas(self.res_orig_img, frame)
-        # self.draw_rect_area(self.ex_orig_img, self.coeffs[1])
-        self.draw_contour_areas(self.res_orig_img_2, frame)
-
-        self.ex_filled_img = cv2.cvtColor(self.ex_filled_img, cv2.COLOR_GRAY2BGR)
-        self.mog_mask = cv2.cvtColor(self.mog_mask, cv2.COLOR_GRAY2BGR)
-        self.filtered_img = cv2.cvtColor(self.filtered_img, cv2.COLOR_GRAY2BGR)
-        self.filled_img = cv2.cvtColor(self.filled_img, cv2.COLOR_GRAY2BGR)
-
-        # print 1, self.mog_mask.shape[:2]
-        # print 2, self.filled_img.shape[:2]
-        # print 3, self.filled_img.shape[:2]
-
-        h_stack1 = np.hstack(
-            (self.mog_mask, self.red_x_border, self.filtered_img, self.red_x_border, self.filled_img))
-        h_stack2 = np.hstack(
-            (self.res_orig_img_2, self.red_x_border, self.res_orig_img, self.red_x_border, self.orig_status_img))
-        h_stack3 = np.hstack(
-            (self.ex_filled_img, self.red_x_border, self.ex_orig_img, self.red_x_border, self.ex_status_img))
-
-        out_img = np.vstack((h_stack1, self.red_y_border, h_stack2, self.red_y_border, h_stack3))
-
-        return out_img
-
-    @staticmethod
-    def put_name(img, text):
-        cv2.putText(img, text, (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
-                    (255, 255, 255), 1, cv2.LINE_AA)
-
-    @staticmethod
-    def draw_rect_areas(img, frame):
-        for obj in frame.base_objects:
-            cv2.rectangle(img, (obj.x, obj.y), (obj.x + obj.w, obj.y + obj.h), (0, 255, 0), 1)
-            cv2.putText(img, str(obj.obj_id + 1), (obj.x + 5, obj.y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                        (0, 0, 255), 1, cv2.LINE_AA)
-
-    @staticmethod
-    def draw_contour_areas(img, frame):
-        cv2.drawContours(img, frame.base_contours, -1, (0, 255, 0), 1)
-
-    @staticmethod
-    def put_status(img, frame):
-        cv2.putText(img, str(frame.base_frame_status), (80, 95), cv2.FONT_HERSHEY_SIMPLEX, 2,
-                    (255, 255, 255), 1, cv2.LINE_AA)
-
-    def save_image(self, out_img):
-        # Save JPEG with proper name
-        img_name = self.img_name
-        path = os.path.join(config.OUT_DIR, img_name)
-        cv2.imwrite(path, out_img)
-
-    @staticmethod
-    def put_margin(img):
-        x_left_up = config.X_MARGIN
-        y_left_up = 0
-        x_left_down = x_left_up
-        y_left_down = config.PROC_IMG_RES[1]
-
-        x_right_up = config.PROC_IMG_RES[0] - config.X_MARGIN - 1
-        y_right_up = 0
-        x_right_down = x_right_up
-        y_right_down = y_left_down
-
-        cv2.line(img, (x_left_up, y_left_up), (x_left_down, y_left_down), (255, 0, 0), 1)
-        cv2.line(img, (x_right_up, y_right_up), (x_right_down, y_right_down), (255, 0, 0), 1)
+# TODO merge DataFrame and Preprocess classes
 
 
 class DataFrame(object):
     def __init__(self):
+        self.orig_img = ImgStructure("Original image")
+        self.filled_mask = ImgStructure("Filled MOG mask")
+
         self.base_frame_status = None  # Can be False/True type
         self.ex_frame_status = None  # Can be False/True type
         self.base_objects = list()
         self.ex_objects = list()
         self.base_contours = list()
 
-    def calculate(self, fs):
-        self.base_objects, self.base_contours = self.__basic_process(fs.filled_mask.data)
-        ex_filled_mask = self.__extent_split_process(fs.filled_mask.data)
+    def calculate(self):
+        self.base_objects, self.base_contours = self.__basic_process(self.filled_mask.data)
+
+        ex_filled_mask = self.__extent_split_process()
         self.ex_objects, _ = self.__basic_process(ex_filled_mask)
-        self.base_frame_status = self.__take_frame_status(self.base_objects)
+
         self.ex_frame_status = self.__take_frame_status(self.ex_objects)
+        self.base_frame_status = self.__take_frame_status(self.base_objects)
+
+        ex_filled_mask = self.__brightness_process()
+
+        return ex_filled_mask
 
     @staticmethod
     def __basic_process(filled_mask):
@@ -363,22 +237,61 @@ class DataFrame(object):
 
         return objects, contours
 
-    def __extent_split_process(self, filled_mask):
-        ex_filled = np.zeros((1, 1, 1), np.uint8)
+    def __extent_split_process(self):
+        ex_filled_mask = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0]), np.uint8)
         for obj_id, obj in enumerate(self.base_objects):
             is_extent = obj.extent < 0.6
             is_rect_coeff = -20000 < obj.rect_coef < -10000  # Try to reduce to -5000 or so
 
             if is_extent and is_rect_coeff:
-                ex_filled = copy.copy(filled_mask)
-                cv2.line(ex_filled, (obj.x + int(obj.w / 2), 0), (obj.x + int(obj.w / 2), config.PROC_IMG_RES[1]),
-                         (0, 0, 0), 3)
+                ex_filled_mask = copy.copy(self.filled_mask.data)
+                cv2.line(ex_filled_mask,
+                         (obj.x + int(obj.w / 2), 0), (obj.x + int(obj.w / 2), config.PROC_IMG_RES[1]), (0, 0, 0), 3)
 
-        return ex_filled
+        return ex_filled_mask
 
-    # def __brightness_process(self):
-    #     brightness_mask[np.where((self.res_in_img > [220, 220, 220]).all(axis=2))] = [255]
-    #     brightness_mask = cv2.cvtColor(brightness_mask, cv2.COLOR_BGR2GRAY)
+    def __brightness_process(self):
+        brightness_mask = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0], 3), np.uint8)
+        brightness_mask[np.where((self.orig_img.data > [250, 250, 250]).all(axis=2))] = [255]
+        brightness_mask = cv2.cvtColor(brightness_mask, cv2.COLOR_BGR2GRAY)
+        # filtering_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, config.F_KERNEL_SIZE)
+        #
+        # brightness_mask = cv2.morphologyEx(brightness_mask, cv2.MORPH_OPEN, filtering_kernel)
+        # brightness_mask = cv2.dilate(brightness_mask, None, iterations=config.DILATE_ITERATIONS)
+
+        # cv2.imshow("test", brightness_mask)
+        # cv2.waitKey(0)
+
+        _, contours, _ = cv2.findContours(brightness_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        brightness_mask = cv2.cvtColor(brightness_mask, cv2.COLOR_GRAY2BGR)
+        for obj in self.base_objects:
+            area_1 = [obj.x, obj.y, obj.w, obj.h]
+
+            for contour in contours:
+                try:
+                    x_br, y_br, w_br, h_br = cv2.boundingRect(contour)
+                    area_2 = [x_br, y_br, w_br, h_br]
+                    x, y, w, h = self.intersection(area_1, area_2)
+
+
+                    # obj.x_br_cr.append(min(x_cross_range))
+                    # obj.y_br_cr.append(min(y_cross_range))
+                    # obj.w_br_cr.append(max(x_cross_range) - min(x_cross_range))
+                    # obj.h_br_cr.append(max(y_cross_range) - min(y_cross_range))
+
+                    cv2.rectangle(self.orig_img.data, (obj.x, obj.y), (obj.x + obj.w, obj.y + obj.h), (255, 0, 0), 1)
+                    cv2.rectangle(self.orig_img.data, (x_br, y_br), (x_br + w_br, y_br + h_br), (0, 255, 0), 1)
+                    cv2.rectangle(self.orig_img.data, (x, y), (x + w, y + h), (0, 0, 255), -1)
+
+
+                    a = np.vstack((self.orig_img.data, brightness_mask))
+                    cv2.imshow("test", a)
+                    cv2.waitKey(0)
+
+                except ValueError:
+                    continue
+
+        return brightness_mask
 
     @staticmethod
     def __take_frame_status(objects):
@@ -387,19 +300,158 @@ class DataFrame(object):
             status_arr.append(obj.obj_status)
         return any(status_arr)
 
+    def get_base_params(self):
+        db_arr = list()
+        if len(self.base_objects) > 0:
+            for obj in self.base_objects:
+                db_arr.append([obj.obj_status, obj.rect_coef, obj.h_w_ratio, obj.contour_area, obj.rect_area,
+                               obj.rect_perimeter, obj.extent, obj.x, obj.y, obj.w, obj.h])
 
-class DbStore(object):
+        else:
+            db_arr.append([None] * 11)
+
+        return db_arr
+
+    @staticmethod
+    def intersection(a, b):
+        x = max(a[0], b[0])
+        y = max(a[1], b[1])
+        w = min(a[0] + a[2], b[0] + b[2]) - x
+        h = min(a[1] + a[3], b[1] + b[3]) - y
+        if w < 0 or h < 0:
+            return ()  # or (0,0,0,0) ?
+
+        return x, y, w, h
+
+class ImgStructure(object):
+    def __init__(self, name=str()):
+        self.data = np.dtype('uint8')
+        self.name = name
+
+
+class Draw(object):
+    def __init__(self):
+        self.mog_mask = ImgStructure("MOG mask")
+        self.filtered_mask = ImgStructure("Filtered MOG mask")
+        self.filled_mask = ImgStructure("Filled MOG mask")
+
+        self.cont = ImgStructure("Contour area")
+        self.rect_cont = ImgStructure("Rectangle area")
+        self.status = ImgStructure("Original status")
+
+        self.ex_filled_mask = ImgStructure("Extent-split mask")
+        self.ex_rect_cont = ImgStructure("Extent-split image")
+        self.ex_status = ImgStructure("Extent-split status")
+
+        self.out_img = ImgStructure("Detection result")
+
+    def form_out_img(self, d_frame):
+
+        # def check_ratio(self):
+        #     if config.PROC_IMG_RES[0] != self.res_in_img.shape[:2][1] or config.PROC_IMG_RES[1]
+        # != self.res_in_img.shape[:2][0]:  # Remake to run once in loop
+        #         config.PROC_IMG_RES[0] = self.res_in_img.shape[:2][1]
+        #         config.PROC_IMG_RES[1] = self.res_in_img.shape[:2][0]
+
+        self.filled_mask.data = copy.copy(d_frame.filled_mask.data)
+        self.cont.data = copy.copy(d_frame.orig_img.data)
+        self.rect_cont.data = copy.copy(d_frame.orig_img.data)
+        self.ex_rect_cont.data = copy.copy(d_frame.orig_img.data)
+
+        x_border = np.zeros((config.PROC_IMG_RES[1], 1, 3), np.uint8)
+        x_border[:] = (0, 0, 255)
+        y_border = np.zeros((1, config.PROC_IMG_RES[0] * 3 + 2, 3), np.uint8)
+        y_border[:] = (0, 0, 255)
+
+        for attr, value in self.__dict__.iteritems():
+            if attr != "out_img":
+                if len(value.data.shape) == 2:          # TODO make it correctly
+                    value.data = cv2.cvtColor(value.data, cv2.COLOR_GRAY2BGR)
+                if len(value.data.shape) == 0:
+                    value.data = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0], 3), np.uint8)
+
+                self.__put_name(value.data, value.name)
+
+        self.__put_margin(self.rect_cont.data)
+
+        self.__put_status(self.status.data, d_frame.base_frame_status)
+        self.__put_status(self.ex_status.data, d_frame.ex_frame_status)
+
+        self.__draw_rect_areas(self.rect_cont.data, d_frame.base_objects)
+        self.__draw_rect_areas(self.ex_rect_cont.data, d_frame.ex_objects)
+
+        for obj in d_frame.base_objects:
+            for x, y, w, h in zip(obj.x_br_cr, obj.y_br_cr, obj.w_br_cr, obj.h_br_cr):
+                cv2.rectangle(self.ex_filled_mask.data, (x, y), (x + w, y + h), (0, 0, 255), 1)
+
+        self.__draw_contour_areas(self.cont.data, d_frame.base_contours)
+
+        h_stack1 = np.hstack((self.mog_mask.data, x_border, self.filtered_mask.data, x_border, self.filled_mask.data))
+        h_stack2 = np.hstack((self.cont.data, x_border, self.rect_cont.data, x_border, self.status.data))
+        h_stack3 = np.hstack((self.ex_filled_mask.data, x_border, self.ex_rect_cont.data, x_border, self.ex_status.data))
+
+        self.out_img.data = np.vstack((h_stack1, y_border, h_stack2, y_border, h_stack3))
+
+        return self.out_img
+
+    @staticmethod
+    def __put_name(img, text):
+        cv2.putText(img, text, (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+
+    @staticmethod
+    def __draw_rect_areas(img, objects):
+        for obj in objects:
+            cv2.rectangle(img, (obj.x, obj.y), (obj.x + obj.w, obj.y + obj.h), (0, 255, 0), 1)
+            cv2.putText(img, str(obj.obj_id + 1), (obj.x + 5, obj.y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                        (0, 0, 255), 1, cv2.LINE_AA)
+
+    @staticmethod
+    def __draw_contour_areas(img, contours):
+        cv2.drawContours(img, contours, -1, (0, 255, 0), 1)
+
+    @staticmethod
+    def __put_status(img, status):
+        cv2.putText(img, str(status), (80, 95), cv2.FONT_HERSHEY_SIMPLEX, 2,
+                    (255, 255, 255), 1, cv2.LINE_AA)
+
+    @staticmethod
+    def __put_margin(img):
+        x_left_up = config.X_MARGIN
+        y_left_up = 0
+        x_left_down = x_left_up
+        y_left_down = config.PROC_IMG_RES[1]
+
+        x_right_up = config.PROC_IMG_RES[0] - config.X_MARGIN - 1
+        y_right_up = 0
+        x_right_down = x_right_up
+        y_right_down = y_left_down
+
+        cv2.line(img, (x_left_up, y_left_up), (x_left_down, y_left_down), (255, 0, 0), 1)
+        cv2.line(img, (x_right_up, y_right_up), (x_right_down, y_right_down), (255, 0, 0), 1)
+
+    def show(self):
+        cv2.imshow(self.out_img.name, self.out_img.data)
+        cv2.waitKey(1)
+
+    def save(self, img_name):
+        # Save JPEG with proper name
+        path = os.path.join(config.OUT_DIR, img_name)
+        cv2.imwrite(path, self.out_img.data)
+
+
+class DbSave(object):
     def __init__(self, db_name):
         self.db_name = db_name
         self.db = sqlite3.connect(self.db_name)
         self.table_name = str()
-        self.d_parameters = list()
+        self.d_frame = list()
 
-    def db_write(self, coeffs, counter):
+    def db_write(self, d_frame, counter):
         self.table_name = "img_%s" % str(counter).zfill(4)
-        self.d_parameters = coeffs
+        self.d_frame = d_frame
         self.db = sqlite3.connect(self.db_name)
         cur = self.db.cursor()
+        db_arr = self.d_frame.get_base_params()
 
         cur.execute('''CREATE TABLE %s (Status TEXT, Rect_coeff REAL, hw_ratio REAL, Contour_area REAL, Rect_area REAL, 
                                         Rect_perimeter REAL, Extent_coeff REAL, x REAL, y REAL, w REAL, h REAL )'''
@@ -407,7 +459,7 @@ class DbStore(object):
 
         cur.executemany('''INSERT INTO %s(Status, Rect_coeff, hw_ratio, Contour_area, Rect_area, Rect_perimeter,
                                         Extent_coeff, x, y, w, h) VALUES(?,?,?,?,?,?,?,?,?,?,?)'''
-                        % self.table_name, (self.d_parameters.get_arr()))
+                        % self.table_name, db_arr)
 
         self.db.commit()
 
@@ -416,62 +468,23 @@ class DbStore(object):
         self.db.close()
 
 
-class CSVstore(object):
+class CsvSave(object):
     def __init__(self, name):
         self.name = name + ".csv"
         print self.name
         fieldnames = ["Img_name", "Object_no", "Status", "Rect_coeff", "hw_ratio", "Contour_area", "Rect_area",
-                      "Rect_perimeter", "Extent_coeff", "x", "y", "w", "h"]
+                      "Rect_perimeter", "Extent", "x", "y", "w", "h"]
         self.f = open(name, 'w')
         self.writer = csv.DictWriter(self.f, fieldnames=fieldnames)
         self.writer.writeheader()
 
-    def write(self, coeffs, img_name):
-        for i in range(len(coeffs.o_status_arr)):
-            if coeffs.rect_coef_arr[i] < -15000:
-                continue
-            self.writer.writerow({"Img_name": img_name, "Object_no": i + 1, "Status": coeffs.o_status_arr[i],
-                                  "Rect_coeff": coeffs.rect_coef_arr[i],
-                                  "hw_ratio": round(float(coeffs.h_arr[i]) / coeffs.w_arr[i], 3),
-                                  "Contour_area": coeffs.contour_a_arr[i], "Rect_area": coeffs.rect_a_arr[i],
-                                  "Rect_perimeter": coeffs.rect_p_arr[i], "Extent_coeff": coeffs.extent_arr[i],
-                                  "x": coeffs.x_arr[i], "y": coeffs.y_arr[i], "w": coeffs.w_arr[i],
-                                  "h": coeffs.h_arr[i]})
+    def write(self, base_objects, img_name):
+        for i, obj in enumerate(base_objects):
+            self.writer.writerow({"Img_name": img_name, "Object_no": i + 1, "Status": obj.obj_status,
+                                  "Rect_coeff": obj.rect_coef, "hw_ratio": obj.h_w_ratio,
+                                  "Contour_area": obj.contour_area, "Rect_area": obj.rect_area,
+                                  "Rect_perimeter": obj.rect_perimeter, "Extent": obj.extent,
+                                  "x": obj.x, "y": obj.y, "w": obj.w, "h": obj.h})
 
     def quit(self):
         self.f.close()
-
-# def get_arr(self):
-#     arr = list()
-#     if len(self.o_status) > 0:
-#         for i in range(len(self.o_status)):
-#             arr.append([self.o_status[i], self.rect_coef[i], round(float(self.h[i]) / self.w[i], 3),
-#                         self.contour_area[i], self.rect_area[i], self.rect_perimeter[i], self.extent[i],
-#                         self.x[i], self.y[i], self.w[i], self.h[i]])
-#     else:
-#         arr.append([None] * 11)
-#
-#     return arr
-
-
-# if brightness_mask is not None:
-#                _, br_cnts, _ = cv2.findContours(brightness_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-#            if brightness_mask is not None:
-#               X = set(range(x, x + w))
-#               Y = set(range(y, y + h))
-#
-#               for br_contour in br_cnts:
-#                   x_br, y_br, w_br, h_br = cv2.boundingRect(br_contour)
-#                   X_br = set(range(x_br, x_br + w_br))
-#                   Y_br = set(range(y_br, y_br + h_br))
-#
-#                   if len(X & X_br and Y & Y_br) > 0:
-#                       x_cross_range = list(X & X_br and Y & Y_br)
-#                       y_cross_range = list(Y & Y_br and X & X_br)
-#                       x_cross_b_rect = x_cross_range[0]
-#                       w_cross_b_rect = x_cross_range[-1] - x_cross_range[0]
-#                       y_cross_b_rect = y_cross_range[0]
-#                       h_cross_b_rect = y_cross_range[-1] - y_cross_range[0]
-#                       coef_ob.add(x_br_cross=x_cross_b_rect, y_br_cross=y_cross_b_rect, w_br_cross=w_cross_b_rect,
-#                                   h_br_cross=h_cross_b_rect)
-#                       pass
