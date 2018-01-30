@@ -110,12 +110,12 @@ class ObjParams(object):
         self.y = int()
         self.w = int()
         self.h = int()
-        self.h_w_ratio = float()
 
-        self.x_br_cr = list()
-        self.y_br_cr = list()
-        self.w_br_cr = list()
-        self.h_br_cr = list()
+        self.h_w_ratio = float()
+        self.base_rects = [[0, 0, 0, 0]]
+
+        self.br_cr_rects = [[0, 0, 0, 0]]
+        self.br_cr_area = int()
 
         self.contour_area = float()
         self.rect_coef = float()
@@ -143,6 +143,7 @@ class ObjParams(object):
         # coeff(k * ((2.0 * w * h + 2 * w ** 2 + h) / w), 1) # Kirill suggestion
         self.rect_coef = round(self.contour_area * k * ((self.h ** 2 + 2 * self.h * self.w + self.w ** 2) /
                                                         (self.h * self.w * 4.0)), 3)
+
     # TODO Transfer into dataframe class
 
     def detect(self):
@@ -198,6 +199,7 @@ class PreProcess(object):
 
         return mog_mask, filtered_mask
 
+
 # TODO merge DataFrame and Preprocess classes
 
 
@@ -211,6 +213,8 @@ class DataFrame(object):
         self.base_objects = list()
         self.ex_objects = list()
         self.base_contours = list()
+
+        self.br_rects = list()
 
     def calculate(self):
         self.base_objects, self.base_contours = self.__basic_process(self.filled_mask.data)
@@ -259,38 +263,19 @@ class DataFrame(object):
         # brightness_mask = cv2.morphologyEx(brightness_mask, cv2.MORPH_OPEN, filtering_kernel)
         # brightness_mask = cv2.dilate(brightness_mask, None, iterations=config.DILATE_ITERATIONS)
 
-        # cv2.imshow("test", brightness_mask)
-        # cv2.waitKey(0)
-
         _, contours, _ = cv2.findContours(brightness_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         brightness_mask = cv2.cvtColor(brightness_mask, cv2.COLOR_GRAY2BGR)
+
+        self.br_rects = [cv2.boundingRect(contour) for contour in contours]
+
         for obj in self.base_objects:
-            area_1 = [obj.x, obj.y, obj.w, obj.h]
+            base_rect = [obj.x, obj.y, obj.w, obj.h]
+            obj.br_cr_rects = [self.intersection(base_rect, br_rect) for br_rect in self.br_rects]
 
-            for contour in contours:
-                try:
-                    x_br, y_br, w_br, h_br = cv2.boundingRect(contour)
-                    area_2 = [x_br, y_br, w_br, h_br]
-                    x, y, w, h = self.intersection(area_1, area_2)
-
-
-                    # obj.x_br_cr.append(min(x_cross_range))
-                    # obj.y_br_cr.append(min(y_cross_range))
-                    # obj.w_br_cr.append(max(x_cross_range) - min(x_cross_range))
-                    # obj.h_br_cr.append(max(y_cross_range) - min(y_cross_range))
-
-                    cv2.rectangle(self.orig_img.data, (obj.x, obj.y), (obj.x + obj.w, obj.y + obj.h), (255, 0, 0), 1)
-                    cv2.rectangle(self.orig_img.data, (x_br, y_br), (x_br + w_br, y_br + h_br), (0, 255, 0), 1)
-                    cv2.rectangle(self.orig_img.data, (x, y), (x + w, y + h), (0, 0, 255), -1)
-
-
-                    a = np.vstack((self.orig_img.data, brightness_mask))
-                    cv2.imshow("test", a)
-                    cv2.waitKey(0)
-
-                except ValueError:
-                    continue
-
+        #     obj.br_cr_rect = self.intersection(base_rect, obj.br_rect)
+        #
+        #     obj.br_cr_area = sum([w * h for w, h in zip(obj.br_cr_w, obj.br_cr_h)])
+            a = obj.br_cr_rects
         return brightness_mask
 
     @staticmethod
@@ -313,15 +298,22 @@ class DataFrame(object):
         return db_arr
 
     @staticmethod
-    def intersection(a, b):
-        x = max(a[0], b[0])
-        y = max(a[1], b[1])
-        w = min(a[0] + a[2], b[0] + b[2]) - x
-        h = min(a[1] + a[3], b[1] + b[3]) - y
-        if w < 0 or h < 0:
-            return ()  # or (0,0,0,0) ?
+    def intersection(area_1, area_2):
+        x = max(area_1[0], area_2[0])
+        y = max(area_1[1], area_2[1])
+        w = min(area_1[0] + area_1[2], area_2[0] + area_2[2]) - x
+        h = min(area_1[1] + area_1[3], area_2[1] + area_2[3]) - y
 
-        return x, y, w, h
+        if w < 0 or h < 0:
+            return [0, 0, 0, 0]
+
+        return [x, y, w, h]
+
+    def calc(self, areas_1, areas_2):
+        for area_1 in areas_1:
+            intersection = [self.intersection(area_1, area_2) for area_2 in areas_2]
+            print intersection
+
 
 class ImgStructure(object):
     def __init__(self, name=str()):
@@ -365,7 +357,7 @@ class Draw(object):
 
         for attr, value in self.__dict__.iteritems():
             if attr != "out_img":
-                if len(value.data.shape) == 2:          # TODO make it correctly
+                if len(value.data.shape) == 2:  # TODO make it correctly
                     value.data = cv2.cvtColor(value.data, cv2.COLOR_GRAY2BGR)
                 if len(value.data.shape) == 0:
                     value.data = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0], 3), np.uint8)
@@ -379,16 +371,20 @@ class Draw(object):
 
         self.__draw_rect_areas(self.rect_cont.data, d_frame.base_objects)
         self.__draw_rect_areas(self.ex_rect_cont.data, d_frame.ex_objects)
+        self.__draw_rect_areas(self.cont.data, d_frame.br_rects)
 
         for obj in d_frame.base_objects:
-            for x, y, w, h in zip(obj.x_br_cr, obj.y_br_cr, obj.w_br_cr, obj.h_br_cr):
-                cv2.rectangle(self.ex_filled_mask.data, (x, y), (x + w, y + h), (0, 0, 255), 1)
+            for rect in obj.br_cr_rects:
+                x, y, w, h = rect[0], rect[1], rect[2], rect[3]
+                cv2.rectangle(self.rect_cont.data, (x, y), (x + w, y + h), (0, 0, 255), -1)
 
-        self.__draw_contour_areas(self.cont.data, d_frame.base_contours)
+        # self.__draw_contour_areas(self.cont.data, d_frame.base_contours)
+        # self.__draw_contour_areas(self.rect_cont.data, d_frame.base_contours)
 
         h_stack1 = np.hstack((self.mog_mask.data, x_border, self.filtered_mask.data, x_border, self.filled_mask.data))
         h_stack2 = np.hstack((self.cont.data, x_border, self.rect_cont.data, x_border, self.status.data))
-        h_stack3 = np.hstack((self.ex_filled_mask.data, x_border, self.ex_rect_cont.data, x_border, self.ex_status.data))
+        h_stack3 = np.hstack(
+            (self.ex_filled_mask.data, x_border, self.ex_rect_cont.data, x_border, self.ex_status.data))
 
         self.out_img.data = np.vstack((h_stack1, y_border, h_stack2, y_border, h_stack3))
 
@@ -401,13 +397,13 @@ class Draw(object):
     @staticmethod
     def __draw_rect_areas(img, objects):
         for obj in objects:
-            cv2.rectangle(img, (obj.x, obj.y), (obj.x + obj.w, obj.y + obj.h), (0, 255, 0), 1)
+            cv2.rectangle(img, (obj.x, obj.y), (obj.x + obj.w, obj.y + obj.h), (0, 255, 0), 2)
             cv2.putText(img, str(obj.obj_id + 1), (obj.x + 5, obj.y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                         (0, 0, 255), 1, cv2.LINE_AA)
 
     @staticmethod
     def __draw_contour_areas(img, contours):
-        cv2.drawContours(img, contours, -1, (0, 255, 0), 1)
+        cv2.drawContours(img, contours, -1, (255, 0, 0), 1)
 
     @staticmethod
     def __put_status(img, status):
