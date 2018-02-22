@@ -1,6 +1,7 @@
 import logging
 import threading
 import time
+import pickle
 
 import cv2
 from imutils import resize
@@ -22,6 +23,7 @@ class Detector(threading.Thread):
         self.stop_event = stop_ev
         self.img_name = str()
 
+
         if config.WRITE_TO_DB:
             db_name = self.gen_name("Database")
             self.db = DbSave(db_name)
@@ -31,11 +33,6 @@ class Detector(threading.Thread):
             csv_name = self.gen_name("csv_file")
             self.csv = CsvSave(csv_name)
 
-        self.x_range = (config.MARGIN[0], config.PROC_IMG_RES[0] - config.MARGIN[0])
-        self.y_range = (config.MARGIN[1], config.PROC_IMG_RES[1] - config.MARGIN[1])
-
-        self.red_x_border = list()
-        self.red_y_border = list()
 
     # Main thread routine
     def run(self):
@@ -55,7 +52,7 @@ class Detector(threading.Thread):
 
             draw_img.mog_mask.data, draw_img.filtered_mask.data = img_fr.process(data_frame)
 
-            draw_img.ex_filled_mask.data = data_frame.calculate()
+            draw_img.bright_mask.data, draw_img.extent_split_mask.data = data_frame.calculate()
 
             if config.SHOW_IMG or config.SAVE_IMG:
                 draw_img.form_out_img(data_frame)
@@ -68,12 +65,19 @@ class Detector(threading.Thread):
                     draw_img.save(self.img_name)
 
             if config.WRITE_TO_DB:
-                self.db.db_write(data_frame, config.COUNTER)
+                self.db.db_write(data_frame)
 
             if config.WRITE_TO_CSV:
                 self.csv.write(data_frame.base_objects, self.img_name)
 
             config.COUNTER += 1
+
+            a = to_pickle.Test()
+
+            with open('data.pkl', 'wb') as output:
+                pickle.dump(a, output, pickle.HIGHEST_PROTOCOL)
+
+            self.quit()
 
         if config.WRITE_TO_DB:
             self.db.quit()
@@ -104,18 +108,16 @@ class Detector(threading.Thread):
 class ObjParams(object):
     def __init__(self, obj_id=int()):
         self.obj_id = obj_id
-        self.obj_status = bool()
-
-        self.x = int()
-        self.y = int()
-        self.w = int()
-        self.h = int()
+        self.base_status = bool()
+        self.br_status = bool()
+        self.gen_status = bool()
 
         self.h_w_ratio = float()
-        self.base_rects = [[0, 0, 0, 0]]
+        self.base_rect = tuple()
 
         self.br_cr_rects = [[0, 0, 0, 0]]
         self.br_cr_area = int()
+        self.br_ratio = float()
 
         self.contour_area = float()
         self.rect_coef = float()
@@ -129,32 +131,32 @@ class ObjParams(object):
 
     def calc_params(self, contour):
         self.contour_area = cv2.contourArea(contour)
-        self.x, self.y, self.w, self.h = cv2.boundingRect(contour)
-        self.h_w_ratio = round(float(self.h) / self.w, 3)
-        self.rect_area = self.w * self.h
-        self.rect_perimeter = 2 * (self.h + self.w)
-        self.extent = round(float(self.contour_area) / self.rect_area, 3)
+        self.base_rect = x, y, w, h = cv2.boundingRect(contour)
+        self.h_w_ratio = round(float(h) / w, 2)
+        self.rect_area = w * h
+        self.rect_perimeter = 2 * (h + w)
+        self.extent = round(float(self.contour_area) / self.rect_area, 2)
 
-        if float(self.h) / self.w > 0.7:
+        if float(h) / w > 0.7:
             k = 1.0
         else:
             k = -1.0
 
         # coeff(k * ((2.0 * w * h + 2 * w ** 2 + h) / w), 1) # Kirill suggestion
-        self.rect_coef = round(self.contour_area * k * ((self.h ** 2 + 2 * self.h * self.w + self.w ** 2) /
-                                                        (self.h * self.w * 4.0)), 3)
+        self.rect_coef = round(self.contour_area * k * ((h ** 2 + 2 * h * w + w ** 2) /
+                                                        (h * w * 4.0)), 3)
 
     # TODO Transfer into dataframe class
 
     def detect(self):
         is_rect_coeff_belongs = self.check_rect_coeff(self.rect_coef)
         is_extent_belongs = self.check_extent(self.extent)
-        is_margin_crossed = self.check_margin(self.x, self.w)
+        is_margin_crossed = self.check_margin(self.base_rect[0], self.base_rect[2])
 
-        if is_rect_coeff_belongs and is_extent_belongs and not is_margin_crossed:
-            self.obj_status = True
+        if is_rect_coeff_belongs and not is_margin_crossed and is_extent_belongs:
+            self.base_status = True
         else:
-            self.obj_status = False
+            self.base_status = False
 
     @staticmethod
     def check_rect_coeff(coeff):
@@ -183,7 +185,7 @@ class PreProcess(object):
     def process(self, d_frame):
 
         orig_img = resize(d_frame.orig_img.data, width=config.PROC_IMG_RES[0], height=config.PROC_IMG_RES[1])
-
+        self.set_ratio(orig_img)  # TODO Remake to run once in loop
         mog_mask = self.__mog.apply(orig_img)
         _, mog_mask = cv2.threshold(mog_mask, 127, 255, cv2.THRESH_BINARY)
 
@@ -198,6 +200,13 @@ class PreProcess(object):
         d_frame.filled_mask.data = filled_mask
 
         return mog_mask, filtered_mask
+
+    @ staticmethod
+    def set_ratio(img):
+        actual_w, actual_h = img.shape[:2][1], img.shape[:2][0]
+        if config.PROC_IMG_RES[0] != actual_w or config.PROC_IMG_RES[1] != actual_h:
+            config.PROC_IMG_RES[0] = actual_w
+            config.PROC_IMG_RES[1] = actual_h
 
 
 # TODO merge DataFrame and Preprocess classes
@@ -218,16 +227,14 @@ class DataFrame(object):
 
     def calculate(self):
         self.base_objects, self.base_contours = self.__basic_process(self.filled_mask.data)
-
+        bright_mask = self.__brightness_process(self.base_objects)
         ex_filled_mask = self.__extent_split_process()
         self.ex_objects, _ = self.__basic_process(ex_filled_mask)
+        _ = self.__brightness_process(self.ex_objects)
 
-        self.ex_frame_status = self.__take_frame_status(self.ex_objects)
-        self.base_frame_status = self.__take_frame_status(self.base_objects)
+        self.detect()
 
-        ex_filled_mask = self.__brightness_process()
-
-        return ex_filled_mask
+        return bright_mask, ex_filled_mask
 
     @staticmethod
     def __basic_process(filled_mask):
@@ -241,61 +248,51 @@ class DataFrame(object):
 
         return objects, contours
 
+    # TODO remake to crop and analyze only one object, only problem object should be considered further
     def __extent_split_process(self):
-        ex_filled_mask = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0]), np.uint8)
-        for obj_id, obj in enumerate(self.base_objects):
+        ex_filled_mask = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0]), np.uint8) # create minimal image
+        for obj in self.base_objects:
             is_extent = obj.extent < 0.6
             is_rect_coeff = -20000 < obj.rect_coef < -10000  # Try to reduce to -5000 or so
 
-            if is_extent and is_rect_coeff:
-                ex_filled_mask = copy.copy(self.filled_mask.data)
-                cv2.line(ex_filled_mask,
-                         (obj.x + int(obj.w / 2), 0), (obj.x + int(obj.w / 2), config.PROC_IMG_RES[1]), (0, 0, 0), 3)
+            if is_extent and is_rect_coeff and not obj.base_status and not obj.br_status:
+                x, y, w, h = obj.base_rect
+
+                ex_filled_mask[y:y+h, x:x + w] = self.filled_mask.data[y:y+h, x:x + w]
+                cv2.line(ex_filled_mask, (x + int(w / 2), 0), (x + int(w / 2), config.PROC_IMG_RES[1]), (0, 0, 0), 3)
 
         return ex_filled_mask
 
-    def __brightness_process(self):
+    def __brightness_process(self, objects):
         brightness_mask = np.zeros((config.PROC_IMG_RES[1], config.PROC_IMG_RES[0], 3), np.uint8)
-        brightness_mask[np.where((self.orig_img.data > [250, 250, 250]).all(axis=2))] = [255]
+        # if len(self.base_objects) > 0:  # keep it for optimization for BBB
+        brightness_mask[np.where((self.orig_img.data > [220, 220, 220]).all(axis=2))] = [255]
         brightness_mask = cv2.cvtColor(brightness_mask, cv2.COLOR_BGR2GRAY)
-        # filtering_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, config.F_KERNEL_SIZE)
-        #
-        # brightness_mask = cv2.morphologyEx(brightness_mask, cv2.MORPH_OPEN, filtering_kernel)
-        # brightness_mask = cv2.dilate(brightness_mask, None, iterations=config.DILATE_ITERATIONS)
-
         _, contours, _ = cv2.findContours(brightness_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         brightness_mask = cv2.cvtColor(brightness_mask, cv2.COLOR_GRAY2BGR)
 
         self.br_rects = [cv2.boundingRect(contour) for contour in contours]
 
-        for obj in self.base_objects:
-            base_rect = [obj.x, obj.y, obj.w, obj.h]
-            obj.br_cr_rects = [self.intersection(base_rect, br_rect) for br_rect in self.br_rects]
+        for obj in objects:
+            # if obj.base_status: # keep it for optimization for BBB
+            obj.br_cr_rects = [self.intersection(obj.base_rect, br_rect) for br_rect in self.br_rects]
+            obj.br_cr_area = sum([rect[2] * rect[3] for rect in obj.br_cr_rects])
+            obj.br_ratio = round(float(obj.br_cr_area) / obj.rect_area, 3)
+            obj.br_status = obj.br_ratio > config.BRIGHTNESS_THRESHOLD
 
-        #     obj.br_cr_rect = self.intersection(base_rect, obj.br_rect)
-        #
-        #     obj.br_cr_area = sum([w * h for w, h in zip(obj.br_cr_w, obj.br_cr_h)])
-            a = obj.br_cr_rects
         return brightness_mask
+
+    def detect(self):
+        self.base_frame_status = self.__take_frame_status(self.base_objects)
+        self.ex_frame_status = self.__take_frame_status(self.ex_objects)
 
     @staticmethod
     def __take_frame_status(objects):
         status_arr = list()
         for obj in objects:
-            status_arr.append(obj.obj_status)
+            obj.gen_status = obj.base_status and not obj.br_status
+            status_arr.append(obj.gen_status)
         return any(status_arr)
-
-    def get_base_params(self):
-        db_arr = list()
-        if len(self.base_objects) > 0:
-            for obj in self.base_objects:
-                db_arr.append([obj.obj_status, obj.rect_coef, obj.h_w_ratio, obj.contour_area, obj.rect_area,
-                               obj.rect_perimeter, obj.extent, obj.x, obj.y, obj.w, obj.h])
-
-        else:
-            db_arr.append([None] * 11)
-
-        return db_arr
 
     @staticmethod
     def intersection(area_1, area_2):
@@ -323,30 +320,23 @@ class ImgStructure(object):
 
 class Draw(object):
     def __init__(self):
-        self.mog_mask = ImgStructure("MOG mask")
-        self.filtered_mask = ImgStructure("Filtered MOG mask")
-        self.filled_mask = ImgStructure("Filled MOG mask")
+        self.mog_mask = ImgStructure("Original MOG mask")
+        self.filtered_mask = ImgStructure("Filtered mask")
+        self.filled_mask = ImgStructure("Dilated mask")
 
-        self.cont = ImgStructure("Contour area")
-        self.rect_cont = ImgStructure("Rectangle area")
+        self.extent_split_mask = ImgStructure("Extent-split mask")
+        self.rect_cont = ImgStructure(" ")  # Basic detection + Bright areas
         self.status = ImgStructure("Original status")
 
-        self.ex_filled_mask = ImgStructure("Extent-split mask")
-        self.ex_rect_cont = ImgStructure("Extent-split image")
+        self.bright_mask = ImgStructure("Brightness mask")
+        self.ex_rect_cont = ImgStructure("Extent-split")
         self.ex_status = ImgStructure("Extent-split status")
 
         self.out_img = ImgStructure("Detection result")
 
     def form_out_img(self, d_frame):
 
-        # def check_ratio(self):
-        #     if config.PROC_IMG_RES[0] != self.res_in_img.shape[:2][1] or config.PROC_IMG_RES[1]
-        # != self.res_in_img.shape[:2][0]:  # Remake to run once in loop
-        #         config.PROC_IMG_RES[0] = self.res_in_img.shape[:2][1]
-        #         config.PROC_IMG_RES[1] = self.res_in_img.shape[:2][0]
-
         self.filled_mask.data = copy.copy(d_frame.filled_mask.data)
-        self.cont.data = copy.copy(d_frame.orig_img.data)
         self.rect_cont.data = copy.copy(d_frame.orig_img.data)
         self.ex_rect_cont.data = copy.copy(d_frame.orig_img.data)
 
@@ -369,22 +359,18 @@ class Draw(object):
         self.__put_status(self.status.data, d_frame.base_frame_status)
         self.__put_status(self.ex_status.data, d_frame.ex_frame_status)
 
-        self.__draw_rect_areas(self.rect_cont.data, d_frame.base_objects)
-        self.__draw_rect_areas(self.ex_rect_cont.data, d_frame.ex_objects)
-        self.__draw_rect_areas(self.cont.data, d_frame.br_rects)
+        self.__draw_rects(self.rect_cont.data, d_frame.base_objects)
+        self.__draw_rects(self.ex_rect_cont.data, d_frame.ex_objects)
 
-        for obj in d_frame.base_objects:
-            for rect in obj.br_cr_rects:
-                x, y, w, h = rect[0], rect[1], rect[2], rect[3]
-                cv2.rectangle(self.rect_cont.data, (x, y), (x + w, y + h), (0, 0, 255), -1)
+        self.__draw_rects_br_cr(self.rect_cont.data, d_frame.base_objects)
 
         # self.__draw_contour_areas(self.cont.data, d_frame.base_contours)
         # self.__draw_contour_areas(self.rect_cont.data, d_frame.base_contours)
 
         h_stack1 = np.hstack((self.mog_mask.data, x_border, self.filtered_mask.data, x_border, self.filled_mask.data))
-        h_stack2 = np.hstack((self.cont.data, x_border, self.rect_cont.data, x_border, self.status.data))
+        h_stack2 = np.hstack((self.bright_mask.data, x_border, self.rect_cont.data, x_border, self.status.data))
         h_stack3 = np.hstack(
-            (self.ex_filled_mask.data, x_border, self.ex_rect_cont.data, x_border, self.ex_status.data))
+            (self.extent_split_mask.data, x_border, self.ex_rect_cont.data, x_border, self.ex_status.data))
 
         self.out_img.data = np.vstack((h_stack1, y_border, h_stack2, y_border, h_stack3))
 
@@ -395,11 +381,30 @@ class Draw(object):
         cv2.putText(img, text, (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
 
     @staticmethod
-    def __draw_rect_areas(img, objects):
+    def __draw_rects(img, objects):
+
         for obj in objects:
-            cv2.rectangle(img, (obj.x, obj.y), (obj.x + obj.w, obj.y + obj.h), (0, 255, 0), 2)
-            cv2.putText(img, str(obj.obj_id + 1), (obj.x + 5, obj.y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+            if obj.gen_status:
+                color = (0, 0, 255)
+            else:
+                color = (0, 255, 0)
+            x, y, w, h = obj.base_rect
+            cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
+            cv2.putText(img, str(obj.obj_id), (x + 5, y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                         (0, 0, 255), 1, cv2.LINE_AA)
+
+    @staticmethod
+    def __draw_rects_br_cr(img, objects):
+        for obj in objects:
+            for rect in obj.br_cr_rects:
+                x, y, w, h = rect
+                cv2.rectangle(img, (x, y), (x + w, y + h), (0, 0, 255), -1)
+
+    @staticmethod
+    def __draw_rects_br(img, rects):
+        for rect in rects:
+            x, y, w, h = rect
+            cv2.rectangle(img, (x, y), (x + w, y + h), (0, 0, 255), -1)
 
     @staticmethod
     def __draw_contour_areas(img, contours):
@@ -439,25 +444,52 @@ class DbSave(object):
     def __init__(self, db_name):
         self.db_name = db_name
         self.db = sqlite3.connect(self.db_name)
-        self.table_name = str()
-        self.d_frame = list()
+        self.table_name = "Data_for_" + config.OUT_DIR.split("/")[-1]
+        self.d_frame = DataFrame()
+        self.cur = self.db.cursor()
 
-    def db_write(self, d_frame, counter):
-        self.table_name = "img_%s" % str(counter).zfill(4)
+        self.cur.execute('''CREATE TABLE %s (Img_name TEXT, Obj_id INT, Status TEXT, Base_status TEXT, Br_status TEXT,  Rect_coeff REAL, Extent_coeff REAL, 
+                                            Br_ratio REAL, hw_ratio REAL, Contour_area REAL, Rect_area INT, 
+                                            Rect_perimeter INT, Br_cross_area INT, x INT, y INT, w INT, h INT )'''
+                                            % self.table_name)
+
+    def db_write(self, d_frame):
+
         self.d_frame = d_frame
         self.db = sqlite3.connect(self.db_name)
-        cur = self.db.cursor()
-        db_arr = self.d_frame.get_base_params()
 
-        cur.execute('''CREATE TABLE %s (Status TEXT, Rect_coeff REAL, hw_ratio REAL, Contour_area REAL, Rect_area REAL, 
-                                        Rect_perimeter REAL, Extent_coeff REAL, x REAL, y REAL, w REAL, h REAL )'''
-                    % self.table_name)
+        img_name = str(config.COUNTER)
+        db_arr = self.get_base_params(self.d_frame.base_objects, img_name)
 
-        cur.executemany('''INSERT INTO %s(Status, Rect_coeff, hw_ratio, Contour_area, Rect_area, Rect_perimeter,
-                                        Extent_coeff, x, y, w, h) VALUES(?,?,?,?,?,?,?,?,?,?,?)'''
-                        % self.table_name, db_arr)
+        self.cur = self.db.cursor()
+
+        self.cur.executemany('''INSERT INTO %s(Img_name, Obj_id, Status, Base_status, Br_status,  Rect_coeff, Extent_coeff, Br_ratio, hw_ratio, 
+                                              Contour_area, Rect_area, Rect_perimeter, Br_cross_area, x, y, w, h) 
+                                              VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''' % self.table_name, db_arr)
+
+        if len(d_frame.ex_objects) > 0:
+            img_name += "_split"
+            db_split_arr = self.get_base_params(self.d_frame.ex_objects, img_name)
+            self.cur.executemany('''INSERT INTO %s(Img_name, Obj_id, Status, Base_status, Br_status, Rect_coeff, Extent_coeff, Br_ratio, hw_ratio, 
+                                                         Contour_area, Rect_area, Rect_perimeter, Br_cross_area, x, y, w, h) 
+                                                         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''' % self.table_name,
+                                 db_split_arr)
 
         self.db.commit()
+
+
+    @staticmethod
+    def get_base_params(objects, img_name):
+
+        # img_name = str(config.COUNTER).zfill(4)
+        db_arr = list()
+        if len(objects) > 0:
+            for obj in objects:
+                db_arr.append([img_name, obj.obj_id, str(obj.gen_status), str(obj.base_status), str(obj.br_status), obj.rect_coef, obj.extent, obj.br_ratio,
+                               obj.h_w_ratio, obj.contour_area, obj.rect_area, obj.rect_perimeter, obj.br_cr_area,
+                               obj.base_rect[0], obj.base_rect[1], obj.base_rect[2], obj.base_rect[3]])
+
+        return db_arr
 
     def quit(self):
         self.db.commit()
