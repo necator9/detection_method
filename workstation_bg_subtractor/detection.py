@@ -23,7 +23,6 @@ class Detector(threading.Thread):
         self.stop_event = stop_ev
         self.img_name = str()
 
-
         if config.WRITE_TO_DB:
             db_name = self.gen_name("Database")
             self.db = DbSave(db_name)
@@ -33,12 +32,13 @@ class Detector(threading.Thread):
             csv_name = self.gen_name("csv_file")
             self.csv = CsvSave(csv_name)
 
+        if config.WRITE_TO_PICKLE:
+            self.pickle_data = list()
 
     # Main thread routine
     def run(self):
         logger.info("Detection has started")
         self.running = True
-
         img_fr = PreProcess()
 
         while config.COUNTER < config.IMG_IN_DIR and self.running:
@@ -70,20 +70,22 @@ class Detector(threading.Thread):
             if config.WRITE_TO_CSV:
                 self.csv.write(data_frame.base_objects, self.img_name)
 
+            if config.WRITE_TO_PICKLE:
+                self.pickle_data.append(data_frame.base_objects)
+
             config.COUNTER += 1
-
-            a = to_pickle.Test()
-
-            with open('data.pkl', 'wb') as output:
-                pickle.dump(a, output, pickle.HIGHEST_PROTOCOL)
-
-            self.quit()
 
         if config.WRITE_TO_DB:
             self.db.quit()
 
         if config.WRITE_TO_CSV:
             self.csv.quit()
+
+        if config.WRITE_TO_PICKLE:
+            name = "%s_%s_data.pkl" % (config.OUT_DIR.split("/")[-2], config.OUT_DIR.split("/")[-1])
+            path = os.path.join(config.OUT_DIR, name)
+            with open(path, 'wb') as output:
+                pickle.dump(self.pickle_data, output, pickle.HIGHEST_PROTOCOL)
 
         self.quit()
 

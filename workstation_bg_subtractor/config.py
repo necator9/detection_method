@@ -12,8 +12,8 @@ X_MARGIN = 0
 # Global variables for internal usage
 MOTION_STATUS = bool()
 
-IN_DIR = "/home/ivan/test_ir/origin/25.10.17/2"
-OUT_DIR = "/home/ivan/test_ir/detection/25.10.17/2"
+IN_DIR = "/home/ivan/test_ir/origin/05.10.17/3"
+OUT_DIR = "/home/ivan/test_ir/detection/05.10.17/3"
 COUNTER = int()
 IMG_IN_DIR = int()
 
@@ -21,6 +21,7 @@ SAVE_IMG = False
 WRITE_TO_DB = False
 SHOW_IMG = False
 WRITE_TO_CSV = False
+WRITE_TO_PICKLE = False
 
 
 
