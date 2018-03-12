@@ -1,17 +1,18 @@
 import logging
 import threading
 import time
-import pickle
+import glob
+import os
+import copy
 
 import cv2
 from imutils import resize
-import config
-import glob
 import numpy as np
-import copy
-import sqlite3
-import os
+import config
+
+import pickle
 import csv
+import extentions
 
 logger = logging.getLogger(__name__)
 
@@ -23,10 +24,9 @@ class Detector(threading.Thread):
         self.stop_event = stop_ev
         self.img_name = str()
 
-        if config.WRITE_TO_DB:
-            db_name = self.gen_name("Database")
-            self.db = DbSave(db_name)
-            logger.info("Database name: %s" % db_name)
+        self.s = extentions.Saver()
+
+
 
         if config.WRITE_TO_CSV:
             csv_name = self.gen_name("csv_file")
@@ -64,8 +64,7 @@ class Detector(threading.Thread):
                 if config.SAVE_IMG:
                     draw_img.save(self.img_name)
 
-            if config.WRITE_TO_DB:
-                self.db.db_write(data_frame)
+            self.s.save(data_frame)
 
             if config.WRITE_TO_CSV:
                 self.csv.write(data_frame.base_objects, self.img_name)
@@ -74,9 +73,9 @@ class Detector(threading.Thread):
                 self.pickle_data.append(data_frame.base_objects)
 
             config.COUNTER += 1
-
-        if config.WRITE_TO_DB:
-            self.db.quit()
+        #
+        # if config.WRITE_TO_DB:
+        #     self.db.quit()
 
         if config.WRITE_TO_CSV:
             self.csv.quit()
@@ -442,60 +441,7 @@ class Draw(object):
         cv2.imwrite(path, self.out_img.data)
 
 
-class DbSave(object):
-    def __init__(self, db_name):
-        self.db_name = db_name
-        self.db = sqlite3.connect(self.db_name)
-        self.table_name = "Data_for_" + config.OUT_DIR.split("/")[-1]
-        self.d_frame = DataFrame()
-        self.cur = self.db.cursor()
 
-        self.cur.execute('''CREATE TABLE %s (Img_name TEXT, Obj_id INT, Status TEXT, Base_status TEXT, Br_status TEXT,  Rect_coeff REAL, Extent_coeff REAL, 
-                                            Br_ratio REAL, hw_ratio REAL, Contour_area REAL, Rect_area INT, 
-                                            Rect_perimeter INT, Br_cross_area INT, x INT, y INT, w INT, h INT )'''
-                                            % self.table_name)
-
-    def db_write(self, d_frame):
-
-        self.d_frame = d_frame
-        self.db = sqlite3.connect(self.db_name)
-
-        img_name = str(config.COUNTER)
-        db_arr = self.get_base_params(self.d_frame.base_objects, img_name)
-
-        self.cur = self.db.cursor()
-
-        self.cur.executemany('''INSERT INTO %s(Img_name, Obj_id, Status, Base_status, Br_status,  Rect_coeff, Extent_coeff, Br_ratio, hw_ratio, 
-                                              Contour_area, Rect_area, Rect_perimeter, Br_cross_area, x, y, w, h) 
-                                              VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''' % self.table_name, db_arr)
-
-        if len(d_frame.ex_objects) > 0:
-            img_name += "_split"
-            db_split_arr = self.get_base_params(self.d_frame.ex_objects, img_name)
-            self.cur.executemany('''INSERT INTO %s(Img_name, Obj_id, Status, Base_status, Br_status, Rect_coeff, Extent_coeff, Br_ratio, hw_ratio, 
-                                                         Contour_area, Rect_area, Rect_perimeter, Br_cross_area, x, y, w, h) 
-                                                         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''' % self.table_name,
-                                 db_split_arr)
-
-        self.db.commit()
-
-
-    @staticmethod
-    def get_base_params(objects, img_name):
-
-        # img_name = str(config.COUNTER).zfill(4)
-        db_arr = list()
-        if len(objects) > 0:
-            for obj in objects:
-                db_arr.append([img_name, obj.obj_id, str(obj.gen_status), str(obj.base_status), str(obj.br_status), obj.rect_coef, obj.extent, obj.br_ratio,
-                               obj.h_w_ratio, obj.contour_area, obj.rect_area, obj.rect_perimeter, obj.br_cr_area,
-                               obj.base_rect[0], obj.base_rect[1], obj.base_rect[2], obj.base_rect[3]])
-
-        return db_arr
-
-    def quit(self):
-        self.db.commit()
-        self.db.close()
 
 
 class CsvSave(object):
