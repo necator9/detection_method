@@ -13,14 +13,14 @@ X_MARGIN = 0
 MOTION_STATUS = bool()
 
 IN_DIR = "/home/ivan/test_ir/origin/05.10.17/3"
-OUT_DIR = "/home/ivan/test_ir/detection/05.10.17/3"
+OUT_DIR = "/home/ivan/test_ir"
 COUNTER = int()
 IMG_IN_DIR = int()
 
 SAVE_IMG = False
-WRITE_TO_DB = False
+WRITE_TO_DB = True
 SHOW_IMG = False
-WRITE_TO_CSV = False
+# WRITE_TO_CSV = False
 WRITE_TO_PICKLE = False
 
 

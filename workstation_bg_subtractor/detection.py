@@ -9,9 +9,8 @@ import cv2
 from imutils import resize
 import numpy as np
 import config
+import Queue
 
-import pickle
-import csv
 import extentions
 
 logger = logging.getLogger(__name__)
@@ -20,25 +19,17 @@ logger = logging.getLogger(__name__)
 class Detector(threading.Thread):
     def __init__(self, stop_ev):
         super(Detector, self).__init__(name="Detector")
-        self.running = False
-        self.stop_event = stop_ev
+        self.running = False        #TODO do u really need this?
+        self.stop_event = stop_ev   #TODO do u really need this?
         self.img_name = str()
-
-        self.s = extentions.Saver()
-
-
-
-        if config.WRITE_TO_CSV:
-            csv_name = self.gen_name("csv_file")
-            self.csv = CsvSave(csv_name)
-
-        if config.WRITE_TO_PICKLE:
-            self.pickle_data = list()
+        self.data_frame_q = Queue.Queue()
+        self.saver = extentions.Saver(self.data_frame_q)
+        self.saver.start()
 
     # Main thread routine
     def run(self):
         logger.info("Detection has started")
-        self.running = True
+        self.running = True  #TODO do u really need this?
         img_fr = PreProcess()
 
         while config.COUNTER < config.IMG_IN_DIR and self.running:
@@ -64,45 +55,19 @@ class Detector(threading.Thread):
                 if config.SAVE_IMG:
                     draw_img.save(self.img_name)
 
-            self.s.save(data_frame)
-
-            if config.WRITE_TO_CSV:
-                self.csv.write(data_frame.base_objects, self.img_name)
-
-            if config.WRITE_TO_PICKLE:
-                self.pickle_data.append(data_frame.base_objects)
+            # self.saver.save(data_frame)
+            self.data_frame_q.put(data_frame)
 
             config.COUNTER += 1
-        #
-        # if config.WRITE_TO_DB:
-        #     self.db.quit()
 
-        if config.WRITE_TO_CSV:
-            self.csv.quit()
-
-        if config.WRITE_TO_PICKLE:
-            name = "%s_%s_data.pkl" % (config.OUT_DIR.split("/")[-2], config.OUT_DIR.split("/")[-1])
-            path = os.path.join(config.OUT_DIR, name)
-            with open(path, 'wb') as output:
-                pickle.dump(self.pickle_data, output, pickle.HIGHEST_PROTOCOL)
-
+        self.saver.quit()
         self.quit()
-
-    @staticmethod
-    def gen_name(db_name):
-        i = 0
-        while True:
-            name_plus_counter = db_name + "_%s" % str(i).zfill(3)
-            path_plus_name = os.path.join(config.OUT_DIR, name_plus_counter)
-            if not os.path.exists(path_plus_name):
-                return path_plus_name
-            else:
-                i += 1
 
     # Stop and quit the thread operation.
     def quit(self):
-        self.running = False
-        self.stop_event.clear()
+        self.saver.quit()
+        self.running = False  #TODO do u really need this?
+        self.stop_event.clear()  #TODO do u really need this?
         logger.info("Detector has quit")
 
 
@@ -444,23 +409,4 @@ class Draw(object):
 
 
 
-class CsvSave(object):
-    def __init__(self, name):
-        self.name = name + ".csv"
-        print self.name
-        fieldnames = ["Img_name", "Object_no", "Status", "Rect_coeff", "hw_ratio", "Contour_area", "Rect_area",
-                      "Rect_perimeter", "Extent", "x", "y", "w", "h"]
-        self.f = open(name, 'w')
-        self.writer = csv.DictWriter(self.f, fieldnames=fieldnames)
-        self.writer.writeheader()
 
-    def write(self, base_objects, img_name):
-        for i, obj in enumerate(base_objects):
-            self.writer.writerow({"Img_name": img_name, "Object_no": i + 1, "Status": obj.obj_status,
-                                  "Rect_coeff": obj.rect_coef, "hw_ratio": obj.h_w_ratio,
-                                  "Contour_area": obj.contour_area, "Rect_area": obj.rect_area,
-                                  "Rect_perimeter": obj.rect_perimeter, "Extent": obj.extent,
-                                  "x": obj.x, "y": obj.y, "w": obj.w, "h": obj.h})
-
-    def quit(self):
-        self.f.close()
