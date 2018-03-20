@@ -19,6 +19,7 @@ WRITE_TO_PICKLE = False
 
 LOG_LEVEL = "DEBUG"
 PATH_TO_LOGS = "/home/ivan/test_ir/"
+
 # Global variables for internal usage
 MOTION_STATUS = bool()
 

@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
 import glob
-import os
-# import logging.config
+
 import threading
 import time
 import conf
@@ -32,8 +31,6 @@ def blank_fn(*args, **kwargs):
 
 
 def main():
-    # logging.config.fileConfig('logging.conf')
-    # logger = logging.getLogger(__name__)
 
     logger.info("Program has started")
 
