@@ -201,16 +201,27 @@ class Draw(object):
             self.out_img = ImgStructure("Detection result")
             self.draw_img_structure = DrawImgStructure()
             self.img_name = str()
+            self.x_border = np.dtype('uint8')
+            self.y_border = np.dtype('uint8')
+            self.borders_updated_flag = bool()
+
+        else:
+            self.form_out_img = blank_fn
+            self.save = blank_fn
+
+    def update_borders(self):
+        if not self.borders_updated_flag:
+            self.borders_updated_flag = True
 
             self.x_border = np.zeros((conf.PROC_IMG_RES[1], 1, 3), np.uint8)
             self.x_border[:] = (0, 0, 255)
             self.y_border = np.zeros((1, conf.PROC_IMG_RES[0] * 3 + 2, 3), np.uint8)
             self.y_border[:] = (0, 0, 255)
-        else:
-            self.form_out_img = blank_fn
-            self.save = blank_fn
 
     def form_out_img(self, data_frame, draw_frame):
+
+        self.update_borders()
+
         self.draw_img_structure = draw_frame
 
         path_to_img = glob.glob(os.path.join(conf.IN_DIR, "img_%s_*.jpeg" % conf.COUNTER))[0]

@@ -30,11 +30,20 @@ class Detection(threading.Thread):
         DETECTION_LOG.info("Detection has started")
         img_fr = PreProcess()
 
-        while conf.COUNTER < conf.IMG_IN_DIR and self.stop_event.is_set():
-            path_to_img = glob.glob(os.path.join(conf.IN_DIR, "img_%s_*.jpeg" % conf.COUNTER))[0]
+        while self.stop_event.is_set():
+            if conf.IMG_BUFF.processed or not conf.IMG_BUFF.inserted:
+                DETECTION_LOG.info("Waiting for a new frame. Buff has read - {}; Image was passed into buffer - {}"
+                                   .format(conf.IMG_BUFF.processed, conf.IMG_BUFF.inserted))
+                time.sleep(0.1)
+
+                continue
 
             data_frame = DataFrame()
-            data_frame.orig_img = cv2.imread(path_to_img)
+
+            data_frame.orig_img = copy.copy(conf.IMG_BUFF.image)
+            conf.IMG_BUFF.processed = True
+            DETECTION_LOG.debug("image id {}".format(conf.IMG_BUFF.id))
+            # data_frame.__init__ = DataFrame.__init__
 
             draw_frame = DrawImgStructure()
             draw_frame.mog_mask.data, draw_frame.filtered_mask.data = img_fr.process(data_frame)
@@ -50,6 +59,7 @@ class Detection(threading.Thread):
             except Queue.Full:
                 DETECTION_LOG.error("Draw queue is full. Queue size: {}".format(self.data_frame_q.qsize()))
 
+            DETECTION_LOG.debug("Detection iteration number {}".format(conf.COUNTER))
             conf.COUNTER += 1
 
         self.quit()

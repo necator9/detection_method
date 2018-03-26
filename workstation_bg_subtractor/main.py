@@ -7,6 +7,7 @@ import time
 import conf
 import os
 
+import capturing
 import detection
 import extentions
 import detection_logging
@@ -53,6 +54,11 @@ def main():
     detection_thread = detection.Detection(stop_event, data_frame_q, draw_frame_q)
     saver_thread = extentions.Saving(data_frame_q, draw_frame_q)
 
+    if conf.VIRTUAL_CAMERA:
+        capturing_thread = capturing.VirtualCamera(stop_event)
+    else:
+        capturing_thread = capturing.Camera(stop_event)
+
     if not (conf.WRITE_TO_DB or conf.WRITE_TO_PICKLE or conf.SAVE_IMG):
         saver_thread.start = blank_fn
         saver_thread.quit = blank_fn
@@ -64,12 +70,13 @@ def main():
         draw_frame_q.put_nowait = blank_fn
         draw_frame_q.get = blank_fn
 
+    capturing_thread.start()
     detection_thread.start()
     saver_thread.start()
 
     try:
         while stop_event.is_set():
-            logger.info("Progress - %s/%s images" % (conf.COUNTER, conf.IMG_IN_DIR))
+            # logger.info("Progress - %s/%s images" % (conf.COUNTER, conf.IMG_IN_DIR))
             time.sleep(1)
     except KeyboardInterrupt:
         logger.warning("Keyboard Interrupt, threads are going to stop")
