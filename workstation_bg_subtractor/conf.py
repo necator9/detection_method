@@ -23,6 +23,7 @@ SAVE_IMG = True
 WRITE_TO_DB = False
 WRITE_TO_PICKLE = False
 
+SHOW_LOGS = True
 LOG_LEVEL = "INFO"
 PATH_TO_LOGS = "/home/ivan/test_ir/"
 

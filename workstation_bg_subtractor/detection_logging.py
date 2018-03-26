@@ -9,7 +9,7 @@ import threading
 import Queue
 import logging
 from logging.handlers import RotatingFileHandler
-from conf import LOG_LEVEL, PATH_TO_LOGS
+from conf import LOG_LEVEL, PATH_TO_LOGS, SHOW_LOGS
 import sys
 
 # Define a global queue for receiving the methods from the Logger objects and its arguments
@@ -111,7 +111,7 @@ def create_log(log_name, log_hierarchy, log_format='%(asctime)s %(levelname)s %(
     log.setLevel(LOG_LEVEL)
     log.addHandler(file_handler)
 
-    if log_hierarchy == "root":
+    if log_hierarchy == "root" and SHOW_LOGS:
         log.addHandler(console_handler)
 
     # Create and return the log wrapper object
