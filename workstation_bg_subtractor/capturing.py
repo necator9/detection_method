@@ -14,21 +14,32 @@ class VirtualCamera(threading.Thread):
     def __init__(self, stop_ev):
         super(VirtualCamera, self).__init__()
         self.stop_event = stop_ev
+        self.check_dir()
 
     def run(self):
-        CAPTURING_LOG.info("Virtual camera has started")
         i = 0
-        while i < conf.IMG_IN_DIR and self.stop_event.is_set():
+
+        CAPTURING_LOG.info("Virtual camera has started")
+        imgs_in_dir = (len(glob.glob(os.path.join(conf.IN_DIR, "*.jpeg")))) - 1
+        CAPTURING_LOG.info("Files in directory: {}".format(imgs_in_dir))
+
+        while i < imgs_in_dir and self.stop_event.is_set():
             img_buff = ImgBuff()
-            path_to_img = glob.glob(os.path.join(conf.IN_DIR, "img_%s_*.jpeg" % conf.COUNTER))[0]
+            path_to_img = glob.glob(os.path.join(conf.IN_DIR, "img_{}_*.jpeg".format(conf.COUNTER)))[0]
             img_buff.image = cv2.imread(path_to_img)
             img_buff.id = i
-            CAPTURING_LOG.info("Image number {} is captured".format(i))
+            CAPTURING_LOG.info("Image {} has been captured".format(i))
             conf.IMG_BUFF = img_buff
             time.sleep(0.2)
             i += 1
 
         self.quit()
+
+    def check_dir(self):
+        if not os.path.isdir(conf.IN_DIR):
+            CAPTURING_LOG.error("INPUT directory does not exists. Path: {}".format(conf.IN_DIR))
+            time.sleep(2)
+            exit(1)
 
     def quit(self):
         self.stop_event.clear()
@@ -40,7 +51,7 @@ class ImgBuff(object):
         self.processed = bool()
         self.inserted = bool()
 
-        self.id = int() # For debug
+        self.id = int()  # For debug
 
 
 class Camera(threading.Thread):
@@ -76,7 +87,7 @@ class Camera(threading.Thread):
             conf.IMG_BUFF = img_buff
 
             processing_t = time.time() - start_time
-            CAPTURING_LOG.debug("Image shooting takes %s s", processing_t)
+            CAPTURING_LOG.debug("Image shooting takes {}s".format(processing_t))
 
             i += 1
 

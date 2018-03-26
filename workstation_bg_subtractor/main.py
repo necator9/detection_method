@@ -14,17 +14,7 @@ import detection_logging
 import Queue
 
 
-logger = detection_logging.create_log("smartlight.log", "root")
-
-
-def check_if_dir_exists():
-    if not os.path.isdir(conf.IN_DIR):
-        logger.error("INPUT directory does not exists. Path: %s" % conf.IN_DIR)
-        exit(1)
-
-    if not os.path.isdir(conf.OUT_DIR):
-        os.makedirs(conf.OUT_DIR)
-        logger.info("OUTPUT directory does not exists. New folder has been created")
+logger = detection_logging.create_log("main.log", "root")
 
 
 def blank_fn(*args, **kwargs):
@@ -34,14 +24,6 @@ def blank_fn(*args, **kwargs):
 def main():
 
     logger.info("Program has started")
-
-    check_if_dir_exists()
-
-    logger.info("INPUT directory: %s" % conf.IN_DIR)
-    logger.info("OUTPUT directory: %s" % conf.OUT_DIR)
-
-    conf.IMG_IN_DIR = (len(glob.glob(os.path.join(conf.IN_DIR, "*.jpeg")))) - 1
-    logger.info("Files in directory: %s" % conf.IMG_IN_DIR)
 
     stop_event = threading.Event()
     stop_event.set()
@@ -76,7 +58,7 @@ def main():
 
     try:
         while stop_event.is_set():
-            # logger.info("Progress - %s/%s images" % (conf.COUNTER, conf.IMG_IN_DIR))
+            logger.info("Processed {} images".format(conf.COUNTER))
             time.sleep(1)
     except KeyboardInterrupt:
         logger.warning("Keyboard Interrupt, threads are going to stop")

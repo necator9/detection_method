@@ -15,9 +15,10 @@ IN_DEVICE = "/dev/video0"
 # Virtual camera parameters
 VIRTUAL_CAMERA = False
 IN_DIR = "/home/ivan/test_ir/origin/05.10.17/3"
+
+
 OUT_DIR = "/home/ivan/test_ir/test"
 COUNTER = int()
-IMG_IN_DIR = int()
 
 SAVE_IMG = True
 WRITE_TO_DB = False

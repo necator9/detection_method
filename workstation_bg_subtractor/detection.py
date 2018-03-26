@@ -144,7 +144,11 @@ class ObjParams(object):
 
 class PreProcess(object):
     def __init__(self):
-        self.__mog = cv2.createBackgroundSubtractorMOG2(detectShadows=True)
+        try:  # Handle CV2 version, for 3.x version
+            self.__mog = cv2.createBackgroundSubtractorMOG2(detectShadows=True)
+        except AttributeError:  # Handle CV2 version, for 2.4.x version
+            self.__mog = cv2.BackgroundSubtractorMOG()
+
         self.__filtering_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, conf.F_KERNEL_SIZE)
         self.set_ratio_done = bool()
 

@@ -34,6 +34,7 @@ class Saving(threading.Thread):
     def run(self):
         SAVER_LOG.info("Starting the Saving thread...")
         self._is_running = True
+        self.check_if_dir_exists()
 
         while self._is_running:
             self.write()
@@ -76,6 +77,11 @@ class Saving(threading.Thread):
                 self.write()
 
         SAVER_LOG.warning("{} elements HAVE BEEN NOT WRITTEN".format(self.data_frame_q.qsize()))
+
+    def check_if_dir_exists(self):
+        if not os.path.isdir(conf.OUT_DIR):
+            os.makedirs(conf.OUT_DIR)
+            SAVER_LOG.info("OUTPUT directory does not exists. New folder has been created")
 
     def quit(self):
         self._is_running = False
