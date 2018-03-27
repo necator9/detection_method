@@ -13,6 +13,7 @@ import Queue
 import detection_logging
 
 SAVER_LOG = detection_logging.create_log("saver.log", "Saver")
+SAVE_COUNTER = int()
 
 
 def blank_fn(*args, **kwargs):
@@ -21,7 +22,7 @@ def blank_fn(*args, **kwargs):
 
 class Saving(threading.Thread):
     def __init__(self, data_frame_q, draw_frame_q):
-        super(Saving, self).__init__(name="SAVING THREAD")
+        super(Saving, self).__init__(name="saving")
 
         self._is_running = bool()
         self.data_frame_q = data_frame_q
@@ -67,6 +68,9 @@ class Saving(threading.Thread):
 
         self.draw_obj.form_out_img(data_frame, draw_frame)
         self.draw_obj.save()
+
+        global SAVE_COUNTER
+        SAVE_COUNTER += 1
 
     def finish_writing(self):
         SAVER_LOG.info("Writing finishing...")
@@ -123,7 +127,7 @@ class Database(object):
 
     def write(self, d_frame):
 
-        img_name = str(conf.COUNTER)
+        img_name = str(SAVE_COUNTER)
         db_arr = self.get_base_params(d_frame.base_objects, img_name)
 
         self.cur.executemany('''INSERT INTO {}(Img_name, Obj_id, Status, Base_status, Br_status,  Rect_coeff, 
@@ -230,8 +234,7 @@ class Draw(object):
 
         self.draw_img_structure = draw_frame
 
-        path_to_img = glob.glob(os.path.join(conf.IN_DIR, "img_%s_*.jpeg" % conf.COUNTER))[0]
-        self.img_name = path_to_img.split("/")[-1]
+        self.img_name = os.path.join(conf.OUT_DIR, "img_{}.jpeg".format(SAVE_COUNTER))
 
         self.draw_img_structure.filled_mask.data = copy.copy(data_frame.filled_mask)
         self.draw_img_structure.rect_cont.data = copy.copy(data_frame.orig_img)
@@ -277,9 +280,9 @@ class Draw(object):
     def __put_name(img, text):
         cv2.putText(img, text, (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
 
+
     @staticmethod
     def __draw_rects(img, objects):
-
         for obj in objects:
             if obj.gen_status:
                 color = (0, 0, 255)
@@ -309,8 +312,8 @@ class Draw(object):
 
     @staticmethod
     def __put_status(img, status):
-        cv2.putText(img, str(status), (80, 95), cv2.FONT_HERSHEY_SIMPLEX, 2,
-                    (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.putText(img, str(status), (80, 95), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 1, cv2.LINE_AA)
+
 
     @staticmethod
     def __put_margin(img):
@@ -357,3 +360,39 @@ class Draw(object):
 #
 #     def quit(self):
 #         self.f.close()
+
+class TimeCounter(object):
+    def __init__(self, watch_name):
+        if conf.WATCH_LOGS:
+            self.watch_name = watch_name
+            self.watch_log = detection_logging.create_log("{}.log".format(self.watch_name), self.watch_name)
+            self.start_time = float()
+            self.res_time = float()
+        else:
+            self.note_time = blank_fn
+            self.get_time = blank_fn
+
+    def note_time(self):
+        self.start_time = time.time()
+
+    def get_time(self):
+        self.res_time = time.time() - self.start_time
+        self.watch_log.info("{} takes {}s".format(self.watch_name, self.res_time))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

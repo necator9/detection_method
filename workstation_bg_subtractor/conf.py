@@ -8,31 +8,44 @@ EXTENT_THRESHOLD = 0.5
 BRIGHTNESS_THRESHOLD = 0.2
 X_MARGIN = 0
 
+OUT_DIR = "/root/test"
+PATH_TO_LOGS = "/root/"
+
+# PATH_TO_LOGS = "/home/ivan/test_ir/"
+# OUT_DIR = "/home/ivan/test_ir/test"
 
 # Camera parameters
 IN_DEVICE = "/dev/video0"
+ORIG_IMG_RES = (320, 240)
+FPS = 7
 
 # Virtual camera parameters
 VIRTUAL_CAMERA = False
 IN_DIR = "/home/ivan/test_ir/origin/05.10.17/3"
 
 
-OUT_DIR = "/home/ivan/test_ir/test"
 COUNTER = int()
 
-SAVE_IMG = True
+SAVE_IMG = False
 WRITE_TO_DB = False
 WRITE_TO_PICKLE = False
 
-SHOW_LOGS = True
+WATCH_LOGS = True
+SHOW_LOGS = False
 LOG_LEVEL = "INFO"
-PATH_TO_LOGS = "/home/ivan/test_ir/"
+
 
 # Global variables for internal usage
 MOTION_STATUS = bool()
 
 import capturing
 IMG_BUFF = capturing.ImgBuff()
+
+
+
+
+
+
 
 # Outdated functional
 # SHOW_IMG = False

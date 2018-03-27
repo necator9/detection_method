@@ -35,7 +35,7 @@ else:
 # A thread which will perform all writing operations to the given logging instance
 class LoggingHandler(threading.Thread):
     def __init__(self):
-        super(LoggingHandler, self).__init__()
+        super(LoggingHandler, self).__init__(name="logger")
         self.running = True
         self.root_logger = logging.getLogger()
 
@@ -44,7 +44,10 @@ class LoggingHandler(threading.Thread):
         self.root_logger.info("STARTING THE LOG THREAD...")
         while self.running:
             # loglevel, msg, args, kwargs = self.logging_queue.get()
-            log_object_method, msg, args, kwargs = LOG_QUEUE.get()
+            try:
+                log_object_method, msg, args, kwargs = LOG_QUEUE.get(timeout=1)
+            except Queue.Empty:
+                self.root_logger.warning("Log queue is empty, timeout has reached")
             # Execute the method
             log_object_method(msg, *args, **kwargs)
 

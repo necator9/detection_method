@@ -10,7 +10,7 @@ import numpy as np
 import conf
 import Queue
 
-from extentions import DrawImgStructure
+from extentions import DrawImgStructure, TimeCounter
 import detection_logging
 
 DETECTION_LOG = detection_logging.create_log("detection.log", "DETECTION THREAD")
@@ -18,7 +18,7 @@ DETECTION_LOG = detection_logging.create_log("detection.log", "DETECTION THREAD"
 
 class Detection(threading.Thread):
     def __init__(self, stop_ev, data_frame_q, draw_frame_q):
-        super(Detection, self).__init__()
+        super(Detection, self).__init__(name="detection")
         self.stop_event = stop_ev
         self.img_name = str()
 
@@ -29,8 +29,12 @@ class Detection(threading.Thread):
     def run(self):
         DETECTION_LOG.info("Detection has started")
         img_fr = PreProcess()
+        iteration_time = TimeCounter("iteration_time")
 
         while self.stop_event.is_set():
+
+            iteration_time.note_time()
+
             if conf.IMG_BUFF.processed or not conf.IMG_BUFF.inserted:
                 DETECTION_LOG.info("Waiting for a new frame. Buff has read - {}; Image was passed into buffer - {}"
                                    .format(conf.IMG_BUFF.processed, conf.IMG_BUFF.inserted))
@@ -43,7 +47,7 @@ class Detection(threading.Thread):
             data_frame.orig_img = copy.copy(conf.IMG_BUFF.image)
             conf.IMG_BUFF.processed = True
             DETECTION_LOG.debug("image id {}".format(conf.IMG_BUFF.id))
-            # data_frame.__init__ = DataFrame.__init__
+            # data_frame.__init__ = DataFrame.__init__  # TODO check this theory
 
             draw_frame = DrawImgStructure()
             draw_frame.mog_mask.data, draw_frame.filtered_mask.data = img_fr.process(data_frame)
@@ -61,6 +65,8 @@ class Detection(threading.Thread):
 
             DETECTION_LOG.debug("Detection iteration number {}".format(conf.COUNTER))
             conf.COUNTER += 1
+
+            iteration_time.get_time()
 
         self.quit()
 
@@ -144,10 +150,8 @@ class ObjParams(object):
 
 class PreProcess(object):
     def __init__(self):
-        try:  # Handle CV2 version, for 3.x version
-            self.__mog = cv2.createBackgroundSubtractorMOG2(detectShadows=True)
-        except AttributeError:  # Handle CV2 version, for 2.4.x version
-            self.__mog = cv2.BackgroundSubtractorMOG()
+
+        self.__mog = cv2.createBackgroundSubtractorMOG2(detectShadows=True)
 
         self.__filtering_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, conf.F_KERNEL_SIZE)
         self.set_ratio_done = bool()
@@ -208,7 +212,10 @@ class DataFrame(object):
     @staticmethod
     def __basic_process(filled_mask):
         objects = list()
+
         _, contours, _ = cv2.findContours(filled_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+
 
         for obj_id, contour in enumerate(contours):
             obj = ObjParams(obj_id)
@@ -237,7 +244,9 @@ class DataFrame(object):
         # if len(self.base_objects) > 0:  # keep it for optimization for BBB
         brightness_mask[np.where((self.orig_img > [220, 220, 220]).all(axis=2))] = [255]
         brightness_mask = cv2.cvtColor(brightness_mask, cv2.COLOR_BGR2GRAY)
+
         _, contours, _ = cv2.findContours(brightness_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
         brightness_mask = cv2.cvtColor(brightness_mask, cv2.COLOR_GRAY2BGR)
 
         self.br_rects = [cv2.boundingRect(contour) for contour in contours]

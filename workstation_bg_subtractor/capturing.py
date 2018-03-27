@@ -12,7 +12,7 @@ CAPTURING_LOG = detection_logging.create_log("capturing.log", "CAPTURING THREAD"
 
 class VirtualCamera(threading.Thread):
     def __init__(self, stop_ev):
-        super(VirtualCamera, self).__init__()
+        super(VirtualCamera, self).__init__(name="virtual_camera")
         self.stop_event = stop_ev
         self.check_dir()
 
@@ -56,7 +56,7 @@ class ImgBuff(object):
 
 class Camera(threading.Thread):
     def __init__(self, stop_ev):
-        super(Camera, self).__init__()
+        super(Camera, self).__init__(name="camera")
         self.stop_event = stop_ev
         self.camera = cv2.VideoCapture(conf.IN_DEVICE)  # Initialize the camera capture object
 
@@ -103,24 +103,9 @@ class Camera(threading.Thread):
             self.quit()
 
         # Initial camera configuration
-        # cv_version = int(cv2.__version__.split(".")[0])
-        #
-        # if cv_version == 3:
-        #     self.camera.set(3, conf.ORIG_IMG_RES[0])
-        #
-        #     self.camera.set(4, conf.ORIG_IMG_RES[1])
-        #
-        #     self.camera.set(5, config.FPS)
-        #
-        # if cv_version == 2:
-        #
-        #     self.camera.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, config.ORIG_IMG_RES[0])
-        #
-        #     self.camera.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, config.ORIG_IMG_RES[1])
-        #
-        #     self.camera.set(cv2.cv.CV_CAP_PROP_FPS, config.FPS)
-
-    # Stop and quit the thread operation.
+        self.camera.set(3, conf.ORIG_IMG_RES[0])
+        self.camera.set(4, conf.ORIG_IMG_RES[1])
+        self.camera.set(5, conf.FPS)
 
     def quit(self):
         self.stop_event.clear()
