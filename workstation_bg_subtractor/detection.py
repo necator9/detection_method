@@ -25,15 +25,15 @@ class Detection(threading.Thread):
         self.data_frame_q = data_frame_q
         self.draw_frame_q = draw_frame_q
 
+        self.iteration_time = TimeCounter("iteration_time")
+
     # Main thread routine
     def run(self):
         DETECTION_LOG.info("Detection has started")
         img_fr = PreProcess()
-        iteration_time = TimeCounter("iteration_time")
-
         while self.stop_event.is_set():
 
-            iteration_time.note_time()
+            self.iteration_time.note_time()
 
             if conf.IMG_BUFF.processed or not conf.IMG_BUFF.inserted:
                 DETECTION_LOG.info("Waiting for a new frame. Buff has read - {}; Image was passed into buffer - {}"
@@ -47,7 +47,6 @@ class Detection(threading.Thread):
             data_frame.orig_img = copy.copy(conf.IMG_BUFF.image)
             conf.IMG_BUFF.processed = True
             DETECTION_LOG.debug("image id {}".format(conf.IMG_BUFF.id))
-            # data_frame.__init__ = DataFrame.__init__  # TODO check this theory
 
             draw_frame = DrawImgStructure()
             draw_frame.mog_mask.data, draw_frame.filtered_mask.data = img_fr.process(data_frame)
@@ -66,13 +65,14 @@ class Detection(threading.Thread):
             DETECTION_LOG.debug("Detection iteration number {}".format(conf.COUNTER))
             conf.COUNTER += 1
 
-            iteration_time.get_time()
+            self.iteration_time.get_time()
 
         self.quit()
 
     # Stop and quit the thread operation.
     def quit(self):
         DETECTION_LOG.info("Exiting the Detection thread...")
+        self.iteration_time.get_average_time()
         self.stop_event.clear()
 
 

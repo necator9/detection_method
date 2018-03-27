@@ -368,6 +368,7 @@ class TimeCounter(object):
             self.watch_log = detection_logging.create_log("{}.log".format(self.watch_name), self.watch_name)
             self.start_time = float()
             self.res_time = float()
+            self.average_time = list()
         else:
             self.note_time = blank_fn
             self.get_time = blank_fn
@@ -378,6 +379,11 @@ class TimeCounter(object):
     def get_time(self):
         self.res_time = time.time() - self.start_time
         self.watch_log.info("{} takes {}s".format(self.watch_name, self.res_time))
+        self.average_time.append(self.res_time)
+
+    def get_average_time(self):
+        self.average_time = np.mean(self.average_time)
+        self.watch_log.info("{} average takes {}s".format(self.watch_name, self.average_time))
 
 
 
