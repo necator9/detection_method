@@ -1,7 +1,5 @@
 import threading
 import time
-import glob
-import os
 import copy
 
 import cv2

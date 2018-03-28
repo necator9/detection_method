@@ -336,8 +336,10 @@ class Draw(object):
 
     def save(self):
         # Save JPEG with proper name
+        SAVER_LOG.debug("Entry has been written")
         path = os.path.join(conf.OUT_DIR, self.img_name)
         cv2.imwrite(path, self.out_img.data)
+
 
 
 # class Csv(object):

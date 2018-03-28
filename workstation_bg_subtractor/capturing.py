@@ -17,7 +17,7 @@ class VirtualCamera(threading.Thread):
     def __init__(self, stop_ev):
         super(VirtualCamera, self).__init__(name="virtual_camera")
         self.stop_event = stop_ev
-        self.check_dir()
+        self.__check_dir()
 
     def run(self):
         i = 0
@@ -26,23 +26,31 @@ class VirtualCamera(threading.Thread):
         CAPTURING_LOG.info("Files in directory: {}".format(images_in_dir))
 
         while i < images_in_dir and self.stop_event.is_set():
-            if not global_vars.IMG_BUFF.processed:
-                time.sleep(0.01)
 
-                continue
-            path_to_img = glob.glob(os.path.join(conf.IN_DIR, "img_{}_*.jpeg".format(global_vars.COUNTER)))[0]
+
+            path_to_img = glob.glob(os.path.join(conf.IN_DIR, "img_{}_*.jpeg".format(i)))[0]
 
             image = cv2.imread(path_to_img)
+            CAPTURING_LOG.debug("Image {} has been taken".format(i))
             img_buff = ImgBuff()
             img_buff.put(image)
-            CAPTURING_LOG.info("Image {} has been taken".format(i))
-            conf.IMG_BUFF = img_buff
-            time.sleep(0.2)
+            global_vars.IMG_BUFF = img_buff
+
             i += 1
+
+            while not global_vars.IMG_BUFF.processed:
+                pass
 
         self.quit()
 
-    def check_dir(self):
+        # Produce one item
+        lock = threading.Condition()
+        lock.acquire()
+    make_an_item_available()
+    cv.notify()
+    cv.release()
+
+    def __check_dir(self):
         if not os.path.isdir(conf.IN_DIR):
             CAPTURING_LOG.error("INPUT directory does not exists. Path: {}".format(conf.IN_DIR))
             time.sleep(2)
