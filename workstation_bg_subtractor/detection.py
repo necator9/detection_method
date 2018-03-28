@@ -26,7 +26,7 @@ class Detection(threading.Thread):
         self.data_frame_q = data_frame_q
         self.draw_frame_q = draw_frame_q
 
-        self.iteration_time = TimeCounter("iteration_time")
+        self.timer = TimeCounter("detection_timer")
 
     # Main thread routine
     def run(self):
@@ -34,7 +34,7 @@ class Detection(threading.Thread):
         img_fr = PreProcess()
         while self.stop_event.is_set():
 
-            self.iteration_time.note_time()
+            self.timer.note_time()
 
             if global_vars.IMG_BUFF.processed or not global_vars.IMG_BUFF.inserted:
                 DETECTION_LOG.info("Waiting for a new frame. Buff has read - {}; Image was passed into buffer - {}"
@@ -62,17 +62,16 @@ class Detection(threading.Thread):
             except Queue.Full:
                 DETECTION_LOG.error("Draw queue is full. Queue size: {}".format(self.data_frame_q.qsize()))
 
-            DETECTION_LOG.debug("Detection iteration number {}".format(conf.COUNTER))
-            conf.COUNTER += 1
+            DETECTION_LOG.debug("Detection iteration number {}".format(global_vars.COUNTER))
+            global_vars.COUNTER += 1
 
-            self.iteration_time.get_time()
+            self.timer.get_time()
 
         self.quit()
 
     # Stop and quit the thread operation.
     def quit(self):
         DETECTION_LOG.info("Exiting the Detection thread...")
-        self.iteration_time.get_average_time()
         self.stop_event.clear()
 
 

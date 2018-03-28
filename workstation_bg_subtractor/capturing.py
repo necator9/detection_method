@@ -8,6 +8,7 @@ import os
 import detection_logging
 import conf
 import global_vars
+from extentions import TimeCounter
 
 CAPTURING_LOG = detection_logging.create_log("capturing.log", "CAPTURING THREAD")
 
@@ -20,17 +21,21 @@ class VirtualCamera(threading.Thread):
 
     def run(self):
         i = 0
+        CAPTURING_LOG.info("Virtual camera thread has started")
+        images_in_dir = (len(glob.glob(os.path.join(conf.IN_DIR, "*.jpeg")))) - 1
+        CAPTURING_LOG.info("Files in directory: {}".format(images_in_dir))
 
-        CAPTURING_LOG.info("Virtual camera has started")
-        imgs_in_dir = (len(glob.glob(os.path.join(conf.IN_DIR, "*.jpeg")))) - 1
-        CAPTURING_LOG.info("Files in directory: {}".format(imgs_in_dir))
+        while i < images_in_dir and self.stop_event.is_set():
+            if not global_vars.IMG_BUFF.processed:
+                time.sleep(0.01)
 
-        while i < imgs_in_dir and self.stop_event.is_set():
+                continue
+            path_to_img = glob.glob(os.path.join(conf.IN_DIR, "img_{}_*.jpeg".format(global_vars.COUNTER)))[0]
+
             img_buff = ImgBuff()
-            path_to_img = glob.glob(os.path.join(conf.IN_DIR, "img_{}_*.jpeg".format(conf.COUNTER)))[0]
             img_buff.image = cv2.imread(path_to_img)
-            img_buff.id = i
-            CAPTURING_LOG.info("Image {} has been captured".format(i))
+            img_buff.inserted = True
+            CAPTURING_LOG.info("Image {} has been taken".format(i))
             conf.IMG_BUFF = img_buff
             time.sleep(0.2)
             i += 1
@@ -53,7 +58,11 @@ class ImgBuff(object):
         self.processed = bool()
         self.inserted = bool()
 
-        self.id = int()  # For debug
+    def insert(self):
+        self.inserted = True
+
+    def mark(self):
+        self.processed = True
 
 
 class Camera(threading.Thread):
@@ -61,17 +70,15 @@ class Camera(threading.Thread):
         super(Camera, self).__init__(name="camera")
         self.stop_event = stop_ev
         self.camera = cv2.VideoCapture(conf.IN_DEVICE)  # Initialize the camera capture object
+        self.timer = TimeCounter("camera_timer")
 
     # Main thread routine
     def run(self):
         CAPTURING_LOG.info("Camera thread has started...")
         self.cam_setup()
 
-        i = 0
-
         while self.stop_event.is_set():
-            start_time = time.time()
-
+            self.timer.note_time()
             read_ok, img = self.camera.read()
 
             if not read_ok:
@@ -79,20 +86,13 @@ class Camera(threading.Thread):
 
                 break
 
-            CAPTURING_LOG.debug("Image {} is captured".format(i))
-
             img_buff = ImgBuff()
-
             img_buff.image = img
-            img_buff.id = i
             img_buff.inserted = True
 
             global_vars.IMG_BUFF = img_buff
 
-            processing_t = time.time() - start_time
-            CAPTURING_LOG.debug("Image shooting takes {}s".format(processing_t))
-
-            i += 1
+            self.timer.get_time()
 
         self.quit()
 

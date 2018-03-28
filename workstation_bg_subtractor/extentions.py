@@ -378,12 +378,15 @@ class TimeCounter(object):
 
     def get_time(self):
         self.res_time = time.time() - self.start_time
-        self.watch_log.info("{} takes {}s".format(self.watch_name, self.res_time))
         self.average_time_list.append(self.res_time)
 
-    def get_average_time(self):
-        average_time = np.mean(self.average_time_list)
-        self.watch_log.info("{} average takes {}s".format(self.watch_name, average_time))
+        if len(self.average_time_list) == conf.TIME_WINDOW:
+            self.__get_average_time()
+            self.average_time_list = list()
+
+    def __get_average_time(self):
+        average_time = round(np.mean(self.average_time_list), 3)
+        self.watch_log.info("{} average: {}s. Window size: {} ".format(self.watch_name, average_time, conf.TIME_WINDOW))
 
 
 

@@ -70,7 +70,7 @@ def main():
 
     try:
         while stop_event.is_set():
-            MAIN_LOGGER.info("Processed {} images".format(conf.COUNTER))
+            MAIN_LOGGER.info("Processed {} images".format(global_vars.COUNTER))
             time.sleep(1)
     except KeyboardInterrupt:
         MAIN_LOGGER.warning("Keyboard Interrupt, threads are going to stop")
