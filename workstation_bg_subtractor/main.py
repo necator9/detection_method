@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 
-import glob
-
 import threading
 import time
 import conf
+import global_vars
 
 import capturing
 import detection

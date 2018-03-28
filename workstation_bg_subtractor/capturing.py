@@ -1,11 +1,13 @@
-import detection_logging
-import threading
 import cv2
-import conf
+import threading
 import time
 import numpy as np
 import glob
 import os
+
+import detection_logging
+import conf
+import global_vars
 
 CAPTURING_LOG = detection_logging.create_log("capturing.log", "CAPTURING THREAD")
 
@@ -85,7 +87,7 @@ class Camera(threading.Thread):
             img_buff.id = i
             img_buff.inserted = True
 
-            conf.IMG_BUFF = img_buff
+            global_vars.IMG_BUFF = img_buff
 
             processing_t = time.time() - start_time
             CAPTURING_LOG.debug("Image shooting takes {}s".format(processing_t))

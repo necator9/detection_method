@@ -7,10 +7,10 @@ import copy
 import cv2
 from imutils import resize
 import numpy as np
-import conf
 import Queue
 
-from conf import IMG_BUFF
+import conf
+import global_vars
 from extentions import DrawImgStructure, TimeCounter
 import detection_logging
 
@@ -36,17 +36,17 @@ class Detection(threading.Thread):
 
             self.iteration_time.note_time()
 
-            if IMG_BUFF.processed or not IMG_BUFF.inserted:
+            if global_vars.IMG_BUFF.processed or not global_vars.IMG_BUFF.inserted:
                 DETECTION_LOG.info("Waiting for a new frame. Buff has read - {}; Image was passed into buffer - {}"
-                                   .format(IMG_BUFF.processed, IMG_BUFF.inserted))
+                                   .format(global_vars.IMG_BUFF.processed, global_vars.IMG_BUFF.inserted))
                 time.sleep(0.1)
 
                 continue
 
             data_frame = DataFrame()
 
-            data_frame.orig_img = copy.copy(IMG_BUFF.image)
-            IMG_BUFF.processed = True
+            data_frame.orig_img = copy.copy(global_vars.IMG_BUFF.image)
+            global_vars.IMG_BUFF.processed = True
 
             draw_frame = DrawImgStructure()
             draw_frame.mog_mask.data, draw_frame.filtered_mask.data = img_fr.process(data_frame)

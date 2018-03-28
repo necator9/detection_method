@@ -362,7 +362,7 @@ class Draw(object):
 
 class TimeCounter(object):
     def __init__(self, watch_name):
-        if conf.WATCH_LOGS:
+        if conf.TIMERS:
             self.watch_name = watch_name
             self.watch_log = detection_logging.create_log("{}.log".format(self.watch_name), self.watch_name)
             self.start_time = float()

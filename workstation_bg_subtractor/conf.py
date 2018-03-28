@@ -30,7 +30,7 @@ SAVE_IMG = False
 WRITE_TO_DB = False
 WRITE_TO_PICKLE = False
 
-WATCH_LOGS = False
+TIMERS = False
 SHOW_LOGS = False
 LOG_LEVEL = "INFO"
 
@@ -38,8 +38,7 @@ LOG_LEVEL = "INFO"
 # Global variables for internal usage
 MOTION_STATUS = bool()
 
-import capturing
-IMG_BUFF = capturing.ImgBuff()
+
 
 
 
