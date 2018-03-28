@@ -25,11 +25,11 @@ OUT_DIR = "/root/test"
 # OUT_DIR = "/home/ivan/test_ir/test"
 
 # Timers parameters
-TIMERS = True
+TIMERS = False
 TIME_WINDOW = 100
 
 # Logging parameters
-SHOW_LOGS = False
+SHOW_LOGS = True
 LOG_LEVEL = "INFO"
 PATH_TO_LOGS = "/root/"
 # PATH_TO_LOGS = "/home/ivan/test_ir/"
