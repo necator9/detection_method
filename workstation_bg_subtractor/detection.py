@@ -46,7 +46,6 @@ class Detection(threading.Thread):
             data_frame = DataFrame()
 
             data_frame.orig_img = global_vars.IMG_BUFF.get()
-
             draw_frame = DrawImgStructure()
             draw_frame.mog_mask.data, draw_frame.filtered_mask.data = img_fr.process(data_frame)
             draw_frame.bright_mask.data, draw_frame.extent_split_mask.data = data_frame.calculate()

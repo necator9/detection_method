@@ -96,14 +96,12 @@ class Camera(threading.Thread):
 
             self.timer.get_time()
 
-        self.quit()
-
     def cam_setup(self):
         # Check on successful camera initialization
         if not self.camera.isOpened():
-            CAPTURING_LOG.error("Cannot initialize camera")
+            CAPTURING_LOG.error("Cannot initialize camera: {}".format(conf.IN_DEVICE))
 
-            self.quit()
+            self.stop_event.clear()
 
         # Initial camera configuration
         self.camera.set(3, conf.ORIG_IMG_RES[0])
@@ -111,6 +109,5 @@ class Camera(threading.Thread):
         self.camera.set(5, conf.FPS)
 
     def quit(self):
-        self.stop_event.clear()
         self.camera.release()
-        CAPTURING_LOG.info("Camera has quit")
+        CAPTURING_LOG.info("Exiting the Camera thread...")

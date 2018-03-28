@@ -75,12 +75,15 @@ def main():
     except KeyboardInterrupt:
         MAIN_LOGGER.warning("Keyboard Interrupt, threads are going to stop")
 
+    capturing_thread.quit()
     detection_thread.quit()
     saver_thread.quit()
 
+    capturing_thread.join()
     detection_thread.join()
     saver_thread.join()
 
+    time.sleep(1)
     detection_logging.stop_log_thread()
 
     MAIN_LOGGER.info("Program finished")
