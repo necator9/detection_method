@@ -32,9 +32,9 @@ class VirtualCamera(threading.Thread):
                 continue
             path_to_img = glob.glob(os.path.join(conf.IN_DIR, "img_{}_*.jpeg".format(global_vars.COUNTER)))[0]
 
+            image = cv2.imread(path_to_img)
             img_buff = ImgBuff()
-            img_buff.image = cv2.imread(path_to_img)
-            img_buff.inserted = True
+            img_buff.put(image)
             CAPTURING_LOG.info("Image {} has been taken".format(i))
             conf.IMG_BUFF = img_buff
             time.sleep(0.2)
@@ -58,11 +58,14 @@ class ImgBuff(object):
         self.processed = bool()
         self.inserted = bool()
 
-    def insert(self):
-        self.inserted = True
-
-    def mark(self):
+    def get(self):
         self.processed = True
+
+        return self.image
+
+    def put(self, image):
+        self.image = image
+        self.inserted = True
 
 
 class Camera(threading.Thread):
@@ -87,8 +90,7 @@ class Camera(threading.Thread):
                 break
 
             img_buff = ImgBuff()
-            img_buff.image = img
-            img_buff.inserted = True
+            img_buff.put(img)
 
             global_vars.IMG_BUFF = img_buff
 

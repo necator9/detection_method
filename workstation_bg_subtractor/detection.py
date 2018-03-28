@@ -45,8 +45,7 @@ class Detection(threading.Thread):
 
             data_frame = DataFrame()
 
-            data_frame.orig_img = copy.copy(global_vars.IMG_BUFF.image)
-            global_vars.IMG_BUFF.processed = True
+            data_frame.orig_img = global_vars.IMG_BUFF.get()
 
             draw_frame = DrawImgStructure()
             draw_frame.mog_mask.data, draw_frame.filtered_mask.data = img_fr.process(data_frame)
