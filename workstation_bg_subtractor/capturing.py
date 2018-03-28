@@ -61,11 +61,12 @@ class Camera(threading.Thread):
         self.camera = cv2.VideoCapture(conf.IN_DEVICE)  # Initialize the camera capture object
 
     # Main thread routine
-
     def run(self):
-        CAPTURING_LOG.info("Camera has started capturing")
+        CAPTURING_LOG.info("Camera thread has started...")
         self.cam_setup()
+
         i = 0
+
         while self.stop_event.is_set():
             start_time = time.time()
 
@@ -92,8 +93,6 @@ class Camera(threading.Thread):
             i += 1
 
         self.quit()
-
-    # Camera configuration in accordance to OpenCV version
 
     def cam_setup(self):
         # Check on successful camera initialization

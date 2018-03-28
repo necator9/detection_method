@@ -10,6 +10,7 @@ import numpy as np
 import conf
 import Queue
 
+from conf import IMG_BUFF
 from extentions import DrawImgStructure, TimeCounter
 import detection_logging
 
@@ -35,18 +36,17 @@ class Detection(threading.Thread):
 
             self.iteration_time.note_time()
 
-            if conf.IMG_BUFF.processed or not conf.IMG_BUFF.inserted:
+            if IMG_BUFF.processed or not IMG_BUFF.inserted:
                 DETECTION_LOG.info("Waiting for a new frame. Buff has read - {}; Image was passed into buffer - {}"
-                                   .format(conf.IMG_BUFF.processed, conf.IMG_BUFF.inserted))
+                                   .format(IMG_BUFF.processed, IMG_BUFF.inserted))
                 time.sleep(0.1)
 
                 continue
 
             data_frame = DataFrame()
 
-            data_frame.orig_img = copy.copy(conf.IMG_BUFF.image)
-            conf.IMG_BUFF.processed = True
-            DETECTION_LOG.debug("image id {}".format(conf.IMG_BUFF.id))
+            data_frame.orig_img = copy.copy(IMG_BUFF.image)
+            IMG_BUFF.processed = True
 
             draw_frame = DrawImgStructure()
             draw_frame.mog_mask.data, draw_frame.filtered_mask.data = img_fr.process(data_frame)
@@ -150,9 +150,7 @@ class ObjParams(object):
 
 class PreProcess(object):
     def __init__(self):
-
         self.__mog = cv2.createBackgroundSubtractorMOG2(detectShadows=True)
-
         self.__filtering_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, conf.F_KERNEL_SIZE)
         self.set_ratio_done = bool()
 
@@ -193,8 +191,9 @@ class DataFrame(object):
         self.base_frame_status = None  # Can be False/True/None type
         self.ex_frame_status = None  # Can be False/True/None type
         self.base_objects = list()
-        self.ex_objects = list()
         self.base_contours = list()
+        self.ex_objects = list()
+
 
         self.br_rects = list()
 
@@ -214,8 +213,6 @@ class DataFrame(object):
         objects = list()
 
         _, contours, _ = cv2.findContours(filled_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-
 
         for obj_id, contour in enumerate(contours):
             obj = ObjParams(obj_id)

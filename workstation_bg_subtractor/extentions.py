@@ -222,7 +222,6 @@ class Draw(object):
     def update_borders(self):
         if not self.borders_updated_flag:
             self.borders_updated_flag = True
-
             self.x_border = np.zeros((conf.PROC_IMG_RES[1], 1, 3), np.uint8)
             self.x_border[:] = (0, 0, 255)
             self.y_border = np.zeros((1, conf.PROC_IMG_RES[0] * 3 + 2, 3), np.uint8)
@@ -368,10 +367,11 @@ class TimeCounter(object):
             self.watch_log = detection_logging.create_log("{}.log".format(self.watch_name), self.watch_name)
             self.start_time = float()
             self.res_time = float()
-            self.average_time = list()
+            self.average_time_list = list()
         else:
             self.note_time = blank_fn
             self.get_time = blank_fn
+            self.get_average_time = blank_fn
 
     def note_time(self):
         self.start_time = time.time()
@@ -379,11 +379,11 @@ class TimeCounter(object):
     def get_time(self):
         self.res_time = time.time() - self.start_time
         self.watch_log.info("{} takes {}s".format(self.watch_name, self.res_time))
-        self.average_time.append(self.res_time)
+        self.average_time_list.append(self.res_time)
 
     def get_average_time(self):
-        self.average_time = np.mean(self.average_time)
-        self.watch_log.info("{} average takes {}s".format(self.watch_name, self.average_time))
+        average_time = np.mean(self.average_time_list)
+        self.watch_log.info("{} average takes {}s".format(self.watch_name, average_time))
 
 
 

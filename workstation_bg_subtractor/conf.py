@@ -30,7 +30,7 @@ SAVE_IMG = False
 WRITE_TO_DB = False
 WRITE_TO_PICKLE = False
 
-WATCH_LOGS = True
+WATCH_LOGS = False
 SHOW_LOGS = False
 LOG_LEVEL = "INFO"
 
