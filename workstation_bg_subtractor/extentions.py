@@ -52,14 +52,11 @@ class Saving(threading.Thread):
         except Queue.Empty:
             SAVER_LOG.warning("Exception has raised, data_frame_q is empty")
 
-            return 1
-
         try:
             draw_frame = self.draw_frame_q.get(timeout=2)
         except Queue.Empty:
             SAVER_LOG.warning("Exception has raised, draw_frame_q is empty")
 
-            return 1
 
         self.db_obj.write(data_frame)
 

@@ -73,9 +73,10 @@ class VirtualCamera(threading.Thread):
 
 
 class Camera(threading.Thread):
-    def __init__(self, stop_ev):
+    def __init__(self, orig_img_q, stop_ev):
         super(Camera, self).__init__(name="camera")
         self.stop_event = stop_ev
+        self.orig_img_q = orig_img_q
         self.camera = cv2.VideoCapture(conf.IN_DEVICE)  # Initialize the camera capture object
         self.timer = TimeCounter("camera_timer")
 
@@ -93,8 +94,15 @@ class Camera(threading.Thread):
 
                 break
 
-            global IMAGE_BUFFER
-            IMAGE_BUFFER = image
+            try:
+                self.orig_img_q.put(image, timeout=2)
+            except Queue.Full:
+                CAPTURING_LOG.warning("orig_img_q is full, next iteration")
+
+                continue
+
+            # global IMAGE_BUFFER
+            # IMAGE_BUFFER = image
 
             self.timer.get_time()
 
