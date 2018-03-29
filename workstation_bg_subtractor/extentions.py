@@ -27,6 +27,7 @@ class Saving(threading.Thread):
         self.data_frame_q = data_frame_q
         self.draw_frame_q = draw_frame_q
 
+        self.check_if_dir_exists()
         self.db_obj = Database(self.__gen_name("sql_database"))
         self.pickle_obj = PickleWrap(self.__gen_name("pickle_data.pkl"))
         self.draw_obj = Draw()
@@ -34,7 +35,6 @@ class Saving(threading.Thread):
     def run(self):
         SAVER_LOG.info("Starting the Saving thread...")
         self._is_running = True
-        self.check_if_dir_exists()
 
         while self._is_running:
             self.write()
@@ -52,11 +52,14 @@ class Saving(threading.Thread):
         except Queue.Empty:
             SAVER_LOG.warning("Exception has raised, data_frame_q is empty")
 
+            return 1
+
         try:
             draw_frame = self.draw_frame_q.get(timeout=2)
         except Queue.Empty:
             SAVER_LOG.warning("Exception has raised, draw_frame_q is empty")
 
+            return 1
 
         self.db_obj.write(data_frame)
 
@@ -218,9 +221,9 @@ class Draw(object):
     def update_borders(self):
         if not self.borders_updated_flag:
             self.borders_updated_flag = True
-            self.x_border = np.zeros((conf.PROC_IMG_RES[1], 1, 3), np.uint8)
+            self.x_border = np.zeros((conf.RESIZE_TO[1], 1, 3), np.uint8)
             self.x_border[:] = (0, 0, 255)
-            self.y_border = np.zeros((1, conf.PROC_IMG_RES[0] * 3 + 2, 3), np.uint8)
+            self.y_border = np.zeros((1, conf.RESIZE_TO[0] * 3 + 2, 3), np.uint8)
             self.y_border[:] = (0, 0, 255)
 
     def form_out_img(self, data_frame, draw_frame):
@@ -240,7 +243,7 @@ class Draw(object):
                 value.data = cv2.cvtColor(value.data, cv2.COLOR_GRAY2BGR)
 
             if len(value.data.shape) == 0:
-                value.data = np.zeros((conf.PROC_IMG_RES[1], conf.PROC_IMG_RES[0], 3), np.uint8)
+                value.data = np.zeros((conf.RESIZE_TO[1], conf.RESIZE_TO[0], 3), np.uint8)
 
             self.__put_name(value.data, value.name)
 
@@ -315,9 +318,9 @@ class Draw(object):
         x_left_up = conf.X_MARGIN
         y_left_up = 0
         x_left_down = x_left_up
-        y_left_down = conf.PROC_IMG_RES[1]
+        y_left_down = conf.RESIZE_TO[1]
 
-        x_right_up = conf.PROC_IMG_RES[0] - conf.X_MARGIN - 1
+        x_right_up = conf.RESIZE_TO[0] - conf.X_MARGIN - 1
         y_right_up = 0
         x_right_down = x_right_up
         y_right_down = y_left_down
@@ -363,7 +366,9 @@ class TimeCounter(object):
 
     def __get_average_time(self):
         average_time = round(np.mean(self.average_time_list), 3)
-        self.watch_log.info("{} average: {}s. Window size: {} ".format(self.watch_name, average_time, conf.TIME_WINDOW))
+        self.watch_log.info("{} iteration t: {}s, FPS: {}. Window size: {} ".format(self.watch_name, average_time,
+                                                                                    round(1/average_time, 2),
+                                                                                    conf.TIME_WINDOW))
 
 
 

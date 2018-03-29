@@ -63,7 +63,7 @@ class Detection(threading.Thread):
 
             self.timer.get_time()
 
-        self.quit()
+        # self.quit()
 
     # Stop and quit the thread operation.
     def quit(self):
@@ -137,8 +137,8 @@ class ObjParams(object):
     @staticmethod
     def check_margin(x, w):
         x_margin = conf.X_MARGIN
-        x_left = not (x_margin < x < conf.PROC_IMG_RES[0] - x_margin)
-        x_right = not (x_margin < x + w < conf.PROC_IMG_RES[0] - x_margin)
+        x_left = not (x_margin < x < conf.RESIZE_TO[0] - x_margin)
+        x_right = not (x_margin < x + w < conf.RESIZE_TO[0] - x_margin)
 
         return x_left or x_right
 
@@ -146,20 +146,21 @@ class ObjParams(object):
 class PreProcess(object):
     def __init__(self):
         self.__mog = cv2.createBackgroundSubtractorMOG2(detectShadows=True)
-        self.__filtering_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, conf.F_KERNEL_SIZE)
+        if not(0 in conf.F_KERNEL_SIZE):
+            self.__filtering_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, conf.F_KERNEL_SIZE)
+        else:
+            self.__filter = copy.copy
+
         self.set_ratio_done = bool()
 
     def process(self, d_frame):
-        orig_img = resize(d_frame.orig_img, width=conf.PROC_IMG_RES[0], height=conf.PROC_IMG_RES[1])
+        orig_img = resize(d_frame.orig_img, width=conf.RESIZE_TO[0], height=conf.RESIZE_TO[1])
         self.set_ratio(orig_img)
 
         mog_mask = self.__mog.apply(orig_img)
         _, mog_mask = cv2.threshold(mog_mask, 127, 255, cv2.THRESH_BINARY)
 
-        if conf.F_KERNEL_SIZE[0] > 0 and conf.F_KERNEL_SIZE[1] > 0:
-            filtered_mask = cv2.morphologyEx(mog_mask, cv2.MORPH_OPEN, self.__filtering_kernel)
-        else:
-            filtered_mask = copy.copy(mog_mask)
+        filtered_mask = self.__filter(mog_mask)
 
         filled_mask = cv2.dilate(filtered_mask, None, iterations=conf.DILATE_ITERATIONS)
 
@@ -174,9 +175,14 @@ class PreProcess(object):
             actual_w, actual_h = img.shape[:2][1], img.shape[:2][0]
             DETECTION_LOG.warning("Actual resolution used for processing is {}x{}".format(actual_w, actual_h))
 
-            if conf.PROC_IMG_RES[0] != actual_w or conf.PROC_IMG_RES[1] != actual_h:
-                conf.PROC_IMG_RES[0] = actual_w
-                conf.PROC_IMG_RES[1] = actual_h
+            if conf.RESIZE_TO[0] != actual_w or conf.RESIZE_TO[1] != actual_h:
+                conf.RESIZE_TO[0] = actual_w
+                conf.RESIZE_TO[1] = actual_h
+
+    def __filter(self, mog_mask):
+
+        return cv2.morphologyEx(mog_mask, cv2.MORPH_OPEN, self.__filtering_kernel)
+
 
 
 class DataFrame(object):
@@ -218,7 +224,7 @@ class DataFrame(object):
 
     # TODO remake to crop and analyze only one object, only problem object should be considered further
     def __extent_split_process(self):
-        ex_filled_mask = np.zeros((conf.PROC_IMG_RES[1], conf.PROC_IMG_RES[0]), np.uint8) # create minimal image
+        ex_filled_mask = np.zeros((conf.RESIZE_TO[1], conf.RESIZE_TO[0]), np.uint8) # create minimal image
         for obj in self.base_objects:
             is_extent = obj.extent < 0.6
             is_rect_coeff = -20000 < obj.rect_coef < -10000  # Try to reduce to -5000 or so
@@ -227,12 +233,12 @@ class DataFrame(object):
                 x, y, w, h = obj.base_rect
 
                 ex_filled_mask[y:y+h, x:x + w] = self.filled_mask[y:y+h, x:x + w]
-                cv2.line(ex_filled_mask, (x + int(w / 2), 0), (x + int(w / 2), conf.PROC_IMG_RES[1]), (0, 0, 0), 3)
+                cv2.line(ex_filled_mask, (x + int(w / 2), 0), (x + int(w / 2), conf.RESIZE_TO[1]), (0, 0, 0), 3)
 
         return ex_filled_mask
 
     def __brightness_process(self, objects):
-        brightness_mask = np.zeros((conf.PROC_IMG_RES[1], conf.PROC_IMG_RES[0], 3), np.uint8)
+        brightness_mask = np.zeros((conf.RESIZE_TO[1], conf.RESIZE_TO[0], 3), np.uint8)
         # if len(self.base_objects) > 0:  # keep it for optimization for BBB
         brightness_mask[np.where((self.orig_img > [220, 220, 220]).all(axis=2))] = [255]
         brightness_mask = cv2.cvtColor(brightness_mask, cv2.COLOR_BGR2GRAY)

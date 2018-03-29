@@ -1,28 +1,30 @@
 # Camera parameters
-IN_DEVICE = "/dev/video0"
-ORIG_IMG_RES = (320, 240)
+DEVICE = "/dev/video0"
+RESOLUTION = (340, 240)
 FPS = 7
 
 # Virtual camera parameters
-VIRTUAL_CAMERA = False
+VIRTUAL_CAMERA = True
 IN_DIR = "/home/ivan/test_ir/origin/05.10.17/3"
 
 # Detection parameters
-PROC_IMG_RES = [100, 100]        # Width and height of an image for processing
-F_KERNEL_SIZE = (5, 5)           # Size of elliptical filtering kernel in pixels
+RESIZE_TO = [220, 240]        # Width and height of an image for processing
+# F_KERNEL_SIZE = (5, 5)           # Size of elliptical filtering kernel in pixels
+F_KERNEL_SIZE = (4, 4)           # Size of elliptical filtering kernel in pixels
 DILATE_ITERATIONS = 1
 MARGIN = (0, 0)
-COEFF_RANGE = (1200, 12000)
+# COEFF_RANGE = (1200, 12000)
+COEFF_RANGE = (166, 1662)
 EXTENT_THRESHOLD = 0.5
 BRIGHTNESS_THRESHOLD = 0.2
 X_MARGIN = 0
 
 # Saving parameters
-SAVE_IMG = False
-WRITE_TO_DB = False
+SAVE_IMG = True
+WRITE_TO_DB = True
 WRITE_TO_PICKLE = False
 # OUT_DIR = "/root/test"
-OUT_DIR = "/home/ivan/test_ir/test"
+OUT_DIR = "/home/ivan/test_ir/220"
 
 # Timers parameters
 TIMERS = True

@@ -77,7 +77,7 @@ class Camera(threading.Thread):
         super(Camera, self).__init__(name="camera")
         self.stop_event = stop_ev
         self.orig_img_q = orig_img_q
-        self.camera = cv2.VideoCapture(conf.IN_DEVICE)  # Initialize the camera capture object
+        self.camera = cv2.VideoCapture(conf.DEVICE)  # Initialize the camera capture object
         self.timer = TimeCounter("camera_timer")
 
     # Main thread routine
@@ -109,13 +109,13 @@ class Camera(threading.Thread):
     def cam_setup(self):
         # Check on successful camera initialization
         if not self.camera.isOpened():
-            CAPTURING_LOG.error("Cannot initialize camera: {}".format(conf.IN_DEVICE))
+            CAPTURING_LOG.error("Cannot initialize camera: {}".format(conf.DEVICE))
 
             self.stop_event.clear()
 
         # Initial camera configuration
-        self.camera.set(3, conf.ORIG_IMG_RES[0])
-        self.camera.set(4, conf.ORIG_IMG_RES[1])
+        self.camera.set(3, conf.RESOLUTION[0])
+        self.camera.set(4, conf.RESOLUTION[1])
         self.camera.set(5, conf.FPS)
 
     def quit(self):
