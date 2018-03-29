@@ -16,13 +16,14 @@ DETECTION_LOG = detection_logging.create_log("detection.log", "DETECTION THREAD"
 
 
 class Detection(threading.Thread):
-    def __init__(self, stop_ev, data_frame_q, draw_frame_q):
+    def __init__(self, stop_ev, data_frame_q, draw_frame_q, orig_img_q):
         super(Detection, self).__init__(name="detection")
         self.stop_event = stop_ev
         self.img_name = str()
 
         self.data_frame_q = data_frame_q
         self.draw_frame_q = draw_frame_q
+        self.orig_img_q = orig_img_q
 
         self.timer = TimeCounter("detection_timer")
 
@@ -34,16 +35,15 @@ class Detection(threading.Thread):
 
             self.timer.note_time()
 
-            if global_vars.IMG_BUFF.processed or not global_vars.IMG_BUFF.inserted:
-                DETECTION_LOG.info("Waiting for a new frame. Buff has read - {}; Image was passed into buffer - {}"
-                                   .format(global_vars.IMG_BUFF.processed, global_vars.IMG_BUFF.inserted))
-                time.sleep(0.1)
+            data_frame = DataFrame()
+
+            try:
+                data_frame.orig_img = self.orig_img_q.get(timeout=2)
+            except Queue.Empty:
+                DETECTION_LOG.warning("Timeout reached, no items can be received from orig_img_q")
 
                 continue
 
-            data_frame = DataFrame()
-
-            data_frame.orig_img = global_vars.IMG_BUFF.get()
             draw_frame = DrawImgStructure()
             draw_frame.mog_mask.data, draw_frame.filtered_mask.data = img_fr.process(data_frame)
             draw_frame.bright_mask.data, draw_frame.extent_split_mask.data = data_frame.calculate()
@@ -172,6 +172,7 @@ class PreProcess(object):
         if not self.set_ratio_done:
             self.set_ratio_done = True
             actual_w, actual_h = img.shape[:2][1], img.shape[:2][0]
+            DETECTION_LOG.warning("Actual resolution used for processing is {}x{}".format(actual_w, actual_h))
 
             if conf.PROC_IMG_RES[0] != actual_w or conf.PROC_IMG_RES[1] != actual_h:
                 conf.PROC_IMG_RES[0] = actual_w
@@ -188,7 +189,6 @@ class DataFrame(object):
         self.base_objects = list()
         self.base_contours = list()
         self.ex_objects = list()
-
 
         self.br_rects = list()
 

@@ -1,5 +1,6 @@
 import cv2
 import threading
+import Queue
 import time
 import numpy as np
 import glob
@@ -11,12 +12,31 @@ import global_vars
 from extentions import TimeCounter
 
 CAPTURING_LOG = detection_logging.create_log("capturing.log", "CAPTURING THREAD")
+IMAGE_BUFFER = list()
+
+
+class ImageBuffer(threading.Thread):
+    def __init__(self, img_q, stop_ev):
+        super(ImageBuffer, self).__init__(name="image_queue")
+        self.orig_img_q = img_q
+        self.stop_event = stop_ev
+
+    def run(self):
+        while self.stop_event.is_set():
+            if len(IMAGE_BUFFER) > 0:
+                try:
+                    self.orig_img_q.put(IMAGE_BUFFER, timeout=2)
+                except Queue.Full:
+                    CAPTURING_LOG.warning("orig_img_q is full, next iteration")
+
+                    continue
 
 
 class VirtualCamera(threading.Thread):
-    def __init__(self, stop_ev):
+    def __init__(self, orig_img_q, stop_ev):
         super(VirtualCamera, self).__init__(name="virtual_camera")
         self.stop_event = stop_ev
+        self.orig_img_q = orig_img_q
         self.__check_dir()
 
     def run(self):
@@ -26,54 +46,30 @@ class VirtualCamera(threading.Thread):
         CAPTURING_LOG.info("Files in directory: {}".format(images_in_dir))
 
         while i < images_in_dir and self.stop_event.is_set():
-
-
             path_to_img = glob.glob(os.path.join(conf.IN_DIR, "img_{}_*.jpeg".format(i)))[0]
 
             image = cv2.imread(path_to_img)
             CAPTURING_LOG.debug("Image {} has been taken".format(i))
-            img_buff = ImgBuff()
-            img_buff.put(image)
-            global_vars.IMG_BUFF = img_buff
+
+            try:
+                self.orig_img_q.put(image, timeout=2)
+            except Queue.Full:
+                CAPTURING_LOG.warning("orig_img_q is full, next iteration")
+
+                continue
 
             i += 1
 
-            while not global_vars.IMG_BUFF.processed:
-                pass
-
         self.quit()
-
-        # Produce one item
-        lock = threading.Condition()
-        lock.acquire()
-    make_an_item_available()
-    cv.notify()
-    cv.release()
 
     def __check_dir(self):
         if not os.path.isdir(conf.IN_DIR):
             CAPTURING_LOG.error("INPUT directory does not exists. Path: {}".format(conf.IN_DIR))
             time.sleep(2)
-            exit(1)
+            self.stop_event.clear()
 
     def quit(self):
         self.stop_event.clear()
-
-
-class ImgBuff(object):
-    def __init__(self):
-        self.image = np.dtype('uint8')
-        self.processed = bool()
-        self.inserted = bool()
-
-    def get(self):
-        self.processed = True
-
-        return self.image
-
-    def put(self, image):
-        self.image = image
-        self.inserted = True
 
 
 class Camera(threading.Thread):
@@ -90,17 +86,15 @@ class Camera(threading.Thread):
 
         while self.stop_event.is_set():
             self.timer.note_time()
-            read_ok, img = self.camera.read()
+            read_ok, image = self.camera.read()
 
             if not read_ok:
                 CAPTURING_LOG.error("Capturing failed")
 
                 break
 
-            img_buff = ImgBuff()
-            img_buff.put(img)
-
-            global_vars.IMG_BUFF = img_buff
+            global IMAGE_BUFFER
+            IMAGE_BUFFER = image
 
             self.timer.get_time()
 

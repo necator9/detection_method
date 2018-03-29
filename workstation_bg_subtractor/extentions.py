@@ -1,15 +1,14 @@
 import sqlite3
 import os
-import conf
 import pickle
 import threading
 import numpy as np
 import cv2
 import copy
-import glob
 import time
 import Queue
 
+import conf
 import detection_logging
 
 SAVER_LOG = detection_logging.create_log("saver.log", "Saver")
@@ -341,27 +340,6 @@ class Draw(object):
         cv2.imwrite(path, self.out_img.data)
 
 
-
-# class Csv(object):
-#     def __init__(self, name):
-#         self.name = name + ".csv"
-#         fieldnames = ["Img_name", "Object_no", "Status", "Rect_coeff", "hw_ratio", "Contour_area", "Rect_area",
-#                       "Rect_perimeter", "Extent", "x", "y", "w", "h"]
-#         self.f = open(name, 'w')
-#         self.writer = csv.DictWriter(self.f, fieldnames=fieldnames)
-#         self.writer.writeheader()
-#
-#     def write(self, base_objects, img_name):
-#         for i, obj in enumerate(base_objects):
-#             self.writer.writerow({"Img_name": img_name, "Object_no": i + 1, "Status": obj.obj_status,
-#                                   "Rect_coeff": obj.rect_coef, "hw_ratio": obj.h_w_ratio,
-#                                   "Contour_area": obj.contour_area, "Rect_area": obj.rect_area,
-#                                   "Rect_perimeter": obj.rect_perimeter, "Extent": obj.extent,
-#                                   "x": obj.x, "y": obj.y, "w": obj.w, "h": obj.h})
-#
-#     def quit(self):
-#         self.f.close()
-
 class TimeCounter(object):
     def __init__(self, watch_name):
         if conf.TIMERS:
@@ -395,7 +373,25 @@ class TimeCounter(object):
 
 
 
-
+# class Csv(object):
+#     def __init__(self, name):
+#         self.name = name + ".csv"
+#         fieldnames = ["Img_name", "Object_no", "Status", "Rect_coeff", "hw_ratio", "Contour_area", "Rect_area",
+#                       "Rect_perimeter", "Extent", "x", "y", "w", "h"]
+#         self.f = open(name, 'w')
+#         self.writer = csv.DictWriter(self.f, fieldnames=fieldnames)
+#         self.writer.writeheader()
+#
+#     def write(self, base_objects, img_name):
+#         for i, obj in enumerate(base_objects):
+#             self.writer.writerow({"Img_name": img_name, "Object_no": i + 1, "Status": obj.obj_status,
+#                                   "Rect_coeff": obj.rect_coef, "hw_ratio": obj.h_w_ratio,
+#                                   "Contour_area": obj.contour_area, "Rect_area": obj.rect_area,
+#                                   "Rect_perimeter": obj.rect_perimeter, "Extent": obj.extent,
+#                                   "x": obj.x, "y": obj.y, "w": obj.w, "h": obj.h})
+#
+#     def quit(self):
+#         self.f.close()
 
 
 
