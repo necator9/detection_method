@@ -2,7 +2,6 @@ import cv2
 import threading
 import Queue
 import time
-import numpy as np
 import glob
 import os
 
@@ -15,23 +14,6 @@ CAPTURING_LOG = detection_logging.create_log("capturing.log", "CAPTURING THREAD"
 IMAGE_BUFFER = list()
 
 
-class ImageBuffer(threading.Thread):
-    def __init__(self, img_q, stop_ev):
-        super(ImageBuffer, self).__init__(name="image_queue")
-        self.orig_img_q = img_q
-        self.stop_event = stop_ev
-
-    def run(self):
-        while self.stop_event.is_set():
-            if len(IMAGE_BUFFER) > 0:
-                try:
-                    self.orig_img_q.put(IMAGE_BUFFER, timeout=2)
-                except Queue.Full:
-                    CAPTURING_LOG.warning("orig_img_q is full, next iteration")
-
-                    continue
-
-
 class VirtualCamera(threading.Thread):
     def __init__(self, orig_img_q, stop_ev):
         super(VirtualCamera, self).__init__(name="virtual_camera")
@@ -40,16 +22,15 @@ class VirtualCamera(threading.Thread):
         self.__check_dir()
 
     def run(self):
-        i = 0
         CAPTURING_LOG.info("Virtual camera thread has started")
         images_in_dir = (len(glob.glob(os.path.join(conf.IN_DIR, "*.jpeg")))) - 1
         CAPTURING_LOG.info("Files in directory: {}".format(images_in_dir))
 
-        while i < images_in_dir and self.stop_event.is_set():
-            path_to_img = glob.glob(os.path.join(conf.IN_DIR, "img_{}_*.jpeg".format(i)))[0]
+        while global_vars.COUNTER < images_in_dir and self.stop_event.is_set():
+            path_to_img = glob.glob(os.path.join(conf.IN_DIR, "img_{}_*.jpeg".format(global_vars.COUNTER)))[0]
 
             image = cv2.imread(path_to_img)
-            CAPTURING_LOG.debug("Image {} has been taken".format(i))
+            CAPTURING_LOG.debug("Image {} has been taken".format(global_vars.COUNTER))
 
             try:
                 self.orig_img_q.put(image, timeout=2)
@@ -58,7 +39,7 @@ class VirtualCamera(threading.Thread):
 
                 continue
 
-            i += 1
+            global_vars.COUNTER += 1
 
         self.quit()
 
@@ -101,8 +82,7 @@ class Camera(threading.Thread):
 
                 continue
 
-            # global IMAGE_BUFFER
-            # IMAGE_BUFFER = image
+            global_vars.COUNTER += 1
 
             self.timer.get_time()
 

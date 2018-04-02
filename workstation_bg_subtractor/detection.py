@@ -1,5 +1,4 @@
 import threading
-import time
 import copy
 
 import cv2
@@ -8,7 +7,6 @@ import numpy as np
 import Queue
 
 import conf
-import global_vars
 from extentions import DrawImgStructure, TimeCounter
 import detection_logging
 
@@ -58,8 +56,7 @@ class Detection(threading.Thread):
             except Queue.Full:
                 DETECTION_LOG.error("Draw queue is full. Queue size: {}".format(self.data_frame_q.qsize()))
 
-            DETECTION_LOG.debug("Detection iteration number {}".format(global_vars.COUNTER))
-            global_vars.COUNTER += 1
+            DETECTION_LOG.debug("Detection iteration performed")
 
             self.timer.get_time()
 
@@ -182,7 +179,6 @@ class PreProcess(object):
     def __filter(self, mog_mask):
 
         return cv2.morphologyEx(mog_mask, cv2.MORPH_OPEN, self.__filtering_kernel)
-
 
 
 class DataFrame(object):

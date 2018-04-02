@@ -74,7 +74,7 @@ def main():
 
     try:
         while stop_event.is_set():
-            MAIN_LOGGER.info("Processed {} images".format(global_vars.COUNTER))
+            MAIN_LOGGER.info("{} images captured".format(global_vars.COUNTER))
             time.sleep(1)
     except KeyboardInterrupt:
         MAIN_LOGGER.warning("Keyboard Interrupt, threads are going to stop")
@@ -87,10 +87,12 @@ def main():
     detection_thread.join()
     saver_thread.join()
 
+
+    MAIN_LOGGER.info("Program finished")
+
     time.sleep(1)
     detection_logging.stop_log_thread()
 
-    MAIN_LOGGER.info("Program finished")
 
 
 if __name__ == '__main__':
