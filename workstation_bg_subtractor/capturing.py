@@ -11,7 +11,6 @@ import global_vars
 from extentions import TimeCounter
 
 CAPTURING_LOG = detection_logging.create_log("capturing.log", "CAPTURING THREAD")
-IMAGE_BUFFER = list()
 
 
 class VirtualCamera(threading.Thread):

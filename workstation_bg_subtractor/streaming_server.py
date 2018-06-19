@@ -2,19 +2,24 @@
 import socket
 import cv2
 import numpy
+import conf
 
 
-def recvall(sock, count):
+def recv_all(sock, count):
     buf = b''
     while count:
         newbuf = sock.recv(count)
-        if not newbuf: return None
+        if not newbuf:
+
+            return None
+
         buf += newbuf
         count -= len(newbuf)
+
     return buf
 
 
-TCP_IP = '192.168.4.8'
+TCP_IP = conf.SERVER_TCP_IP
 TCP_PORT = 5001
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -23,15 +28,17 @@ s.listen(True)
 conn, addr = s.accept()
 try:
     while True:
-        length = recvall(conn, 16)
-        print length
-        stringData = recvall(conn, int(length))
+        length = recv_all(conn, 16)
+        if length is None:
+
+            break
+
+        stringData = recv_all(conn, int(length))
         data = numpy.fromstring(stringData, dtype='uint8')
 
-        decimg = cv2.imdecode(data, 1)
-        cv2.imshow('SERVER', decimg)
+        dec_img = cv2.imdecode(data, 1)
+        cv2.imshow('SERVER', dec_img)
         cv2.waitKey(1)
-        print "server recv"
 except KeyboardInterrupt:
     print "Keyboard interrupt"
 

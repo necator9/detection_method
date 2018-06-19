@@ -7,6 +7,7 @@ import cv2
 import copy
 import time
 import Queue
+import socket
 
 import conf
 import detection_logging
@@ -28,9 +29,10 @@ class Saving(threading.Thread):
         self.draw_frame_q = draw_frame_q
 
         self.check_if_dir_exists()
-        self.db_obj = Database(self.__gen_name("sql_database"))
-        self.pickle_obj = PickleWrap(self.__gen_name("pickle_data.pkl"))
+        self.db_obj = Database(self.gen_name("sql_database"))
+        self.pickle_obj = PickleWrap(self.gen_name("pickle_data.pkl"))
         self.draw_obj = Draw()
+        self.streaming_obj = Streaming()
 
     def run(self):
         SAVER_LOG.info("Starting the Saving thread...")
@@ -43,6 +45,7 @@ class Saving(threading.Thread):
         self.finish_writing()
         self.db_obj.quit()
         self.pickle_obj.quit()
+        self.streaming_obj.quit()
 
         SAVER_LOG.info("Saving thread has been finished")
 
@@ -65,8 +68,11 @@ class Saving(threading.Thread):
 
         self.pickle_obj.add(data_frame)
 
-        self.draw_obj.form_out_img(data_frame, draw_frame)
-        self.draw_obj.save()
+        self.draw_obj.save_multiple(data_frame, draw_frame)
+
+        self.draw_obj.save_single(data_frame)
+
+        self.streaming_obj.send(data_frame)
 
         global SAVE_COUNTER
         SAVE_COUNTER += 1
@@ -90,7 +96,7 @@ class Saving(threading.Thread):
         self._is_running = False
 
     @staticmethod
-    def __gen_name(name):
+    def gen_name(name):
         i = 0
         while True:
             name_plus_counter = ("{0}{1}" + name).format(str(i).zfill(3), "_")
@@ -189,7 +195,7 @@ class ImgStructure(object):
         self.name = name
 
 
-class DrawImgStructure(object):
+class MultipleImagesFrame(object):
     def __init__(self):
         self.mog_mask = ImgStructure("Original MOG mask")
         self.filtered_mask = ImgStructure("Filtered mask")
@@ -206,17 +212,18 @@ class DrawImgStructure(object):
 
 class Draw(object):
     def __init__(self):
-        if conf.SAVE_IMG:
+        if conf.SAVE_VERBOSE:
             self.out_img = ImgStructure("Detection result")
-            self.draw_img_structure = DrawImgStructure()
-            self.img_name = str()
+            self.draw_img_structure = MultipleImagesFrame()
             self.x_border = np.dtype('uint8')
             self.y_border = np.dtype('uint8')
             self.borders_updated_flag = bool()
 
-        else:
-            self.form_out_img = blank_fn
-            self.save = blank_fn
+        if not conf.SAVE_VERBOSE:
+            self.save_multiple = blank_fn
+
+        if not conf.SAVE_SINGLE:
+            self.save_single = blank_fn
 
     def update_borders(self):
         if not self.borders_updated_flag:
@@ -226,13 +233,11 @@ class Draw(object):
             self.y_border = np.zeros((1, conf.RESIZE_TO[0] * 3 + 2, 3), np.uint8)
             self.y_border[:] = (0, 0, 255)
 
-    def form_out_img(self, data_frame, draw_frame):
+    def draw_multiple_images(self, data_frame, draw_frame):
 
         self.update_borders()
 
         self.draw_img_structure = draw_frame
-
-        self.img_name = os.path.join(conf.OUT_DIR, "img_{}.jpeg".format(SAVE_COUNTER))
 
         self.draw_img_structure.filled_mask.data = copy.copy(data_frame.filled_mask)
         self.draw_img_structure.rect_cont.data = copy.copy(data_frame.orig_img)
@@ -245,17 +250,17 @@ class Draw(object):
             if len(value.data.shape) == 0:
                 value.data = np.zeros((conf.RESIZE_TO[1], conf.RESIZE_TO[0], 3), np.uint8)
 
-            self.__put_name(value.data, value.name)
+            self.put_name(value.data, value.name)
 
-        self.__put_margin(self.draw_img_structure.rect_cont.data)
+        self.put_margin(self.draw_img_structure.rect_cont.data)
 
-        self.__put_status(self.draw_img_structure.status.data, data_frame.base_frame_status)
-        self.__put_status(self.draw_img_structure.ex_status.data, data_frame.ex_frame_status)
+        self.put_status(self.draw_img_structure.status.data, data_frame.base_frame_status)
+        self.put_status(self.draw_img_structure.ex_status.data, data_frame.ex_frame_status)
 
-        self.__draw_rects(self.draw_img_structure.rect_cont.data, data_frame.base_objects)
-        self.__draw_rects(self.draw_img_structure.ex_rect_cont.data, data_frame.ex_objects)
+        self.draw_rects(self.draw_img_structure.rect_cont.data, data_frame.base_objects)
+        self.draw_rects(self.draw_img_structure.ex_rect_cont.data, data_frame.ex_objects)
 
-        self.__draw_rects_br_cr(self.draw_img_structure.rect_cont.data, data_frame.base_objects)
+        self.draw_rects_br_cr(self.draw_img_structure.rect_cont.data, data_frame.base_objects)
 
         # self.__draw_contour_areas(self.cont.data, d_frame.base_contours)
         # self.__draw_contour_areas(self.rect_cont.data, d_frame.base_contours)
@@ -272,15 +277,23 @@ class Draw(object):
 
         self.out_img.data = np.vstack((h_stack1, self.y_border, h_stack2, self.y_border, h_stack3))
 
-        return self.out_img
+        return self.out_img.data
 
     @staticmethod
-    def __put_name(img, text):
+    def draw_single_image(data_frame):
+        data_frame = copy.copy(data_frame)
+        Draw.put_name(data_frame.orig_img, " ")
+        Draw.draw_rects(data_frame.orig_img, data_frame.base_objects)
+        Draw.draw_rects_br_cr(data_frame.orig_img, data_frame.base_objects)
+
+        return data_frame.orig_img
+
+    @staticmethod
+    def put_name(img, text):
         cv2.putText(img, text, (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
 
-
     @staticmethod
-    def __draw_rects(img, objects):
+    def draw_rects(img, objects):
         for obj in objects:
             if obj.gen_status:
                 color = (0, 0, 255)
@@ -292,29 +305,29 @@ class Draw(object):
                         (0, 0, 255), 1, cv2.LINE_AA)
 
     @staticmethod
-    def __draw_rects_br_cr(img, objects):
+    def draw_rects_br_cr(img, objects):
         for obj in objects:
             for rect in obj.br_cr_rects:
                 x, y, w, h = rect
                 cv2.rectangle(img, (x, y), (x + w, y + h), (0, 0, 255), -1)
 
     @staticmethod
-    def __draw_rects_br(img, rects):
+    def draw_rects_br(img, rects):
         for rect in rects:
             x, y, w, h = rect
             cv2.rectangle(img, (x, y), (x + w, y + h), (0, 0, 255), -1)
 
     @staticmethod
-    def __draw_contour_areas(img, contours):
+    def draw_contour_areas(img, contours):
         cv2.drawContours(img, contours, -1, (255, 0, 0), 1)
 
     @staticmethod
-    def __put_status(img, status):
+    def put_status(img, status):
         cv2.putText(img, str(status), (80, 95), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 1, cv2.LINE_AA)
 
 
     @staticmethod
-    def __put_margin(img):
+    def put_margin(img):
         x_left_up = conf.X_MARGIN
         y_left_up = 0
         x_left_down = x_left_up
@@ -333,11 +346,49 @@ class Draw(object):
     #     cv2.waitKey(1)
     #     time.sleep(1)
 
-    def save(self):
+    def save(self, out_img, img_name):
         # Save JPEG with proper name
         SAVER_LOG.debug("Entry has been written")
-        path = os.path.join(conf.OUT_DIR, self.img_name)
-        cv2.imwrite(path, self.out_img.data)
+        path = os.path.join(conf.OUT_DIR, "{}_{}.jpeg".format(img_name, SAVE_COUNTER))
+        cv2.imwrite(path, out_img)
+
+    def save_multiple(self, data_frame, draw_frame):
+        out_img = self.draw_multiple_images(data_frame, draw_frame)
+        self.save(out_img, "m_img")
+
+    def save_single(self, data_frame):
+        out_img = self.draw_single_image(data_frame)
+        self.save(out_img, "s_img")
+
+
+class Streaming(object):
+    def __init__(self):
+        if conf.STREAMING:
+            self.streaming_log = detection_logging.create_log("streaming.log", "STREAMING CLIENT")
+            try:
+                self.sock = socket.socket()
+                self.sock.connect((conf.SERVER_TCP_IP, conf.SERVER_TCP_PORT))
+                self.encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
+            except socket.error:
+                self.streaming_log.error("Cannot establish the connection to server, streaming is not active")
+                self.send = blank_fn
+                self.quit = blank_fn
+        else:
+            self.send = blank_fn
+            self.quit = blank_fn
+
+    def send(self, data_frame):
+        image = Draw.draw_single_image(data_frame)
+        result, img_encode = cv2.imencode('.jpg', image, self.encode_param)
+        data = np.array(img_encode)
+        string_data = data.tostring()
+
+        self.sock.send(str(len(string_data)).ljust(16))
+        self.sock.send(string_data)
+        self.streaming_log.debug("Image has been sent")
+
+    def quit(self):
+        self.sock.close()
 
 
 class TimeCounter(object):

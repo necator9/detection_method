@@ -46,30 +46,28 @@ def main():
     draw_frame_q = Queue.Queue(maxsize=1000)
     orig_img_q = Queue.Queue(maxsize=1)
 
-    # image_buffer = capturing.ImageBuffer(orig_img_q, stop_event)
     detection_thread = detection.Detection(stop_event, data_frame_q, draw_frame_q, orig_img_q)
     saver_thread = extentions.Saving(data_frame_q, draw_frame_q)
+    # streaming_thread = str
 
     if not conf.VIRTUAL_CAMERA:
         capturing_thread = capturing.Camera(orig_img_q, stop_event)
     else:
         capturing_thread = capturing.VirtualCamera(orig_img_q, stop_event)
-        # image_buffer.start = blank_fn
 
-    if not (conf.WRITE_TO_DB or conf.WRITE_TO_PICKLE or conf.SAVE_IMG):
+    if not (conf.WRITE_TO_DB or conf.WRITE_TO_PICKLE or conf.SAVE_VERBOSE or conf.SAVE_SINGLE or conf.STREAMING):
         saver_thread.start = blank_fn
         saver_thread.quit = blank_fn
         saver_thread.join = blank_fn
         data_frame_q.put_nowait = blank_fn
         data_frame_q.get = blank_fn
 
-    if not conf.SAVE_IMG:
+    if not conf.SAVE_VERBOSE:
         draw_frame_q.put_nowait = blank_fn
         draw_frame_q.get = blank_fn
 
     saver_thread.start()
     capturing_thread.start()
-    # image_buffer.start()
     detection_thread.start()
 
     try:

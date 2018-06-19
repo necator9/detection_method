@@ -11,8 +11,6 @@ import cv2
 
 
 STREAMING_LOG = detection_logging.create_log("streaming.log", "STREAMING CLIENT")
-detection_logging.init_log_thread()
-
 
 STREAMING_LOG.info("Program has started")
 

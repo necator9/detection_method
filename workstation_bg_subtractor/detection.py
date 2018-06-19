@@ -7,7 +7,7 @@ import numpy as np
 import Queue
 
 import conf
-from extentions import DrawImgStructure, TimeCounter
+from extentions import MultipleImagesFrame, TimeCounter
 import detection_logging
 
 DETECTION_LOG = detection_logging.create_log("detection.log", "DETECTION THREAD")
@@ -42,7 +42,7 @@ class Detection(threading.Thread):
 
                 continue
 
-            draw_frame = DrawImgStructure()
+            draw_frame = MultipleImagesFrame()
             draw_frame.mog_mask.data, draw_frame.filtered_mask.data = img_fr.process(data_frame)
             draw_frame.bright_mask.data, draw_frame.extent_split_mask.data = data_frame.calculate()
 
