@@ -152,7 +152,15 @@ class PreProcess(object):
 
     def process(self, d_frame):
         orig_img = resize(d_frame.orig_img, width=conf.RESIZE_TO[0], height=conf.RESIZE_TO[1])
+
+        orig_img = cv2.cvtColor(orig_img, cv2.COLOR_BGR2GRAY)
+
         self.set_ratio(orig_img)
+
+        # orig_img = self.adjust_gamma(orig_img, 2)
+        # orig_img = self.increase_brightness(orig_img, 20)
+
+        # orig_img = self.clahe_contrast(orig_img)
 
         mog_mask = self.__mog.apply(orig_img)
         _, mog_mask = cv2.threshold(mog_mask, 127, 255, cv2.THRESH_BINARY)
@@ -165,6 +173,36 @@ class PreProcess(object):
         d_frame.filled_mask = filled_mask
 
         return mog_mask, filtered_mask
+
+    @staticmethod
+    def adjust_gamma(image, gamma=1.0):
+        # build a lookup table mapping the pixel values [0, 255] to
+        # their adjusted gamma values
+        inv_gamma = 1.0 / gamma
+        table = np.array([((i / 255.0) ** inv_gamma) * 255
+                          for i in np.arange(0, 256)]).astype("uint8")
+
+        # apply gamma correction using the lookup table
+        return cv2.LUT(image, table)
+
+    @staticmethod
+    def increase_brightness(image, value=30):
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        h, s, v = cv2.split(hsv)
+
+        lim = 255 - value
+        v[v > lim] = 255
+        v[v <= lim] += value
+
+        final_hsv = cv2.merge((h, s, v))
+        image = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
+        return image
+
+    @staticmethod
+    def clahe_contrast(image):
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        clahe = cv2.createCLAHE(clipLimit=4.0, tileGridSize=(9, 3))
+        return clahe.apply(image)
 
     def set_ratio(self, img):
         if not self.set_ratio_done:
@@ -234,14 +272,11 @@ class DataFrame(object):
         return ex_filled_mask
 
     def __brightness_process(self, objects):
-        brightness_mask = np.zeros((conf.RESIZE_TO[1], conf.RESIZE_TO[0], 3), np.uint8)
-        # if len(self.base_objects) > 0:  # keep it for optimization for BBB
-        brightness_mask[np.where((self.orig_img > [220, 220, 220]).all(axis=2))] = [255]
-        brightness_mask = cv2.cvtColor(brightness_mask, cv2.COLOR_BGR2GRAY)
+        brightness_mask = np.zeros((conf.RESIZE_TO[1], conf.RESIZE_TO[0]), np.uint8)
+        # # if len(self.base_objects) > 0:  # keep it for optimization for BBB
 
+        brightness_mask[np.where(self.orig_img > 220)] = [255]
         _, contours, _ = cv2.findContours(brightness_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        brightness_mask = cv2.cvtColor(brightness_mask, cv2.COLOR_GRAY2BGR)
 
         self.br_rects = [cv2.boundingRect(contour) for contour in contours]
 

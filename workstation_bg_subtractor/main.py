@@ -22,7 +22,7 @@ def blank_fn(*args, **kwargs):
 
 def check_cv_version():
     cv_version = cv2.__version__[0]
-    if cv_version is not "3":
+    if int(cv_version) < 3:
         MAIN_LOGGER.error("The program works only with OpenCV v3.x.x or higher. Current v:{}".format(cv2.__version__))
 
         return True

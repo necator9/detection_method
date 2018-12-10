@@ -1,32 +1,32 @@
 # Camera parameters
 DEVICE = "/dev/video0"
-RESOLUTION = (340, 240)
+RESOLUTION = (320, 240)
 FPS = 7
 
 # Virtual camera parameters
 VIRTUAL_CAMERA = True
-IN_DIR = "/home/ivan/test_ir/origin/05.10.17/1"
-
+# IN_DIR = "/home/ivan/experiments/16m_pedestrians_cut/img"
+IN_DIR = "/home/ivan/home_ubuntu/test_ir/origin/25.10.17/2"
 # Detection parameters
-RESIZE_TO = [1280, 240]        # Width and height of an image for processing [100, 240]
+RESIZE_TO = [320, 240]        # Width and height of an image for processing [100, 240]
 # F_KERNEL_SIZE = (5, 5)           # Size of elliptical filtering kernel in pixels
 F_KERNEL_SIZE = (4, 4)           # Size of elliptical filtering kernel in pixels
 DILATE_ITERATIONS = 1
 MARGIN = (0, 0)
-# COEFF_RANGE = (1200, 12000)
+COEFF_RANGE = (1200, 12000)
 # COEFF_RANGE = (166, 1662)
-COEFF_RANGE = (10000, 40000)
+# COEFF_RANGE = (10000, 40000)
 EXTENT_THRESHOLD = 0.5
 BRIGHTNESS_THRESHOLD = 0.2
 X_MARGIN = 0
 
 # Saving parameters
-SAVE_SINGLE = True
-SAVE_VERBOSE = False
+SAVE_SINGLE = False
+SAVE_VERBOSE = True
 WRITE_TO_DB = True
 WRITE_TO_PICKLE = False
 # OUT_DIR = "/root/test"
-OUT_DIR = "/home/ivan/test_ir/test"
+OUT_DIR = "/home/ivan/experiments/bright/"
 
 # Streaming parameters
 STREAMING = False
@@ -41,7 +41,7 @@ TIME_WINDOW = 100
 SHOW_LOGS = True
 LOG_LEVEL = "INFO"
 # PATH_TO_LOGS = "/root/logs/"
-PATH_TO_LOGS = "/home/ivan/test_ir/logs/"
+PATH_TO_LOGS = "/home/ivan/logs/"
 
 # Outdated functional
 # SHOW_IMG = False
