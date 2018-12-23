@@ -69,45 +69,32 @@ class Detection(threading.Thread):
 
 
 class ObjParams(object):
-    def __init__(self, obj_id=int()):
+    def __init__(self, obj_id, contour):
         self.obj_id = obj_id
+        self.base_rect = x, y, w, h = cv2.boundingRect(contour)
+        self.contour_area = cv2.contourArea(contour)
+
+        self.h_w_ratio = round(float(h) / w, 2)
+        self.rect_area = w * h
+        self.rect_perimeter = 2 * (h + w)
+        self.extent = round(float(self.contour_area) / self.rect_area, 2)
+        k = 1 if self.h_w_ratio > 0.7 else -0.1
+        # coeff(k * ((2.0 * w * h + 2 * w ** 2 + h) / w), 1) # Kirill suggestion
+        self.rect_coef = round(self.contour_area * k * 
+                               ((h ** 2 + 2 * h * w + w ** 2) / (h * w * 4.0)), 3)
+        # self.rect_coef_thr = 
         self.base_status = bool()
         self.br_status = bool()
         self.gen_status = bool()
-
-        self.h_w_ratio = float()
-        self.base_rect = tuple()
 
         self.br_cr_rects = [[0, 0, 0, 0]]
         self.br_cr_area = int()
         self.br_ratio = float()
 
-        self.contour_area = float()
-        self.rect_coef = float()
-        self.extent = float()
-        self.rect_area = float()
-        self.rect_perimeter = float()
 
-    def process_obj(self, contour):
-        self.calc_params(contour)
+    def process_obj(self):
         self.detect()
 
-    def calc_params(self, contour):
-        self.contour_area = cv2.contourArea(contour)
-        self.base_rect = x, y, w, h = cv2.boundingRect(contour)
-        self.h_w_ratio = round(float(h) / w, 2)
-        self.rect_area = w * h
-        self.rect_perimeter = 2 * (h + w)
-        self.extent = round(float(self.contour_area) / self.rect_area, 2)
-
-        if float(h) / w > 0.7:
-            k = 1.0
-        else:
-            k = -1.0
-
-        # coeff(k * ((2.0 * w * h + 2 * w ** 2 + h) / w), 1) # Kirill suggestion
-        self.rect_coef = round(self.contour_area * k * ((h ** 2 + 2 * h * w + w ** 2) /
-                                                        (h * w * 4.0)), 3)
 
     # TODO Transfer into dataframe class
 
@@ -160,14 +147,15 @@ class PreProcess(object):
         # orig_img = self.adjust_gamma(orig_img, 2)
         # orig_img = self.increase_brightness(orig_img, 20)
 
-        # orig_img = self.clahe_contrast(orig_img)
+        orig_img = self.clahe_contrast(orig_img)
 
         mog_mask = self.__mog.apply(orig_img)
         _, mog_mask = cv2.threshold(mog_mask, 127, 255, cv2.THRESH_BINARY)
 
         filtered_mask = self.__filter(mog_mask)
 
-        filled_mask = cv2.dilate(filtered_mask, None, iterations=conf.DILATE_ITERATIONS)
+        #filled_mask = cv2.dilate(filtered_mask, None, iterations=conf.DILATE_ITERATIONS)
+        filled_mask = filtered_mask 
 
         d_frame.orig_img = orig_img
         d_frame.filled_mask = filled_mask
@@ -200,8 +188,7 @@ class PreProcess(object):
 
     @staticmethod
     def clahe_contrast(image):
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        clahe = cv2.createCLAHE(clipLimit=4.0, tileGridSize=(9, 3))
+        clahe = cv2.createCLAHE(clipLimit=8.0, tileGridSize=(8, 8))
         return clahe.apply(image)
 
     def set_ratio(self, img):
@@ -233,10 +220,10 @@ class DataFrame(object):
         self.br_rects = list()
 
     def calculate(self):
-        self.base_objects, self.base_contours = self.__basic_process(self.filled_mask)
+        self.base_objects, self.base_contours = self._basic_process(self.filled_mask)
         bright_mask = self.__brightness_process(self.base_objects)
         ex_filled_mask = self.__extent_split_process()
-        self.ex_objects, _ = self.__basic_process(ex_filled_mask)
+        self.ex_objects, _ = self._basic_process(ex_filled_mask)
         _ = self.__brightness_process(self.ex_objects)
 
         self.detect()
@@ -244,14 +231,14 @@ class DataFrame(object):
         return bright_mask, ex_filled_mask
 
     @staticmethod
-    def __basic_process(filled_mask):
+    def _basic_process(filled_mask):
         objects = list()
 
         _, contours, _ = cv2.findContours(filled_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         for obj_id, contour in enumerate(contours):
-            obj = ObjParams(obj_id)
-            obj.process_obj(contour)
+            obj = ObjParams(obj_id, contour)
+            obj.process_obj()
             objects.append(obj)
 
         return objects, contours
@@ -275,7 +262,7 @@ class DataFrame(object):
         brightness_mask = np.zeros((conf.RESIZE_TO[1], conf.RESIZE_TO[0]), np.uint8)
         # # if len(self.base_objects) > 0:  # keep it for optimization for BBB
 
-        brightness_mask[np.where(self.orig_img > 220)] = [255]
+        brightness_mask[np.where(self.orig_img > 245)] = [255]
         _, contours, _ = cv2.findContours(brightness_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         self.br_rects = [cv2.boundingRect(contour) for contour in contours]

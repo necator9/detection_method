@@ -40,7 +40,7 @@ try:
         cv2.imshow('SERVER', dec_img)
         cv2.waitKey(1)
 except KeyboardInterrupt:
-    print "Keyboard interrupt"
+    print ("Keyboard interrupt")
 
 s.close()
 
