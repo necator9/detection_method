@@ -5,7 +5,7 @@ FPS = 7
 
 # Virtual camera parameters
 VIRTUAL_CAMERA = True
-IN_DIR = "/home/ivan/experiments/chaos/img"
+IN_DIR = "/home/ivan/experiments/sources/5m_ped_filtered"
 #IN_DIR = "/home/ivan/experiments/11m_pedestrians/img"
 #IN_DIR = "/home/ivan/experiments/16m_pedestrians/img"
 #IN_DIR = "/home/ivan/home_ubuntu/test_ir/origin/25.10.17/2"
@@ -28,7 +28,7 @@ SAVE_VERBOSE = True
 WRITE_TO_DB = True
 WRITE_TO_PICKLE = False
 # OUT_DIR = "/root/test"
-OUT_DIR = "/home/ivan/experiments/chaos_out_clashe_8.0/"
+OUT_DIR = "/home/ivan/experiments/5m_ped/"
 #OUT_DIR = "/home/ivan/experiments/5m_pedestrians_out_clashe_8.0/"
 #OUT_DIR = "/home/ivan/experiments/car_bright_0.2/"
 

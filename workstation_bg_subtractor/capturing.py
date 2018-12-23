@@ -26,16 +26,17 @@ class VirtualCamera(threading.Thread):
         CAPTURING_LOG.info("Files in directory: {}".format(images_in_dir))
 
         while global_vars.COUNTER < images_in_dir and self.stop_event.is_set():
-            path_to_img = glob.glob(os.path.join(conf.IN_DIR, "img_{}_*.jpeg".format(global_vars.COUNTER)))[0]
-
             try:
-                image = cv2.imread(path_to_img)
-                CAPTURING_LOG.debug("Image {} has been taken".format(global_vars.COUNTER))
+                path_to_img = glob.glob(os.path.join(conf.IN_DIR, "img_{}.jpeg".format(global_vars.COUNTER)))[0]
 
-            except Exception as err:
+            except IndexError as err:
                 CAPTURING_LOG.warning('No such image number, next iteration')
                 global_vars.COUNTER += 1
                 continue
+
+            image = cv2.imread(path_to_img)
+            CAPTURING_LOG.debug("Image {} has been taken".format(global_vars.COUNTER))
+
 
             try:
                 self.orig_img_q.put(image, timeout=2)
