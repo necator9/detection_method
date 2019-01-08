@@ -74,15 +74,21 @@ class ObjParams(object):
         self.base_rect = x, y, w, h = cv2.boundingRect(contour)
         self.contour_area = cv2.contourArea(contour)
 
+        py = [1.54958678e-03, -2.68595041e-02, 5.09555785e+00]
+        ph = [0.35454545, -12.17272727, 137.]
+        pw = [1.81818182e-02, -2.29090909e+00, 4.50000000e+01]
+        pc = [8.19090909, -285.55454545, 2741.]
+
         self.h_w_ratio = round(float(h) / w, 2)
         self.rect_area = w * h
         self.rect_perimeter = 2 * (h + w)
         self.extent = round(float(self.contour_area) / self.rect_area, 2)
-        k = 1 if self.h_w_ratio > 0.7 else -0.1
+        #k = 1 if self.h_w_ratio > 0.7 else -0.1
         # coeff(k * ((2.0 * w * h + 2 * w ** 2 + h) / w), 1) # Kirill suggestion
-        self.rect_coef = round(self.contour_area * k * 
-                               ((h ** 2 + 2 * h * w + w ** 2) / (h * w * 4.0)), 3)
+        #self.rect_coef = round(self.contour_area * k * 
+                            #   ((h ** 2 + 2 * h * w + w ** 2) / (h * w * 4.0)), 3)
         # self.rect_coef_thr = 
+        self.rect_coef = self.calc_rect_coef(h, w, self.contour_area, y+h, ph, pw, pc, py)
         self.base_status = bool()
         self.br_status = bool()
         self.gen_status = bool()
@@ -95,7 +101,27 @@ class ObjParams(object):
     def process_obj(self):
         self.detect()
 
+    def calc_rect_coef(self, h, w, c, y, ph, pw, pc, py):
+        '''
+        y --- number of pixel till left low corner
+        '''
+        def poly(x, p):
+            return p[0] * x ** 2 + p[1] * x  + p[-1]
 
+        h_w_ratio = float(h)/w
+        k = 1 if h_w_ratio > 0.7 else -1
+        d = poly(180 - y, py)
+        #print 'distance: ', d
+        #print 'orig: ', c, h, w
+        c_ref = poly(5, pc)
+        h_ref = poly(5, ph)
+        w_ref = poly(5, pw)
+        c *= c_ref / poly(d, pc)
+        h *= h_ref / poly(d, ph)
+        w *= w_ref / poly(d, pw)
+        #print 'updated: ', c, h, w
+        #print 'ref: ', c_ref, h_ref, w_ref
+        return round(c * k * ((h ** 2 + 2 * h * w + w ** 2) / (h * w * 4.0)), 3)
     # TODO Transfer into dataframe class
 
     def detect(self):
@@ -103,7 +129,8 @@ class ObjParams(object):
         is_extent_belongs = self.check_extent(self.extent)
         is_margin_crossed = self.check_margin(self.base_rect[0], self.base_rect[2])
 
-        if is_rect_coeff_belongs and not is_margin_crossed and is_extent_belongs:
+        #if is_rect_coeff_belongs and not is_margin_crossed and is_extent_belongs:
+        if is_rect_coeff_belongs:
             self.base_status = True
         else:
             self.base_status = False
