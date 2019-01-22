@@ -5,7 +5,7 @@ FPS = 7
 
 # Virtual camera parameters
 VIRTUAL_CAMERA = True
-IN_DIR = "/home/ivan/experiments/sources/bicyclist_random_filtered/"
+IN_DIR = "/home/ivan/experiments/sources/TZK_january/3m"
 #IN_DIR = "/home/ivan/experiments/sources/16m_ped_filtered/"
 #IN_DIR = "/home/ivan/experiments/11m_pedestrians/img"
 #IN_DIR = "/home/ivan/experiments/16m_pedestrians/img"
@@ -34,7 +34,7 @@ WRITE_TO_PICKLE = False
 # OUT_DIR = "/home/ivan/experiments/chaos_out/"
 # OUT_DIR = "/home/ivan/experiments/16m_ped_out/"
 # OUT_DIR = "/home/ivan/experiments/car_bright_0.2/"
-OUT_DIR = "/home/ivan/experiments/bicyclist_out/"
+OUT_DIR = "/home/ivan/experiments/3m"
 
 # Streaming parameters
 STREAMING = False

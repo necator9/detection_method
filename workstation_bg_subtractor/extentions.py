@@ -126,7 +126,7 @@ class Database(object):
         self.cur.execute('''CREATE TABLE {} (Img_name TEXT, Obj_id INT, Status TEXT, Base_status TEXT, Br_status TEXT,  
                                         Rect_coeff REAL, Extent_coeff REAL, Br_ratio REAL, hw_ratio REAL, 
                                         Contour_area REAL, Rect_area INT, Rect_perimeter INT, Br_cross_area INT, 
-                                        x INT, y INT, w INT, h INT )'''.format(self.table_name))
+                                        x INT, y INT, w INT, h INT, d REAL, c_s REAL, h_s INT, w_s INT, rect_area_s INT, rect_perimeter_s INT, rect_coef_s REAL)'''.format(self.table_name))
 
         self.db.commit()
 
@@ -137,16 +137,16 @@ class Database(object):
 
         self.cur.executemany('''INSERT INTO {}(Img_name, Obj_id, Status, Base_status, Br_status,  Rect_coeff, 
                                           Extent_coeff, Br_ratio, hw_ratio, Contour_area, Rect_area, Rect_perimeter, 
-                                          Br_cross_area, x, y, w, h) 
-                                          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''.format(self.table_name), db_arr)
+                                          Br_cross_area, x, y, w, h, d, c_s, h_s, w_s, rect_area_s, rect_perimeter_s, rect_coef_s) 
+                                          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''.format(self.table_name), db_arr)
 
         if len(d_frame.ex_objects) > 0:
             img_name += "_split"
             db_split_arr = self.get_base_params(d_frame.ex_objects, img_name)
             self.cur.executemany('''INSERT INTO {}(Img_name, Obj_id, Status, Base_status, Br_status, Rect_coeff, 
                                               Extent_coeff, Br_ratio, hw_ratio, Contour_area, Rect_area, Rect_perimeter, 
-                                              Br_cross_area, x, y, w, h) 
-                                              VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''.format(
+                                              Br_cross_area, x, y, w, h, d, c_s, h_s, w_s, rect_area_s, rect_perimeter_s, rect_coef_s) 
+                                              VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''.format(
                 self.table_name),
                             db_split_arr)
 
@@ -162,7 +162,7 @@ class Database(object):
                     [img_name, obj.obj_id, str(obj.gen_status), str(obj.base_status), str(obj.br_status), obj.rect_coef,
                      obj.extent, obj.br_ratio,
                      obj.h_w_ratio, obj.contour_area, obj.rect_area, obj.rect_perimeter, obj.br_cr_area,
-                     obj.base_rect[0], obj.base_rect[1], obj.base_rect[2], obj.base_rect[3]])
+                     obj.base_rect[0], obj.base_rect[1], obj.base_rect[2], obj.base_rect[3], obj.d, obj.c_s, obj.h_s, obj.w_s, obj.rect_area_s, obj.rect_perimeter_s, obj.rect_coef_s])
 
         return db_arr
 

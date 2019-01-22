@@ -3,8 +3,8 @@ import sqlite3
 import readline
 import numpy as np
 
-OLD_DB_PATH = "/home/ivan/experiments/5m_ped/000_sql_database"
-NEW_DB_PATH = "/home/ivan/experiments/selected_objs_5m.db"
+OLD_DB_PATH = "/home/ivan/experiments/bicyclist_out_d/018_sql_database"
+NEW_DB_PATH = "/home/ivan/experiments/bicyclist_out.db"
 
 
 def get_sql_column(db_name):

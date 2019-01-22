@@ -70,25 +70,45 @@ class Detection(threading.Thread):
 
 class ObjParams(object):
     def __init__(self, obj_id, contour):
-        self.obj_id = obj_id
-        self.base_rect = x, y, w, h = cv2.boundingRect(contour)
-        self.contour_area = cv2.contourArea(contour)
-
         py = [1.54958678e-03, -2.68595041e-02, 5.09555785e+00]
         ph = [0.35454545, -12.17272727, 137.]
         pw = [1.81818182e-02, -2.29090909e+00, 4.50000000e+01]
         pc = [8.19090909, -285.55454545, 2741.]
 
-        self.h_w_ratio = round(float(h) / w, 2)
+        c_ref = self.poly(5, pc)
+        h_ref = self.poly(5, ph)
+        w_ref = self.poly(5, pw)
+
+        self.obj_id = obj_id
+
+        self.contour_area = cv2.contourArea(contour)
+
+        self.base_rect = x, y, w, h = cv2.boundingRect(contour)
+
+        self.d = self.poly(180 - (y + h), py)
+        self.c_s = self.contour_area * c_ref / self.poly(self.d, pc)
+        self.h_s = h * h_ref / self.poly(self.d, ph)
+        self.w_s = w * w_ref / self.poly(self.d, pw)
+
+        self.h_w_ratio = round(float(h) / w, 3)
+
         self.rect_area = w * h
+        self.rect_area_s = self.w_s * self.h_s
+
         self.rect_perimeter = 2 * (h + w)
+        self.rect_perimeter_s = 2 * (self.h_s + self.w_s)
+
         self.extent = round(float(self.contour_area) / self.rect_area, 2)
-        #k = 1 if self.h_w_ratio > 0.7 else -0.1
+
+        k = 1 if self.h_w_ratio > 0.7 else -1
+
         # coeff(k * ((2.0 * w * h + 2 * w ** 2 + h) / w), 1) # Kirill suggestion
         #self.rect_coef = round(self.contour_area * k * 
                             #   ((h ** 2 + 2 * h * w + w ** 2) / (h * w * 4.0)), 3)
-        # self.rect_coef_thr = 
-        self.rect_coef = self.calc_rect_coef(h, w, self.contour_area, y+h, ph, pw, pc, py)
+
+        self.rect_coef = self.calc_rect_coef(h, w, self.contour_area, k)
+        self.rect_coef_s = self.calc_rect_coef(self.h_s, self.w_s, self.c_s, k)
+
         self.base_status = bool()
         self.br_status = bool()
         self.gen_status = bool()
@@ -97,35 +117,21 @@ class ObjParams(object):
         self.br_cr_area = int()
         self.br_ratio = float()
 
+    def poly(self, x, p):
+        return p[0] * x ** 2 + p[1] * x  + p[-1]
 
     def process_obj(self):
         self.detect()
 
-    def calc_rect_coef(self, h, w, c, y, ph, pw, pc, py):
+    def calc_rect_coef(self, h, w, c, k):
         '''
         y --- number of pixel till left low corner
         '''
-        def poly(x, p):
-            return p[0] * x ** 2 + p[1] * x  + p[-1]
-
-        h_w_ratio = float(h)/w
-        k = 1 if h_w_ratio > 0.7 else -1
-        d = poly(180 - y, py)
-        #print 'distance: ', d
-        #print 'orig: ', c, h, w
-        c_ref = poly(5, pc)
-        h_ref = poly(5, ph)
-        w_ref = poly(5, pw)
-        c *= c_ref / poly(d, pc)
-        h *= h_ref / poly(d, ph)
-        w *= w_ref / poly(d, pw)
-        #print 'updated: ', c, h, w
-        #print 'ref: ', c_ref, h_ref, w_ref
         return round(c * k * ((h ** 2 + 2 * h * w + w ** 2) / (h * w * 4.0)), 3)
     # TODO Transfer into dataframe class
 
     def detect(self):
-        is_rect_coeff_belongs = self.check_rect_coeff(self.rect_coef)
+        is_rect_coeff_belongs = self.check_rect_coeff(self.rect_coef_s)
         is_extent_belongs = self.check_extent(self.extent)
         is_margin_crossed = self.check_margin(self.base_rect[0], self.base_rect[2])
 
@@ -181,8 +187,8 @@ class PreProcess(object):
 
         filtered_mask = self.__filter(mog_mask)
 
-        #filled_mask = cv2.dilate(filtered_mask, None, iterations=conf.DILATE_ITERATIONS)
-        filled_mask = filtered_mask 
+        filled_mask = cv2.dilate(filtered_mask, None, iterations=conf.DILATE_ITERATIONS)
+        #filled_mask = filtered_mask 
 
         d_frame.orig_img = orig_img
         d_frame.filled_mask = filled_mask
@@ -249,7 +255,7 @@ class DataFrame(object):
     def calculate(self):
         self.base_objects, self.base_contours = self._basic_process(self.filled_mask)
         bright_mask = self.__brightness_process(self.base_objects)
-        ex_filled_mask = self.__extent_split_process()
+        ex_filled_mask = self._extent_split_process()
         self.ex_objects, _ = self._basic_process(ex_filled_mask)
         _ = self.__brightness_process(self.ex_objects)
 
@@ -271,17 +277,49 @@ class DataFrame(object):
         return objects, contours
 
     # TODO remake to crop and analyze only one object, only problem object should be considered further
-    def __extent_split_process(self):
+    def _extent_split_process(self):
+        def make_split(bin_mask, fill=0.68, tail=0.25): # fill - amount of zeros in coloumn in percent ratio  
+            def calc_split_point(vector):
+                last_zero_ind, percent = 0, 0.0
+                zero_indexes, = np.where(vector == 0)
+
+                if zero_indexes.size > 0:
+                    last_zero_ind = zero_indexes.max()
+                    percent = last_zero_ind / float(vector.size) # Get relative size of empty area by x axis
+
+                return last_zero_ind, percent
+
+            rows, coloumns = bin_mask.shape
+
+            if coloumns >= rows:
+                x_mask = np.asarray([0 if (np.bincount(i)[0] / float(i.size)) >= fill else 1 for i in bin_mask.T], dtype='int8')
+                #print x_mask
+                x_mask_l, x_mask_r = x_mask[:x_mask.size // 2], x_mask[x_mask.size // 2:]
+
+                front_ind, front_percent = calc_split_point(x_mask_l)
+                opposite_ind, opposite_percent = calc_split_point(x_mask_r[::-1])
+
+                split_data = [[front_ind, front_percent], [bin_mask.shape[1] - opposite_ind, opposite_percent]]
+
+                split_data = zip(*split_data)
+                max_sp_ind = split_data[1].index(max(split_data[1]))
+
+                if split_data[1][max_sp_ind] > tail:
+                    ind = split_data[0][max_sp_ind]
+                    bin_mask[:, ind] = 0
+
+            return bin_mask
         ex_filled_mask = np.zeros((conf.RESIZE_TO[1], conf.RESIZE_TO[0]), np.uint8) # create minimal image
         for obj in self.base_objects:
             is_extent = obj.extent < 0.6
-            is_rect_coeff = -20000 < obj.rect_coef < -10000  # Try to reduce to -5000 or so
+            is_rect_coeff = -10000 < obj.rect_coef_s < -2000  # Try to reduce to -5000 or so
 
             if is_extent and is_rect_coeff and not obj.base_status and not obj.br_status:
                 x, y, w, h = obj.base_rect
-
-                ex_filled_mask[y:y+h, x:x + w] = self.filled_mask[y:y+h, x:x + w]
-                cv2.line(ex_filled_mask, (x + int(w / 2), 0), (x + int(w / 2), conf.RESIZE_TO[1]), (0, 0, 0), 3)
+                split_mask = make_split(self.filled_mask[y:y+h, x:x + w])
+                ex_filled_mask[y:y+h, x:x + w] = split_mask[:,:]
+                #ex_filled_mask[y:y+h, x:x + w] = self.filled_mask[y:y+h, x:x + w]
+#                cv2.line(ex_filled_mask, (x + int(w / 2), 0), (x + int(w / 2), conf.RESIZE_TO[1]), (0, 0, 0), 3)
 
         return ex_filled_mask
 
