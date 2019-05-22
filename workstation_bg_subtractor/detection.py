@@ -180,7 +180,7 @@ class PreProcess(object):
         # orig_img = self.adjust_gamma(orig_img, 2)
         # orig_img = self.increase_brightness(orig_img, 20)
 
-        orig_img = self.clahe_contrast(orig_img)
+        #orig_img = self.clahe_contrast(orig_img)
 
         mog_mask = self.__mog.apply(orig_img)
         _, mog_mask = cv2.threshold(mog_mask, 127, 255, cv2.THRESH_BINARY)
