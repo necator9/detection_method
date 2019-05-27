@@ -173,7 +173,7 @@ class PreProcess(object):
     def process(self, d_frame):
         orig_img = resize(d_frame.orig_img, width=conf.RESIZE_TO[0], height=conf.RESIZE_TO[1])
 
-        orig_img = cv2.cvtColor(orig_img, cv2.COLOR_BGR2GRAY)
+        # orig_img = cv2.cvtColor(orig_img, cv2.COLOR_BGR2GRAY)
 
         self.set_ratio(orig_img)
 
@@ -267,7 +267,7 @@ class DataFrame(object):
     def _basic_process(filled_mask):
         objects = list()
 
-        _, contours, _ = cv2.findContours(filled_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(filled_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         for obj_id, contour in enumerate(contours):
             obj = ObjParams(obj_id, contour)
@@ -328,7 +328,7 @@ class DataFrame(object):
         # # if len(self.base_objects) > 0:  # keep it for optimization for BBB
 
         brightness_mask[np.where(self.orig_img > 245)] = [255]
-        _, contours, _ = cv2.findContours(brightness_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(brightness_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         self.br_rects = [cv2.boundingRect(contour) for contour in contours]
 

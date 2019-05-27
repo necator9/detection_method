@@ -4,6 +4,7 @@ import Queue
 import time
 import glob
 import os
+import numpy as np
 
 import detection_logging
 import conf
@@ -14,44 +15,68 @@ CAPTURING_LOG = detection_logging.create_log("capturing.log", "CAPTURING THREAD"
 
 
 class VirtualCamera(threading.Thread):
-    def __init__(self, orig_img_q, stop_ev):
+    def __init__(self, orig_img_q, stop_ev, h_w_ratio=(480, 640)):
         super(VirtualCamera, self).__init__(name="virtual_camera")
+
+        # self.dir_path = '../../rendering/render_v3/{}/{}'.format(round(height, 1), angle)
+        self.dir_path = conf.IN_DIR
+        self._check_dir(self.dir_path)
+        img_paths = glob.glob(os.path.join(self.dir_path, '*.jpg'))
+        print img_paths
+        # self.img_names_float = sorted([float(img_name.split('/')[-1][:-4]) for img_name in img_paths])
+
+        self.img_names_float = sorted([float(os.path.split(img_name)[1][:-4]) for img_name in img_paths])
+        print self.img_names_float
+
+        CAPTURING_LOG.info("Files in directory: {}".format(len(self.img_names_float)))
+
+        self.iterator = 0
+        self.blank_iterator = 0
+        self.blank_img = np.zeros((h_w_ratio[0], h_w_ratio[1]))
+
         self.stop_event = stop_ev
         self.orig_img_q = orig_img_q
-        self.__check_dir()
 
     def run(self):
         CAPTURING_LOG.info("Virtual camera thread has started")
-        images_in_dir = (len(glob.glob(os.path.join(conf.IN_DIR, "*.jpeg")))) - 1
-        CAPTURING_LOG.info("Files in directory: {}".format(images_in_dir))
 
-        while global_vars.COUNTER < images_in_dir and self.stop_event.is_set():
-            try:
-                path_to_img = glob.glob(os.path.join(conf.IN_DIR, "img_{}.jpeg".format(global_vars.COUNTER)))[0]
+        while self.stop_event.is_set():
+            image, _ = self.get_image()
 
-            except IndexError as err:
-                CAPTURING_LOG.warning('No such image number, next iteration')
-                global_vars.COUNTER += 1
-                continue
+            if image is None:
+                break
 
-            image = cv2.imread(path_to_img)
             CAPTURING_LOG.debug("Image {} has been taken".format(global_vars.COUNTER))
 
-
             try:
-                self.orig_img_q.put(image, timeout=2)
+                self.orig_img_q.put(image, timeout=10)
             except Queue.Full:
                 CAPTURING_LOG.warning("orig_img_q is full, next iteration")
-
                 continue
 
             global_vars.COUNTER += 1
 
         self.quit()
 
-    def __check_dir(self):
-        if not os.path.isdir(conf.IN_DIR):
-            CAPTURING_LOG.error("INPUT directory does not exists. Path: {}".format(conf.IN_DIR))
+    def get_image(self, add_blank=False):
+        if add_blank and self.blank_iterator < 100:
+            self.blank_iterator += 1
+
+            return self.blank_img, np.nan
+
+        else:
+            name = os.path.join(self.dir_path, '{}.jpg'.format(self.img_names_float[self.iterator]))
+            image = cv2.imread(name, 0)
+            self.iterator += 1
+
+            if self.iterator >= len(self.img_names_float):
+                return None, None
+
+            return image, round(self.img_names_float[self.iterator], 1)
+
+    def _check_dir(self, dir_path):
+        if not os.path.isdir(dir_path):
+            CAPTURING_LOG.error("INPUT directory does not exists. Path: {}".format(dir_path))
             time.sleep(2)
             self.stop_event.clear()
 
