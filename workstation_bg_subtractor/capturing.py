@@ -21,18 +21,23 @@ class VirtualCamera(threading.Thread):
         # self.dir_path = '../../rendering/render_v3/{}/{}'.format(round(height, 1), angle)
         self.dir_path = conf.IN_DIR
         self._check_dir(self.dir_path)
-        img_paths = glob.glob(os.path.join(self.dir_path, '*.jpg'))
-        print img_paths
+        img_paths = glob.glob(os.path.join(self.dir_path, '*.jpeg'))
+        # img_paths = glob.glob(os.path.join(self.dir_path, '*.jpg'))
+
         # self.img_names_float = sorted([float(img_name.split('/')[-1][:-4]) for img_name in img_paths])
 
-        self.img_names_float = sorted([float(os.path.split(img_name)[1][:-4]) for img_name in img_paths])
-        print self.img_names_float
+        self.img_names_float = sorted([int(os.path.split(img_name)[1][4:-5]) for img_name in img_paths])
 
         CAPTURING_LOG.info("Files in directory: {}".format(len(self.img_names_float)))
 
         self.iterator = 0
         self.blank_iterator = 0
-        self.blank_img = np.zeros((h_w_ratio[0], h_w_ratio[1]))
+        self.blank_img = np.zeros((h_w_ratio[0], h_w_ratio[1]), np.uint8)
+
+        # Temp shit###########
+        # name = os.path.join(self.dir_path, 'img_1.jpeg')
+        # self.blank_img = cv2.imread(name, 0)
+        ################
 
         self.stop_event = stop_ev
         self.orig_img_q = orig_img_q
@@ -41,7 +46,7 @@ class VirtualCamera(threading.Thread):
         CAPTURING_LOG.info("Virtual camera thread has started")
 
         while self.stop_event.is_set():
-            image, _ = self.get_image()
+            image, _ = self.get_image(add_blank=False)
 
             if image is None:
                 break
@@ -65,7 +70,9 @@ class VirtualCamera(threading.Thread):
             return self.blank_img, np.nan
 
         else:
-            name = os.path.join(self.dir_path, '{}.jpg'.format(self.img_names_float[self.iterator]))
+            # name = os.path.join(self.dir_path, '{}.jpg'.format(self.img_names_float[self.iterator]))
+            name = os.path.join(self.dir_path, 'img_{}.jpeg'.format(self.img_names_float[self.iterator]))
+
             image = cv2.imread(name, 0)
             self.iterator += 1
 

@@ -9,8 +9,23 @@ import Queue
 import conf
 from extentions import MultipleImagesFrame, TimeCounter
 import detection_logging
+import pickle
 
 DETECTION_LOG = detection_logging.create_log("detection.log", "DETECTION THREAD")
+
+
+def load_data(name):
+    with open('/home/ivan/pkl_dumps/{}.pkl'.format(name), 'rb') as input_o:
+        return pickle.load(input_o)
+
+
+regress_f = {name: load_data(name).get_f_from_ppp for name in
+             ['y_reg_m_fl_50', 'c_a_reg_m_fl_50', 'h_reg_m_fl_50', 'w_reg_m_fl_50']}
+
+pred_dist_f = regress_f['y_reg_m_fl_50'](conf.angle, conf.height)
+c_a_f = regress_f['c_a_reg_m_fl_50'](conf.angle, conf.height)
+h_f = regress_f['h_reg_m_fl_50'](conf.angle, conf.height)
+w_f = regress_f['w_reg_m_fl_50'](conf.angle, conf.height)
 
 
 class Detection(threading.Thread):
@@ -25,7 +40,6 @@ class Detection(threading.Thread):
 
         self.timer = TimeCounter("detection_timer")
 
-    # Main thread routine
     def run(self):
         DETECTION_LOG.info("Detection has started")
         img_fr = PreProcess()
@@ -70,25 +84,18 @@ class Detection(threading.Thread):
 
 class ObjParams(object):
     def __init__(self, obj_id, contour):
-        py = [1.54958678e-03, -2.68595041e-02, 5.09555785e+00]
-        ph = [0.35454545, -12.17272727, 137.]
-        pw = [1.81818182e-02, -2.29090909e+00, 4.50000000e+01]
-        pc = [8.19090909, -285.55454545, 2741.]
-
-        c_ref = self.poly(5, pc)
-        h_ref = self.poly(5, ph)
-        w_ref = self.poly(5, pw)
-
         self.obj_id = obj_id
 
         self.contour_area = cv2.contourArea(contour)
 
         self.base_rect = x, y, w, h = cv2.boundingRect(contour)
 
-        self.d = self.poly(180 - (y + h), py)
-        self.c_s = self.contour_area * c_ref / self.poly(self.d, pc)
-        self.h_s = h * h_ref / self.poly(self.d, ph)
-        self.w_s = w * w_ref / self.poly(self.d, pw)
+        self.d = np.exp(pred_dist_f(conf.RESIZE_TO[1] - (y + h/2)))
+
+        self.c_s = self.scale_param(c_a_f, self.contour_area, self.d)
+        self.h_s = self.scale_param(h_f, h, self.d)
+
+        self.w_s = self.scale_param(w_f, w, self.d)
 
         self.h_w_ratio = round(float(h) / w, 3)
 
@@ -100,14 +107,8 @@ class ObjParams(object):
 
         self.extent = round(float(self.contour_area) / self.rect_area, 2)
 
-        k = 1 if self.h_w_ratio > 0.7 else -1
-
-        # coeff(k * ((2.0 * w * h + 2 * w ** 2 + h) / w), 1) # Kirill suggestion
-        #self.rect_coef = round(self.contour_area * k * 
-                            #   ((h ** 2 + 2 * h * w + w ** 2) / (h * w * 4.0)), 3)
-
-        self.rect_coef = self.calc_rect_coef(h, w, self.contour_area, k)
-        self.rect_coef_s = self.calc_rect_coef(self.h_s, self.w_s, self.c_s, k)
+        self.rect_coef = self.calc_rect_coef(self.contour_area, h, w)
+        self.rect_coef_s = self.calc_rect_coef(self.c_s, self.h_s, self.w_s)
 
         self.base_status = bool()
         self.br_status = bool()
@@ -117,17 +118,30 @@ class ObjParams(object):
         self.br_cr_area = int()
         self.br_ratio = float()
 
-    def poly(self, x, p):
-        return p[0] * x ** 2 + p[1] * x  + p[-1]
+    @staticmethod
+    def scale_param(reg_f, val, pred_dist, ref_dist=6):
+        ref_val = reg_f(np.log(ref_dist))
+        pred_val = reg_f(np.log(pred_dist))
+        scaled_val = val * (ref_val / pred_val)
+
+        return scaled_val
 
     def process_obj(self):
         self.detect()
 
-    def calc_rect_coef(self, h, w, c, k):
+    def calc_rect_coef_old(self, h, w, c, k):
         '''
         y --- number of pixel till left low corner
         '''
         return round(c * k * ((h ** 2 + 2 * h * w + w ** 2) / (h * w * 4.0)), 3)
+
+    @staticmethod
+    def calc_rect_coef(c_a, h, w):
+        h_w_ratio = float(h) / w
+        k = 1 if (h_w_ratio > 0.7) and (h_w_ratio < 3.2) else -1
+        rect_coef = c_a * k * ((h ** 2 + 2 * h * w + w ** 2) / (h * w * 4.0))
+
+        return round(rect_coef, 3)
     # TODO Transfer into dataframe class
 
     def detect(self):
@@ -171,7 +185,9 @@ class PreProcess(object):
         self.set_ratio_done = bool()
 
     def process(self, d_frame):
-        orig_img = resize(d_frame.orig_img, width=conf.RESIZE_TO[0], height=conf.RESIZE_TO[1])
+        # orig_img = resize(d_frame.orig_img, width=conf.RESIZE_TO[0], height=conf.RESIZE_TO[1])
+        orig_img = resize(d_frame.orig_img, height=conf.RESIZE_TO[1])
+
 
         # orig_img = cv2.cvtColor(orig_img, cv2.COLOR_BGR2GRAY)
 
@@ -180,7 +196,7 @@ class PreProcess(object):
         # orig_img = self.adjust_gamma(orig_img, 2)
         # orig_img = self.increase_brightness(orig_img, 20)
 
-        #orig_img = self.clahe_contrast(orig_img)
+        orig_img = self.clahe_contrast(orig_img)
 
         mog_mask = self.__mog.apply(orig_img)
         _, mog_mask = cv2.threshold(mog_mask, 127, 255, cv2.THRESH_BINARY)
@@ -222,6 +238,7 @@ class PreProcess(object):
     @staticmethod
     def clahe_contrast(image):
         clahe = cv2.createCLAHE(clipLimit=8.0, tileGridSize=(8, 8))
+        # clahe = cv2.createCLAHE(clipLimit=1.0, tileGridSize=(2, 2))
         return clahe.apply(image)
 
     def set_ratio(self, img):
@@ -267,7 +284,7 @@ class DataFrame(object):
     def _basic_process(filled_mask):
         objects = list()
 
-        contours, _ = cv2.findContours(filled_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        _, contours, _ = cv2.findContours(filled_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         for obj_id, contour in enumerate(contours):
             obj = ObjParams(obj_id, contour)
@@ -328,7 +345,7 @@ class DataFrame(object):
         # # if len(self.base_objects) > 0:  # keep it for optimization for BBB
 
         brightness_mask[np.where(self.orig_img > 245)] = [255]
-        contours, _ = cv2.findContours(brightness_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        _, contours, _ = cv2.findContours(brightness_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         self.br_rects = [cv2.boundingRect(contour) for contour in contours]
 

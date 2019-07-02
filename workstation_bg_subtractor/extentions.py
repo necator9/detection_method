@@ -126,7 +126,7 @@ class Database(object):
         self.cur.execute('''CREATE TABLE {} (Img_name TEXT, Obj_id INT, Status TEXT, Base_status TEXT, Br_status TEXT,  
                                         Rect_coeff REAL, Extent_coeff REAL, Br_ratio REAL, hw_ratio REAL, 
                                         Contour_area REAL, Rect_area INT, Rect_perimeter INT, Br_cross_area INT, 
-                                        x INT, y INT, w INT, h INT, d REAL, c_s REAL, h_s INT, w_s INT, rect_area_s INT, rect_perimeter_s INT, rect_coef_s REAL)'''.format(self.table_name))
+                                        x INT, y INT, w INT, h INT, d REAL, c_s REAL, h_s REAL, w_s REAL, rect_area_s REAL, rect_perimeter_s REAL, rect_coef_s REAL)'''.format(self.table_name))
 
         self.db.commit()
 
@@ -246,6 +246,7 @@ class Draw(object):
         for attr, value in self.draw_img_structure.__dict__.iteritems():
             if len(value.data.shape) == 2:
                 value.data = cv2.cvtColor(value.data, cv2.COLOR_GRAY2BGR)
+                # pass
 
             if len(value.data.shape) == 0:
                 value.data = np.zeros((conf.RESIZE_TO[1], conf.RESIZE_TO[0], 3), np.uint8)
@@ -303,6 +304,9 @@ class Draw(object):
             cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
             cv2.putText(img, str(obj.obj_id), (x + 5, y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                         (0, 0, 255), 1, cv2.LINE_AA)
+
+            cv2.putText(img, str(round(obj.d, 1)), (x + 5, y - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                        (255, 0, 0), 1, cv2.LINE_AA)
 
     @staticmethod
     def draw_rects_br_cr(img, objects):
