@@ -6,7 +6,7 @@ import conf
 import global_vars
 
 # import train_regression
-from train_regression import TrainRegression
+# from train_regression import TrainRegression
 import capturing
 import detection
 import extentions
