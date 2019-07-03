@@ -163,38 +163,51 @@ def clip_poly(polygon, img_res):
     return np.array(polygon, dtype='int32')
 
 
-def generate_obj(img_res, angle):
+def get_polygon(vertices, img_res, angle):
+    raw_polygon = np.array([[get_point_projection(vertex, img_res, angle)] for vertex in vertices], dtype='int32')
+    convex_hull = cv2.convexHull(raw_polygon)
+    clipped_convex_hull = clip_poly(convex_hull, img_res)
+
+    return clipped_convex_hull
+
+
+def calc_geom_params(polygon):
+    c_a = cv2.contourArea(polygon)
+    b_r = cv2.boundingRect(polygon)
+    y = b_r[1] + b_r[3] / 2
+    x = b_r[0]
+    w = b_r[2]
+    h = b_r[3]
+
+    return c_a, x, y, w, h
+
+
+def get_2d_params(x, y, z, angle, img_res):
     obj_dim = [1, 1.7, 0.3]
-    height = -(conf.HEIGHT - obj_dim[1] / 2.0)
-    angle = -angle
-    z_range = np.arange(0, 30, 0.1)
+    # Generate a cuboid object
+    cuboid = get_cuboid_vertices((x, y, z), obj_dim)
+    # Get polygons of the cuboid
+    polygon = get_polygon(cuboid, img_res, angle)
 
-    print height
-    print angle
-
-    vertexes = [get_cuboid_vertices((0, height, z), obj_dim) for z in z_range]
-    polygons = [np.array([[get_point_projection(vertex, img_res, angle)] for vertex in vertexes_], dtype='int32')
-                for vertexes_ in vertexes]
-    polygons = [cv2.convexHull(polygon) for polygon in polygons]
-    polygons = [clip_poly(polygon, img_res) for polygon in polygons]
-
-    # Drop Nones
-    nones_i = [i for i, e in enumerate(polygons) if e is None]
-    polygons_f = [j for i, j in enumerate(polygons) if i not in nones_i]
-    z_range_f = [j for i, j in enumerate(z_range) if i not in nones_i]
-
-    # Calculate geom parameters
-    c_a_list = [cv2.contourArea(polygon) for polygon in polygons_f]
-    b_r_list = [cv2.boundingRect(polygon) for polygon in polygons_f]
-    y_list = [b_r[1] + b_r[3] / 2 for b_r in b_r_list]
-
-    return z_range_f, y_list, c_a_list, b_r_list
+    if polygon is None:
+        return None
+    else:
+        return calc_geom_params(polygon)
 
 
-def regress_init(z_range_f, y_list, c_a_list, b_r_list):
-    y_d_poly = np.poly1d(np.polyfit(y_list, z_range_f, 8))
-    c_a_d_poly = np.poly1d(np.polyfit(z_range_f, c_a_list, 8))
-    w_d_poly = np.poly1d(np.polyfit(z_range_f, zip(*b_r_list)[2], 8))
-    h_d_poly = np.poly1d(np.polyfit(z_range_f, zip(*b_r_list)[3], 8))
+def get_ref_val(x_ref, y_ref, z_ref, angle_ref, res_ref):
+    ref_2d_params = get_2d_params(x_ref, y_ref, z_ref, angle_ref, res_ref)
+    if ref_2d_params is not None:
+        return ref_2d_params
+    else:
+        print 'Raise an exception, no such scenario'
 
-    return y_d_poly, c_a_d_poly, w_d_poly, h_d_poly
+# obj_dim = [1, 1.7, 0.3]
+# height = -(conf.HEIGHT - obj_dim[1] / 2.0)
+# angle = -conf.ANGLE
+# z_range = np.arange(0, 30, 0.1)
+# vertexes = [get_cuboid_vertices((0, height, z), obj_dim) for z in z_range]
+#
+#
+# z_range_f, y_list, c_a_list, b_r_list = generate_obj(conf.RESIZE_TO, conf.ANGLE)
+# pred_dist_f, c_a_f, w_f, h_f = regress_init(z_range_f, y_list, c_a_list, b_r_list)

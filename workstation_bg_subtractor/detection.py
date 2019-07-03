@@ -13,8 +13,7 @@ import pinhole_camera_model as pcm
 
 DETECTION_LOG = detection_logging.create_log("detection.log", "DETECTION THREAD")
 
-z_range_f, y_list, c_a_list, b_r_list = pcm.generate_obj(conf.RESIZE_TO, conf.ANGLE)
-pred_dist_f, c_a_f, w_f, h_f = pcm.regress_init(z_range_f, y_list, c_a_list, b_r_list)
+
 
 
 class Detection(threading.Thread):
@@ -79,12 +78,12 @@ class ObjParams(object):
 
         self.base_rect = x, y, w, h = cv2.boundingRect(contour)
 
-        self.d = pred_dist_f(y + h/2)
+        self.d = pcm.pred_dist_f(y + h/2)
 
-        self.c_s = self.scale_param(c_a_f, self.contour_area, self.d)
-        self.h_s = self.scale_param(h_f, h, self.d)
+        self.c_s = self.scale_param(pcm.c_a_f, self.contour_area, self.d)
+        self.h_s = self.scale_param(pcm.h_f, h, self.d)
 
-        self.w_s = self.scale_param(w_f, w, self.d)
+        self.w_s = self.scale_param(pcm.w_f, w, self.d)
 
         self.h_w_ratio = round(float(h) / w, 3)
 
