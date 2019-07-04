@@ -162,7 +162,8 @@ class Database(object):
                     [img_name, obj.obj_id, str(obj.gen_status), str(obj.base_status), str(obj.br_status), obj.rect_coef,
                      obj.extent, obj.br_ratio,
                      obj.h_w_ratio, obj.contour_area, obj.rect_area, obj.rect_perimeter, obj.br_cr_area,
-                     obj.base_rect[0], obj.base_rect[1], obj.base_rect[2], obj.base_rect[3], obj.d, obj.c_s, obj.h_s, obj.w_s, obj.rect_area_s, obj.rect_perimeter_s, obj.rect_coef_s])
+                     obj.base_rect[0], obj.base_rect[1], obj.base_rect[2], obj.base_rect[3], obj.d, obj.c_a_o_ref,
+                     obj.h_o_ref, obj.w_o_ref, obj.rect_area_s, obj.rect_perimeter_s, obj.rect_coef_s])
 
         return db_arr
 
