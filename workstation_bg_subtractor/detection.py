@@ -14,6 +14,8 @@ import pinhole_camera_model as pcm
 DETECTION_LOG = detection_logging.create_log("detection.log", "DETECTION THREAD")
 
 
+pinhole_cam = pcm.PinholeCameraModel()
+pred_dist_f = pinhole_cam.init_y_regress()
 
 
 class Detection(threading.Thread):
@@ -75,28 +77,24 @@ class ObjParams(object):
         self.obj_id = obj_id
 
         self.contour_area = cv2.contourArea(contour)
-
         self.base_rect = x, y, w, h = cv2.boundingRect(contour)
+        self.d = pred_dist_f(y + h/2)
 
-        self.d = pcm.pred_dist_f(y + h/2)
-
-        self.c_s = self.scale_param(pcm.c_a_f, self.contour_area, self.d)
-        self.h_s = self.scale_param(pcm.h_f, h, self.d)
-
-        self.w_s = self.scale_param(pcm.w_f, w, self.d)
+        # Generate virtual object
+        self.c_a_o_ref, self.x_o_ref, self.y_o_ref, self.w_o_ref, self.h_o_ref = pinhole_cam.get_ref_val(self.d)
 
         self.h_w_ratio = round(float(h) / w, 3)
 
         self.rect_area = w * h
-        self.rect_area_s = self.w_s * self.h_s
+        self.rect_area_s = 0
 
         self.rect_perimeter = 2 * (h + w)
-        self.rect_perimeter_s = 2 * (self.h_s + self.w_s)
+        self.rect_perimeter_s = self.calc_rect_coef(self.c_a_o_ref, self.h_o_ref, self.w_o_ref)
 
         self.extent = round(float(self.contour_area) / self.rect_area, 2)
 
         self.rect_coef = self.calc_rect_coef(self.contour_area, h, w)
-        self.rect_coef_s = self.calc_rect_coef(self.c_s, self.h_s, self.w_s)
+        self.rect_coef_s = self.calc_rect_coef(self.c_a_o_ref, self.h_o_ref, self.w_o_ref) - self.rect_coef
 
         self.base_status = bool()
         self.br_status = bool()

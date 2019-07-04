@@ -11,13 +11,14 @@ IN_DIR = "/home/ivan/experiments/sources/TZK_january/3m_4l/random/"
 # IN_DIR = "D:/Ivan/rendering/render_v3/2.7/66"
 # IN_DIR = "/home/ivan/experiments/3_6/"
 # Detection parameters
-RESIZE_TO = [640, 480]        # Width and height of an image for processing [100, 240]
+RESIZE_TO = [320, 240]        # Width and height of an image for processing [100, 240]
 # F_KERNEL_SIZE = (5, 5)           # Size of elliptical filtering kernel in pixels
 F_KERNEL_SIZE = (4, 4)           # Size of elliptical filtering kernel in pixels
 DILATE_ITERATIONS = 4
 
 MARGIN = (0, 0)
-COEFF_RANGE = (9000, 19000)
+# COEFF_RANGE = (9000, 19000)
+COEFF_RANGE = (0, 1800)
 EXTENT_THRESHOLD = 0.35
 BRIGHTNESS_THRESHOLD = 0.2
 X_MARGIN = 0
