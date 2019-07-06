@@ -73,28 +73,31 @@ class Detection(threading.Thread):
 
 
 class ObjParams(object):
-    def __init__(self, obj_id, contour):
+    def __init__(self, obj_id, cnt_ao):
         self.obj_id = obj_id
 
-        self.contour_area = cv2.contourArea(contour)
-        self.base_rect = x, y, w, h = cv2.boundingRect(contour)
-        self.d = pred_dist_f(y + h/2)
+        # Calculate geom parameters of an actual object
+        self.c_a_ao = cv2.contourArea(cnt_ao)
+        self.base_rect_ao = self.x_ao, self.y_ao, self.w_ao, self.h_ao = cv2.boundingRect(cnt_ao)
+        self.rect_coef_ao = self.calc_rect_coef(self.c_a_ao, self.h_ao, self.w_ao)
 
-        # Generate virtual object
-        self.c_a_o_ref, self.x_o_ref, self.y_o_ref, self.w_o_ref, self.h_o_ref = pinhole_cam.get_ref_val(self.d)
+        # Estimate distance of the actual object
+        self.dist_ao = pred_dist_f(self.y_ao + self.h_ao / 2)
 
-        self.h_w_ratio = round(float(h) / w, 3)
+        # Generate virtual cuboid and calculate its geom parameters
+        self.c_a_ro, self.x_ro, self.y_ro, self.w_ro, self.h_ro = pinhole_cam.get_ref_val(self.dist_ao)
 
-        self.rect_area = w * h
-        self.rect_area_s = 0
+        self.h_w_ratio = round(float(self.h_ao) / self.w_ao, 3)  # Subject to delete
 
-        self.rect_perimeter = 2 * (h + w)
-        self.rect_perimeter_s = self.calc_rect_coef(self.c_a_o_ref, self.h_o_ref, self.w_o_ref)
+        self.rect_area = self.w_ao * self.h_ao  # Subject to delete
+        self.rect_area_s = 0          # Subject to delete
 
-        self.extent = round(float(self.contour_area) / self.rect_area, 2)
+        self.rect_perimeter = 2 * (self.h_ao + self.w_ao)  # Subject to delete
 
-        self.rect_coef = self.calc_rect_coef(self.contour_area, h, w)
-        self.rect_coef_s = self.calc_rect_coef(self.c_a_o_ref, self.h_o_ref, self.w_o_ref) - self.rect_coef
+        self.extent_ao = round(float(self.c_a_ao) / self.rect_area, 2)  # Subject to think
+
+        self.rect_coef_ro = self.calc_rect_coef(self.c_a_ro, self.h_ro, self.w_ro)
+        self.rect_coef_diff = self.rect_coef_ro - self.rect_coef_ao
 
         self.base_status = bool()
         self.br_status = bool()
@@ -131,9 +134,9 @@ class ObjParams(object):
     # TODO Transfer into dataframe class
 
     def detect(self):
-        is_rect_coeff_belongs = self.check_rect_coeff(self.rect_coef_s)
-        is_extent_belongs = self.check_extent(self.extent)
-        is_margin_crossed = self.check_margin(self.base_rect[0], self.base_rect[2])
+        is_rect_coeff_belongs = self.check_rect_coeff(self.rect_coef_diff)
+        is_extent_belongs = self.check_extent(self.extent_ao)
+        is_margin_crossed = self.check_margin(self.base_rect_ao[0], self.base_rect_ao[2])
 
         #if is_rect_coeff_belongs and not is_margin_crossed and is_extent_belongs:
         if is_rect_coeff_belongs:
@@ -314,13 +317,13 @@ class DataFrame(object):
             return bin_mask
         ex_filled_mask = np.zeros((conf.RESIZE_TO[1], conf.RESIZE_TO[0]), np.uint8) # create minimal image
         for obj in self.base_objects:
-            is_extent = obj.extent < 0.6
-            is_rect_coeff = -10000 < obj.rect_coef_s < -2000  # Try to reduce to -5000 or so
+            is_extent = obj.extent_ao < 0.6
+            is_rect_coeff = -10000 < obj.rect_coef_ao < -2000  # Try to reduce to -5000 or so
 
             if is_extent and is_rect_coeff and not obj.base_status and not obj.br_status:
-                x, y, w, h = obj.base_rect
+                x, y, w, h = obj.base_rect_ao
                 split_mask = make_split(self.filled_mask[y:y+h, x:x + w])
-                ex_filled_mask[y:y+h, x:x + w] = split_mask[:,:]
+                ex_filled_mask[y:y+h, x:x + w] = split_mask[:, :]
                 #ex_filled_mask[y:y+h, x:x + w] = self.filled_mask[y:y+h, x:x + w]
 #                cv2.line(ex_filled_mask, (x + int(w / 2), 0), (x + int(w / 2), conf.RESIZE_TO[1]), (0, 0, 0), 3)
 
@@ -337,7 +340,7 @@ class DataFrame(object):
 
         for obj in objects:
             # if obj.base_status: # keep it for optimization for BBB
-            obj.br_cr_rects = [self.intersection(obj.base_rect, br_rect) for br_rect in self.br_rects]
+            obj.br_cr_rects = [self.intersection(obj.base_rect_ao, br_rect) for br_rect in self.br_rects]
             obj.br_cr_area = sum([rect[2] * rect[3] for rect in obj.br_cr_rects])
             obj.br_ratio = round(float(obj.br_cr_area) / obj.rect_area, 3)
             obj.br_status = obj.br_ratio > conf.BRIGHTNESS_THRESHOLD

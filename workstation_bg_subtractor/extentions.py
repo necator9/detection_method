@@ -126,7 +126,9 @@ class Database(object):
         self.cur.execute('''CREATE TABLE {} (Img_name TEXT, Obj_id INT, Status TEXT, Base_status TEXT, Br_status TEXT,  
                                         Rect_coeff REAL, Extent_coeff REAL, Br_ratio REAL, hw_ratio REAL, 
                                         Contour_area REAL, Rect_area INT, Rect_perimeter INT, Br_cross_area INT, 
-                                        x INT, y INT, w INT, h INT, d REAL, c_s REAL, h_s REAL, w_s REAL, rect_area_s REAL, rect_perimeter_s REAL, rect_coef_s REAL)'''.format(self.table_name))
+                                        x INT, y INT, w INT, h INT, d REAL, c_s REAL, h_s REAL, w_s REAL, 
+                                        rect_area_s REAL, rect_perimeter_s REAL, rect_coef_s REAL)'''
+                         .format(self.table_name))
 
         self.db.commit()
 
@@ -137,7 +139,8 @@ class Database(object):
 
         self.cur.executemany('''INSERT INTO {}(Img_name, Obj_id, Status, Base_status, Br_status,  Rect_coeff, 
                                           Extent_coeff, Br_ratio, hw_ratio, Contour_area, Rect_area, Rect_perimeter, 
-                                          Br_cross_area, x, y, w, h, d, c_s, h_s, w_s, rect_area_s, rect_perimeter_s, rect_coef_s) 
+                                          Br_cross_area, x, y, w, h, d, c_s, h_s, w_s, rect_area_s, rect_perimeter_s, 
+                                          rect_coef_s) 
                                           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''.format(self.table_name), db_arr)
 
         if len(d_frame.ex_objects) > 0:
@@ -159,11 +162,11 @@ class Database(object):
         if len(objects) > 0:
             for obj in objects:
                 db_arr.append(
-                    [img_name, obj.obj_id, str(obj.gen_status), str(obj.base_status), str(obj.br_status), obj.rect_coef,
-                     obj.extent, obj.br_ratio,
-                     obj.h_w_ratio, obj.contour_area, obj.rect_area, obj.rect_perimeter, obj.br_cr_area,
-                     obj.base_rect[0], obj.base_rect[1], obj.base_rect[2], obj.base_rect[3], obj.d, obj.c_a_o_ref,
-                     obj.h_o_ref, obj.w_o_ref, obj.rect_area_s, obj.rect_perimeter_s, obj.rect_coef_s])
+                    [img_name, obj.obj_id, str(obj.gen_status), str(obj.base_status), str(obj.br_status), obj.rect_coef_ao,
+                     obj.extent_ao, obj.br_ratio,
+                     obj.h_w_ratio, obj.c_a_ao, obj.rect_area, obj.rect_perimeter, obj.br_cr_area,
+                     obj.base_rect_ao[0], obj.base_rect_ao[1], obj.base_rect_ao[2], obj.base_rect_ao[3], obj.dist_ao, obj.c_a_ro,
+                     obj.h_ro, obj.w_ro, obj.rect_area_s, obj.rect_coef_ro, obj.rect_coef_diff])
 
         return db_arr
 
@@ -301,12 +304,12 @@ class Draw(object):
                 color = (0, 0, 255)
             else:
                 color = (0, 255, 0)
-            x, y, w, h = obj.base_rect
+            x, y, w, h = obj.base_rect_ao
             cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
             cv2.putText(img, str(obj.obj_id), (x + 5, y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                         (0, 0, 255), 1, cv2.LINE_AA)
-
-            cv2.putText(img, str(round(obj.d, 1)), (x + 5, y - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+            # Put distance value above the rectangle
+            cv2.putText(img, str(round(obj.dist_ao, 1)), (x + 5, y - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                         (255, 0, 0), 1, cv2.LINE_AA)
 
     @staticmethod
