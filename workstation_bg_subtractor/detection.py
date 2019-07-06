@@ -79,24 +79,19 @@ class ObjParams(object):
         # Calculate geom parameters of an actual object
         self.c_a_ao = cv2.contourArea(cnt_ao)
         self.base_rect_ao = self.x_ao, self.y_ao, self.w_ao, self.h_ao = cv2.boundingRect(cnt_ao)
-        self.rect_coef_ao = self.calc_rect_coef(self.c_a_ao, self.h_ao, self.w_ao)
+        # Define y-coord as a middle of b.r.
+        self.y_ao = self.y_ao + self.h_ao / 2
+        self.h_w_ratio_ao = float(self.h_ao) / self.w_ao
+        self.rect_coef_ao = self.calc_rect_coef(self.c_a_ao, self.h_ao, self.w_ao, self.h_w_ratio_ao)
+
+        self.extent_ao = float(self.c_a_ao) / self.w_ao * self.h_ao
 
         # Estimate distance of the actual object
-        self.dist_ao = pred_dist_f(self.y_ao + self.h_ao / 2)
+        self.dist_ao = pred_dist_f(self.y_ao)
 
         # Generate virtual cuboid and calculate its geom parameters
         self.c_a_ro, self.x_ro, self.y_ro, self.w_ro, self.h_ro = pinhole_cam.get_ref_val(self.dist_ao)
-
-        self.h_w_ratio = round(float(self.h_ao) / self.w_ao, 3)  # Subject to delete
-
-        self.rect_area = self.w_ao * self.h_ao  # Subject to delete
-        self.rect_area_s = 0          # Subject to delete
-
-        self.rect_perimeter = 2 * (self.h_ao + self.w_ao)  # Subject to delete
-
-        self.extent_ao = round(float(self.c_a_ao) / self.rect_area, 2)  # Subject to think
-
-        self.rect_coef_ro = self.calc_rect_coef(self.c_a_ro, self.h_ro, self.w_ro)
+        self.rect_coef_ro = self.calc_rect_coef(self.c_a_ro, self.h_ro, self.w_ro, float(self.h_ro) / self.w_ro)
         self.rect_coef_diff = self.rect_coef_ro - self.rect_coef_ao
 
         self.base_status = bool()
@@ -125,8 +120,7 @@ class ObjParams(object):
         return round(c * k * ((h ** 2 + 2 * h * w + w ** 2) / (h * w * 4.0)), 3)
 
     @staticmethod
-    def calc_rect_coef(c_a, h, w):
-        h_w_ratio = float(h) / w
+    def calc_rect_coef(c_a, h, w, h_w_ratio):
         k = 1 if (h_w_ratio > 0.7) and (h_w_ratio < 3.2) else -1
         rect_coef = c_a * k * ((h ** 2 + 2 * h * w + w ** 2) / (h * w * 4.0))
 
@@ -342,7 +336,7 @@ class DataFrame(object):
             # if obj.base_status: # keep it for optimization for BBB
             obj.br_cr_rects = [self.intersection(obj.base_rect_ao, br_rect) for br_rect in self.br_rects]
             obj.br_cr_area = sum([rect[2] * rect[3] for rect in obj.br_cr_rects])
-            obj.br_ratio = round(float(obj.br_cr_area) / obj.rect_area, 3)
+            obj.br_ratio = round(float(obj.br_cr_area) / obj.w_ao * obj.h_ao, 3)
             obj.br_status = obj.br_ratio > conf.BRIGHTNESS_THRESHOLD
 
         return brightness_mask

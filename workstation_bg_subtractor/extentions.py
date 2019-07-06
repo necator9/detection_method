@@ -123,12 +123,10 @@ class Database(object):
     def write_table(self):
         SAVER_LOG.debug("Database table has been written")
 
-        self.cur.execute('''CREATE TABLE {} (Img_name TEXT, Obj_id INT, Status TEXT, Base_status TEXT, Br_status TEXT,  
-                                        Rect_coeff REAL, Extent_coeff REAL, Br_ratio REAL, hw_ratio REAL, 
-                                        Contour_area REAL, Rect_area INT, Rect_perimeter INT, Br_cross_area INT, 
-                                        x INT, y INT, w INT, h INT, d REAL, c_s REAL, h_s REAL, w_s REAL, 
-                                        rect_area_s REAL, rect_perimeter_s REAL, rect_coef_s REAL)'''
-                         .format(self.table_name))
+        self.cur.execute('''CREATE TABLE {} (Img_name TEXT, Obj_id INT, Rect_coeff_diff REAL, Rect_coeff_ro REAL, 
+        Rect_coeff_ao REAL, dist_ao REAL, c_a_ro REAL, c_a_ao REAL, Extent REAL, Status TEXT, Base_status TEXT, 
+        Br_status TEXT, Br_ratio REAL, h_w_ratio_ao REAL, Br_cross_area INT, x_ao INT, y_ao INT, w_ao INT, h_ao INT, 
+        x_ro INT, y_ro INT, w_ro INT, h_ro INT)'''.format(self.table_name))
 
         self.db.commit()
 
@@ -137,21 +135,18 @@ class Database(object):
         img_name = str(SAVE_COUNTER)
         db_arr = self.get_base_params(d_frame.base_objects, img_name)
 
-        self.cur.executemany('''INSERT INTO {}(Img_name, Obj_id, Status, Base_status, Br_status,  Rect_coeff, 
-                                          Extent_coeff, Br_ratio, hw_ratio, Contour_area, Rect_area, Rect_perimeter, 
-                                          Br_cross_area, x, y, w, h, d, c_s, h_s, w_s, rect_area_s, rect_perimeter_s, 
-                                          rect_coef_s) 
-                                          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''.format(self.table_name), db_arr)
+        self.cur.executemany('''INSERT INTO {}(Img_name, Obj_id, Rect_coeff_diff, Rect_coeff_ro, Rect_coeff_ao, dist_ao, 
+        c_a_ro, c_a_ao, Extent, Status, Base_status, Br_status, Br_ratio, h_w_ratio_ao, Br_cross_area, x_ao, y_ao, w_ao, 
+        h_ao, x_ro, y_ro, w_ro, h_ro) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''.
+                             format(self.table_name), db_arr)
 
         if len(d_frame.ex_objects) > 0:
             img_name += "_split"
             db_split_arr = self.get_base_params(d_frame.ex_objects, img_name)
-            self.cur.executemany('''INSERT INTO {}(Img_name, Obj_id, Status, Base_status, Br_status, Rect_coeff, 
-                                              Extent_coeff, Br_ratio, hw_ratio, Contour_area, Rect_area, Rect_perimeter, 
-                                              Br_cross_area, x, y, w, h, d, c_s, h_s, w_s, rect_area_s, rect_perimeter_s, rect_coef_s) 
-                                              VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''.format(
-                self.table_name),
-                            db_split_arr)
+            self.cur.executemany('''INSERT INTO {}(Img_name, Obj_id, Rect_coeff_diff, Rect_coeff_ro, Rect_coeff_ao, 
+            dist_ao, c_a_ro, c_a_ao, Extent, Status, Base_status, Br_status, Br_ratio, h_w_ratio_ao,Br_cross_area, x, y,
+            w, h, x_ro, y_ro, w_ro, h_ro) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''.
+                                 format(self.table_name), db_split_arr)
 
         self.db.commit()
 
@@ -162,11 +157,10 @@ class Database(object):
         if len(objects) > 0:
             for obj in objects:
                 db_arr.append(
-                    [img_name, obj.obj_id, str(obj.gen_status), str(obj.base_status), str(obj.br_status), obj.rect_coef_ao,
-                     obj.extent_ao, obj.br_ratio,
-                     obj.h_w_ratio, obj.c_a_ao, obj.rect_area, obj.rect_perimeter, obj.br_cr_area,
-                     obj.base_rect_ao[0], obj.base_rect_ao[1], obj.base_rect_ao[2], obj.base_rect_ao[3], obj.dist_ao, obj.c_a_ro,
-                     obj.h_ro, obj.w_ro, obj.rect_area_s, obj.rect_coef_ro, obj.rect_coef_diff])
+                    [img_name, obj.obj_id, obj.rect_coef_diff, obj.rect_coef_ro, obj.rect_coef_ao, obj.dist_ao,
+                     obj.c_a_ro, obj.c_a_ao, obj.extent_ao, str(obj.gen_status), str(obj.base_status),
+                     str(obj.br_status), obj.br_ratio, obj.h_w_ratio_ao, obj.br_cr_area, obj.x_ao, obj.y_ao, obj.w_ao,
+                     obj.h_ao, obj.x_ro, obj.y_ro, obj.w_ro, obj.h_ro])
 
         return db_arr
 
