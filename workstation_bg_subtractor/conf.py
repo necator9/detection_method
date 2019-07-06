@@ -25,16 +25,11 @@ X_MARGIN = 0
 
 # Saving parameters
 SAVE_SINGLE = False
-SAVE_VERBOSE = True
+SAVE_VERBOSE = False
 WRITE_TO_DB = True
 WRITE_TO_PICKLE = False
 # TODO Check why the sqlite does not accept "." in path of out database
 OUT_DIR = "/home/ivan/experiments/latest_test_random_1/"
-
-# Streaming parameters
-STREAMING = False
-SERVER_TCP_IP = "192.168.4.8"
-SERVER_TCP_PORT = 5001
 
 # Timers parameters
 TIMERS = True
