@@ -305,17 +305,9 @@ class Draw(object):
 
     def draw_virual_object(self, img, objects):
         for obj in objects:
-            if obj.gen_status:
-                color = (0, 0, 255)
-            else:
-                color = (255, 0, 0)
+            color = (255, 0, 0)
             x, y, w, h = obj.x_ao, obj.y_ro - obj.h_ro / 2, obj.w_ro, obj.h_ro
             cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
-            # cv2.putText(img, str(obj.obj_id), (x + 5, y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-            #             (0, 0, 255), 1, cv2.LINE_AA)
-            # # Put distance value above the rectangle
-            # cv2.putText(img, str(round(obj.dist_ao, 1)), (x + 5, y - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-            #             (255, 0, 0), 1, cv2.LINE_AA)
 
     @staticmethod
     def draw_rects_br_cr(img, objects):

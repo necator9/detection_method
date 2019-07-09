@@ -92,7 +92,7 @@ class ObjParams(object):
         # Generate virtual cuboid and calculate its geom parameters
         self.c_a_ro, self.x_ro, self.y_ro, self.w_ro, self.h_ro = pinhole_cam.get_ref_val(self.dist_ao)
         self.rect_coef_ro = self.calc_rect_coef(self.c_a_ro, self.h_ro, self.w_ro, float(self.h_ro) / self.w_ro)
-        self.rect_coef_diff = self.rect_coef_ro - self.rect_coef_ao
+        self.rect_coef_diff = (self.rect_coef_ro - self.rect_coef_ao) / self.rect_coef_ro
 
         self.base_status = bool()
         self.br_status = bool()
@@ -327,7 +327,7 @@ class DataFrame(object):
         brightness_mask = np.zeros((conf.RESIZE_TO[1], conf.RESIZE_TO[0]), np.uint8)
         # # if len(self.base_objects) > 0:  # keep it for optimization for BBB
 
-        brightness_mask[np.where(self.orig_img > 245)] = [255]
+        brightness_mask[np.where(self.orig_img > 265)] = [255]   # Chose later appropriate values
         _, contours, _ = cv2.findContours(brightness_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         self.br_rects = [cv2.boundingRect(contour) for contour in contours]
