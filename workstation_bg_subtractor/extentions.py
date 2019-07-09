@@ -32,7 +32,6 @@ class Saving(threading.Thread):
         self.db_obj = Database(self.gen_name("sql_database"))
         self.pickle_obj = PickleWrap(self.gen_name("pickle_data.pkl"))
         self.draw_obj = Draw()
-        self.streaming_obj = Streaming()
 
     def run(self):
         SAVER_LOG.info("Starting the Saving thread...")
@@ -45,7 +44,6 @@ class Saving(threading.Thread):
         self.finish_writing()
         self.db_obj.quit()
         self.pickle_obj.quit()
-        self.streaming_obj.quit()
 
         SAVER_LOG.info("Saving thread has been finished")
 
@@ -71,8 +69,6 @@ class Saving(threading.Thread):
         self.draw_obj.save_multiple(data_frame, draw_frame)
 
         self.draw_obj.save_single(data_frame)
-
-        self.streaming_obj.send(data_frame)
 
         global SAVE_COUNTER
         SAVE_COUNTER += 1
@@ -257,6 +253,7 @@ class Draw(object):
         self.put_status(self.draw_img_structure.ex_status.data, data_frame.ex_frame_status)
 
         self.draw_rects(self.draw_img_structure.rect_cont.data, data_frame.base_objects)
+        self.draw_virual_object(self.draw_img_structure.rect_cont.data, data_frame.base_objects)
         self.draw_rects(self.draw_img_structure.ex_rect_cont.data, data_frame.ex_objects)
 
         self.draw_rects_br_cr(self.draw_img_structure.rect_cont.data, data_frame.base_objects)
@@ -305,6 +302,20 @@ class Draw(object):
             # Put distance value above the rectangle
             cv2.putText(img, str(round(obj.dist_ao, 1)), (x + 5, y - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                         (255, 0, 0), 1, cv2.LINE_AA)
+
+    def draw_virual_object(self, img, objects):
+        for obj in objects:
+            if obj.gen_status:
+                color = (0, 0, 255)
+            else:
+                color = (255, 0, 0)
+            x, y, w, h = obj.x_ao, obj.y_ro - obj.h_ro / 2, obj.w_ro, obj.h_ro
+            cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
+            # cv2.putText(img, str(obj.obj_id), (x + 5, y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+            #             (0, 0, 255), 1, cv2.LINE_AA)
+            # # Put distance value above the rectangle
+            # cv2.putText(img, str(round(obj.dist_ao, 1)), (x + 5, y - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+            #             (255, 0, 0), 1, cv2.LINE_AA)
 
     @staticmethod
     def draw_rects_br_cr(img, objects):
@@ -361,36 +372,6 @@ class Draw(object):
     def save_single(self, data_frame):
         out_img = self.draw_single_image(data_frame)
         self.save(out_img, "s_img")
-
-
-class Streaming(object):
-    def __init__(self):
-        if conf.STREAMING:
-            self.streaming_log = detection_logging.create_log("streaming.log", "STREAMING CLIENT")
-            try:
-                self.sock = socket.socket()
-                self.sock.connect((conf.SERVER_TCP_IP, conf.SERVER_TCP_PORT))
-                self.encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
-            except socket.error:
-                self.streaming_log.error("Cannot establish the connection to server, streaming is not active")
-                self.send = blank_fn
-                self.quit = blank_fn
-        else:
-            self.send = blank_fn
-            self.quit = blank_fn
-
-    def send(self, data_frame):
-        image = Draw.draw_single_image(data_frame)
-        result, img_encode = cv2.imencode('.jpg', image, self.encode_param)
-        data = np.array(img_encode)
-        string_data = data.tostring()
-
-        self.sock.send(str(len(string_data)).ljust(16))
-        self.sock.send(string_data)
-        self.streaming_log.debug("Image has been sent")
-
-    def quit(self):
-        self.sock.close()
 
 
 class TimeCounter(object):

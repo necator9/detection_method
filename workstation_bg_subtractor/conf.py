@@ -25,7 +25,7 @@ X_MARGIN = 0
 
 # Saving parameters
 SAVE_SINGLE = False
-SAVE_VERBOSE = False
+SAVE_VERBOSE = True
 WRITE_TO_DB = True
 WRITE_TO_PICKLE = False
 # TODO Check why the sqlite does not accept "." in path of out database
