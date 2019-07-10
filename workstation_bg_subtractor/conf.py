@@ -26,7 +26,7 @@ X_MARGIN = 0
 # Saving parameters
 SAVE_SINGLE = False
 SAVE_VERBOSE = True
-WRITE_TO_DB = True
+WRITE_TO_DB = False
 WRITE_TO_PICKLE = False
 # TODO Check why the sqlite does not accept "." in path of out database
 OUT_DIR = "/home/ivan/experiments/latest_test_random_1/"
@@ -37,7 +37,7 @@ TIME_WINDOW = 100
 
 # Logging parameters
 SHOW_LOGS = True
-LOG_LEVEL = "INFO"
+LOG_LEVEL = "WARNING"
 # PATH_TO_LOGS = "/root/logs/"
 PATH_TO_LOGS = "/home/ivan/logs/"
 
