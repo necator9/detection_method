@@ -84,7 +84,7 @@ class ObjParams(object):
         self.h_w_ratio_ao = float(self.h_ao) / self.w_ao
         self.rect_coef_ao = self.calc_rect_coef(self.c_a_ao, self.h_ao, self.w_ao, self.h_w_ratio_ao)
 
-        self.extent_ao = float(self.c_a_ao) / self.w_ao * self.h_ao
+        self.extent_ao = float(self.c_a_ao) / (self.w_ao * self.h_ao)
 
         # Estimate distance of the actual object
         self.dist_ao = pred_dist_f(self.y_ao)

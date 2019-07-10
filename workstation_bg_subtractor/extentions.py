@@ -307,7 +307,7 @@ class Draw(object):
         for obj in objects:
             color = (255, 0, 0)
             x, y, w, h = obj.x_ao, obj.y_ro - obj.h_ro / 2, obj.w_ro, obj.h_ro
-            cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
+            cv2.rectangle(img, (x, y), (x + w, y + h), color, 1)
 
     @staticmethod
     def draw_rects_br_cr(img, objects):
