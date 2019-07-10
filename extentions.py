@@ -109,7 +109,7 @@ class Database(object):
             SAVER_LOG.info("Database name: {}".format(self.db_name))
             self.db = sqlite3.connect(self.db_name, check_same_thread=False)
             self.cur = self.db.cursor()
-            self.table_name = "Data_for_{}".format(conf.OUT_DIR.split("/")[-1])
+            self.table_name = 'object_parameters'
             self.write_table()
         else:
             self.write = blank_fn
@@ -139,8 +139,8 @@ class Database(object):
             img_name += "_split"
             db_split_arr = self.get_base_params(d_frame.ex_objects, img_name)
             self.cur.executemany('''INSERT INTO {}(Img_name, Obj_id, Rect_coeff_diff, Rect_coeff_ro, Rect_coeff_ao, 
-            dist_ao, c_a_ro, c_a_ao, Extent, Status, Base_status, Br_status, Br_ratio, h_w_ratio_ao,Br_cross_area, x, y,
-            w, h, x_ro, y_ro, w_ro, h_ro) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''.
+            dist_ao, c_a_ro, c_a_ao, Extent, Status, Base_status, Br_status, Br_ratio, h_w_ratio_ao,Br_cross_area, x_ao,
+            y_ao, w_ao, h_ao, x_ro, y_ro, w_ro, h_ro) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''.
                                  format(self.table_name), db_split_arr)
 
         self.db.commit()
@@ -233,8 +233,8 @@ class Draw(object):
         self.draw_img_structure = draw_frame
 
         self.draw_img_structure.filled_mask.data = copy.copy(data_frame.filled)
-        self.draw_img_structure.rect_cont.data = copy.copy(data_frame.orig)
-        self.draw_img_structure.ex_rect_cont.data = copy.copy(data_frame.orig)
+        self.draw_img_structure.rect_cont.data = copy.copy(data_frame.orig_img)
+        self.draw_img_structure.ex_rect_cont.data = copy.copy(data_frame.orig_img)
 
         for attr, value in self.draw_img_structure.__dict__.iteritems():
             if len(value.data.shape) == 2:

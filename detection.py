@@ -65,13 +65,6 @@ class Detection(threading.Thread):
 
             self.timer.get_time()
 
-        # self.quit()
-
-    # Stop and quit the thread operation.
-    def quit(self):
-        DETECTION_LOG.info("Exiting the Detection thread...")
-        self.stop_event.clear()
-
 
 class ObjParams(object):
     def __init__(self, obj_id, cnt_ao):

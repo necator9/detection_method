@@ -5,11 +5,10 @@ FPS = 7
 
 # Virtual camera parameters
 VIRTUAL_CAMERA = True
-# IN_DIR = "/home/ivan/experiments/sources/16m_ped_filtered/"
-# IN_DIR = "/home/ivan/experiments/sources/3.0/66/"
-IN_DIR = "/home/ivan/experiments/sources/TZK_january/3m_4l/random/"
-# IN_DIR = "D:/Ivan/rendering/render_v3/2.7/66"
-# IN_DIR = "/home/ivan/experiments/3_6/"
+
+
+IN_DIR = "/home/ivan/experiments/sources/5m_ped_filtered/"
+
 # Detection parameters
 RESIZE_TO = [320, 240]        # Width and height of an image for processing [100, 240]
 # F_KERNEL_SIZE = (5, 5)           # Size of elliptical filtering kernel in pixels
@@ -25,11 +24,14 @@ X_MARGIN = 0
 
 # Saving parameters
 SAVE_SINGLE = False
-SAVE_VERBOSE = True
-WRITE_TO_DB = False
+SAVE_VERBOSE = False
+WRITE_TO_DB = True
 WRITE_TO_PICKLE = False
 # TODO Check why the sqlite does not accept "." in path of out database
-OUT_DIR = "/home/ivan/experiments/latest_test_random_1/"
+# OUT_DIR = "/home/ivan/experiments/latest_test_random_1/"
+OUT_DIR = "/home/ivan/experiments/diff_threshold_5m/"
+
+
 
 # Timers parameters
 TIMERS = True
@@ -37,11 +39,15 @@ TIME_WINDOW = 100
 
 # Logging parameters
 SHOW_LOGS = True
-LOG_LEVEL = "WARNING"
+LOG_LEVEL = "INFO"
 # PATH_TO_LOGS = "/root/logs/"
 PATH_TO_LOGS = "/home/ivan/logs/"
 
 # Camera installation parameters
+# IN_DIR = "/home/ivan/experiments/sources/TZK_january/3m_4l/random/"
+# ANGLE = 21
+# HEIGHT = 3
+
 ANGLE = 21
 HEIGHT = 3
 
