@@ -7,7 +7,6 @@ import cv2
 import copy
 import time
 import Queue
-import socket
 
 import conf
 import detection_logging
@@ -192,7 +191,7 @@ class ImgStructure(object):
 class MultipleImagesFrame(object):
     def __init__(self):
         self.mog_mask = ImgStructure("Original MOG mask")
-        self.filtered_mask = ImgStructure("Filtered mask")
+        self.filtered = ImgStructure("Filtered mask")
         self.filled_mask = ImgStructure("Dilated mask")
 
         self.extent_split_mask = ImgStructure("Extent-split mask")
@@ -233,9 +232,9 @@ class Draw(object):
 
         self.draw_img_structure = draw_frame
 
-        self.draw_img_structure.filled_mask.data = copy.copy(data_frame.filled_mask)
-        self.draw_img_structure.rect_cont.data = copy.copy(data_frame.orig_img)
-        self.draw_img_structure.ex_rect_cont.data = copy.copy(data_frame.orig_img)
+        self.draw_img_structure.filled_mask.data = copy.copy(data_frame.filled)
+        self.draw_img_structure.rect_cont.data = copy.copy(data_frame.orig)
+        self.draw_img_structure.ex_rect_cont.data = copy.copy(data_frame.orig)
 
         for attr, value in self.draw_img_structure.__dict__.iteritems():
             if len(value.data.shape) == 2:
@@ -262,7 +261,7 @@ class Draw(object):
         # self.__draw_contour_areas(self.rect_cont.data, d_frame.base_contours)
 
         h_stack1 = np.hstack((self.draw_img_structure.mog_mask.data, self.x_border,
-                              self.draw_img_structure.filtered_mask.data,
+                              self.draw_img_structure.filtered.data,
                               self.x_border, self.draw_img_structure.filled_mask.data))
         h_stack2 = np.hstack((self.draw_img_structure.bright_mask.data, self.x_border,
                               self.draw_img_structure.rect_cont.data,

@@ -1,5 +1,4 @@
 import threading
-import copy
 
 import cv2
 from imutils import resize
@@ -32,31 +31,33 @@ class Detection(threading.Thread):
 
     def run(self):
         DETECTION_LOG.info("Detection has started")
-        img_fr = PreProcess()
+        prepare_img = PreprocessImg()
         while self.stop_event.is_set():
 
             self.timer.note_time()
 
-            data_frame = DataFrame()
+            # Data frame containing detected objects
+            frame = DataFrame()
+            # Data structure to draw images on output
+            draw = MultipleImagesFrame()
 
             try:
-                data_frame.orig_img = self.orig_img_q.get(timeout=2)
+                frame.orig_img = self.orig_img_q.get(timeout=2)
             except Queue.Empty:
                 DETECTION_LOG.warning("Timeout reached, no items can be received from orig_img_q")
 
                 continue
 
-            draw_frame = MultipleImagesFrame()
-            draw_frame.mog_mask.data, draw_frame.filtered_mask.data = img_fr.process(data_frame)
-            draw_frame.bright_mask.data, draw_frame.extent_split_mask.data = data_frame.calculate()
+            frame.orig_img, draw.mog_mask.data, draw.filtered.data, frame.filled = prepare_img.process(frame.orig_img)
+            draw.bright_mask.data, draw.extent_split_mask.data = frame.calculate()
 
             try:
-                self.data_frame_q.put_nowait(data_frame)
+                self.data_frame_q.put_nowait(frame)
             except Queue.Full:
                 DETECTION_LOG.error("Data queue is full. Queue size: {}".format(self.data_frame_q.qsize()))
 
             try:
-                self.draw_frame_q.put_nowait(draw_frame)
+                self.draw_frame_q.put_nowait(draw)
             except Queue.Full:
                 DETECTION_LOG.error("Draw queue is full. Queue size: {}".format(self.data_frame_q.qsize()))
 
@@ -157,92 +158,42 @@ class ObjParams(object):
         return x_left or x_right
 
 
-class PreProcess(object):
+class PreprocessImg(object):
     def __init__(self):
-        self.__mog = cv2.createBackgroundSubtractorMOG2(detectShadows=True)
-        if not(0 in conf.F_KERNEL_SIZE):
-            self.__filtering_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, conf.F_KERNEL_SIZE)
-        else:
-            self.__filter = copy.copy
-
+        self.mog2 = cv2.createBackgroundSubtractorMOG2(detectShadows=True)
+        self.f_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, conf.F_KERNEL_SIZE)
+        self.clahe_adjust = cv2.createCLAHE(clipLimit=8.0, tileGridSize=(8, 8))
         self.set_ratio_done = bool()
 
-    def process(self, d_frame):
-        # orig_img = resize(d_frame.orig_img, width=conf.RESIZE_TO[0], height=conf.RESIZE_TO[1])
-        orig_img = resize(d_frame.orig_img, height=conf.RESIZE_TO[1])
-
-
-        # orig_img = cv2.cvtColor(orig_img, cv2.COLOR_BGR2GRAY)
-
+    def process(self, orig_img):
+        orig_img = resize(orig_img, height=conf.RESIZE_TO[1])
+        # Update processing resolution according to one after resize (i.e. not correct res. is chosen by user)
         self.set_ratio(orig_img)
 
-        # orig_img = self.adjust_gamma(orig_img, 2)
-        # orig_img = self.increase_brightness(orig_img, 20)
+        orig_img = self.clahe_adjust.apply(orig_img)
 
-        orig_img = self.clahe_contrast(orig_img)
-
-        mog_mask = self.__mog.apply(orig_img)
+        mog_mask = self.mog2.apply(orig_img)
         _, mog_mask = cv2.threshold(mog_mask, 127, 255, cv2.THRESH_BINARY)
 
-        filtered_mask = self.__filter(mog_mask)
-
+        filtered_mask = cv2.morphologyEx(mog_mask, cv2.MORPH_OPEN, self.f_kernel)
         filled_mask = cv2.dilate(filtered_mask, None, iterations=conf.DILATE_ITERATIONS)
-        #filled_mask = filtered_mask 
 
-        d_frame.orig_img = orig_img
-        d_frame.filled_mask = filled_mask
-
-        return mog_mask, filtered_mask
-
-    @staticmethod
-    def adjust_gamma(image, gamma=1.0):
-        # build a lookup table mapping the pixel values [0, 255] to
-        # their adjusted gamma values
-        inv_gamma = 1.0 / gamma
-        table = np.array([((i / 255.0) ** inv_gamma) * 255
-                          for i in np.arange(0, 256)]).astype("uint8")
-
-        # apply gamma correction using the lookup table
-        return cv2.LUT(image, table)
-
-    @staticmethod
-    def increase_brightness(image, value=30):
-        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-        h, s, v = cv2.split(hsv)
-
-        lim = 255 - value
-        v[v > lim] = 255
-        v[v <= lim] += value
-
-        final_hsv = cv2.merge((h, s, v))
-        image = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
-        return image
-
-    @staticmethod
-    def clahe_contrast(image):
-        clahe = cv2.createCLAHE(clipLimit=8.0, tileGridSize=(8, 8))
-        # clahe = cv2.createCLAHE(clipLimit=1.0, tileGridSize=(2, 2))
-        return clahe.apply(image)
+        return orig_img, mog_mask, filtered_mask, filled_mask
 
     def set_ratio(self, img):
         if not self.set_ratio_done:
             self.set_ratio_done = True
             actual_w, actual_h = img.shape[:2][1], img.shape[:2][0]
-            DETECTION_LOG.warning("Actual resolution used for processing is {}x{}".format(actual_w, actual_h))
+            DETECTION_LOG.info("Processing resolution: {}x{}".format(actual_w, actual_h))
 
             if conf.RESIZE_TO[0] != actual_w or conf.RESIZE_TO[1] != actual_h:
-                conf.RESIZE_TO[0] = actual_w
-                conf.RESIZE_TO[1] = actual_h
-
-    def __filter(self, mog_mask):
-
-        return cv2.morphologyEx(mog_mask, cv2.MORPH_OPEN, self.__filtering_kernel)
+                conf.RESIZE_TO[0], conf.RESIZE_TO[1] = actual_w, actual_h
 
 
 class DataFrame(object):
     def __init__(self):
         self.orig_img = np.dtype('uint8')
-        self.filled_mask = np.dtype('uint8')
+        self.filled = np.dtype('uint8')
 
         self.base_frame_status = None  # Can be False/True/None type
         self.ex_frame_status = None  # Can be False/True/None type
@@ -253,12 +204,8 @@ class DataFrame(object):
         self.br_rects = list()
 
     def calculate(self):
-        self.base_objects, self.base_contours = self._basic_process(self.filled_mask)
-
-
+        self.base_objects, self.base_contours = self._basic_process(self.filled)
         bright_mask = self.calc_bright_coeff(self.base_objects)
-
-
         ex_filled_mask = self._extent_split_process()
         self.ex_objects, _ = self._basic_process(ex_filled_mask)
         self.calc_bright_coeff(self.ex_objects)
@@ -320,7 +267,7 @@ class DataFrame(object):
 
             if is_extent and is_rect_coeff and not obj.base_status and not obj.br_status:
                 x, y, w, h = obj.base_rect_ao
-                split_mask = make_split(self.filled_mask[y:y+h, x:x + w])
+                split_mask = make_split(self.filled[y:y + h, x:x + w])
                 ex_filled_mask[y:y+h, x:x + w] = split_mask[:, :]
                 #ex_filled_mask[y:y+h, x:x + w] = self.filled_mask[y:y+h, x:x + w]
 #                cv2.line(ex_filled_mask, (x + int(w / 2), 0), (x + int(w / 2), conf.RESIZE_TO[1]), (0, 0, 0), 3)
