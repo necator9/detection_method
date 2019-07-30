@@ -5,7 +5,7 @@ import conf
 
 class PinholeCameraModel(object):
     def __init__(self):
-        self.obj_dim = [1, 1.7, 0.3]
+        self.obj_dim = [0.7, 1.6, 0.3]
         self.img_res = conf.RESIZE_TO
 
         self.rw_z_range = np.arange(0, 30, 0.1)
