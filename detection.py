@@ -198,10 +198,10 @@ class DataFrame(object):
 
     def calculate(self):
         self.base_objects, self.base_contours = self._basic_process(self.filled)
-        bright_mask = self.calc_bright_coeff(self.base_objects)
+        bright_mask = self.calc_bright_coeff()
         ex_filled_mask = self._extent_split_process()
         self.ex_objects, _ = self._basic_process(ex_filled_mask)
-        self.calc_bright_coeff(self.ex_objects)
+        self.calc_bright_coeff()
 
         self.detect()
 
@@ -267,22 +267,25 @@ class DataFrame(object):
 
         return ex_filled_mask
 
-    def calc_bright_coeff(self, objects):
-        if len(self.base_objects) > 0:
-            brightness_mask = np.zeros((conf.RESIZE_TO[1], conf.RESIZE_TO[0]), np.uint8)
+    def calc_bright_coeff(self):
+        # if len(self.base_objects) > 0:
+        #     brightness_mask = np.zeros((conf.RESIZE_TO[1], conf.RESIZE_TO[0]), np.uint8)
+        #
+        #     brightness_mask[np.where(self.orig_img > 265)] = [255]   # Chose later appropriate values
+        #     _, contours, _ = cv2.findContours(brightness_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        #     self.br_rects = [cv2.boundingRect(contour) for contour in contours]
+        #
+        for obj in self.base_objects:
+        #         obj.br_cr_rects = [self.intersection(obj.base_rect_ao, br_rect) for br_rect in self.br_rects]
+        #         obj.br_cr_area = sum([rect[2] * rect[3] for rect in obj.br_cr_rects])
+            segment = self.orig_img[obj.y_ao: obj.y_ao + obj.h_ao, obj.x_ao: obj.x_ao + obj.w_ao]
+            obj.br_ratio = segment.mean()
+        #         obj.br_status = obj.br_ratio > conf.BRIGHTNESS_THRESHOLD
+        #
+        # else:
+        #     brightness_mask = np.dtype('uint8')
 
-            brightness_mask[np.where(self.orig_img > 265)] = [255]   # Chose later appropriate values
-            _, contours, _ = cv2.findContours(brightness_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            self.br_rects = [cv2.boundingRect(contour) for contour in contours]
-
-            for obj in objects:
-                obj.br_cr_rects = [self.intersection(obj.base_rect_ao, br_rect) for br_rect in self.br_rects]
-                obj.br_cr_area = sum([rect[2] * rect[3] for rect in obj.br_cr_rects])
-                obj.br_ratio = round(float(obj.br_cr_area) / obj.w_ao * obj.h_ao, 3)
-                obj.br_status = obj.br_ratio > conf.BRIGHTNESS_THRESHOLD
-
-        else:
-            brightness_mask = np.dtype('uint8')
+        brightness_mask = np.dtype('uint8')
 
         return brightness_mask
 
