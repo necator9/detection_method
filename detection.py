@@ -115,7 +115,7 @@ class ObjParams(object):
 
     @staticmethod
     def calc_rect_coef(c_a, h, w, h_w_ratio):
-        k = 1 if (h_w_ratio > 0.7) and (h_w_ratio < 3.2) else -1
+        k = 1 if (h_w_ratio > 0.7) else -1
         rect_coef = c_a * k * ((h ** 2 + 2 * h * w + w ** 2) / (h * w * 4.0))
 
         return round(rect_coef, 3)
