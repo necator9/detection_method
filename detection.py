@@ -10,11 +10,20 @@ from extentions import MultipleImagesFrame, TimeCounter
 import detection_logging
 import pinhole_camera_model as pcm
 
+import pickle
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import PolynomialFeatures
+
+poly = PolynomialFeatures(6, include_bias=True)
+
 DETECTION_LOG = detection_logging.create_log("detection.log", "DETECTION THREAD")
 
 
-pinhole_cam = pcm.PinholeCameraModel()
-pred_dist_f = pinhole_cam.init_y_regress()
+
+CLASSIFIER = pickle.load(open("/home/ivan/Downloads/classifier.pcl", "rb"))
+
+PINHOLE_CAM = pcm.PinholeCameraModel()
+PRED_DIST_F = PINHOLE_CAM.init_y_regress()
 
 
 class Detection(threading.Thread):
@@ -81,12 +90,12 @@ class ObjParams(object):
         self.extent_ao = float(self.c_a_ao) / (self.w_ao * self.h_ao)
 
         # Estimate distance of the actual object
-        self.dist_ao = pred_dist_f(self.y_ao)
+        self.dist_ao = PRED_DIST_F(self.y_ao)
 
         # Generate virtual cuboid and calculate its geom parameters
-        self.c_a_ro, self.x_ro, self.y_ro, self.w_ro, self.h_ro = pinhole_cam.get_ref_val(self.dist_ao)
+        self.c_a_ro, self.x_ro, self.y_ro, self.w_ro, self.h_ro = PINHOLE_CAM.get_ref_val(self.dist_ao)
         self.rect_coef_ro = self.calc_rect_coef(self.c_a_ro, self.h_ro, self.w_ro, float(self.h_ro) / self.w_ro)
-        self.rect_coef_diff = (self.rect_coef_ro - self.rect_coef_ao) / self.rect_coef_ro
+        self.rect_coef_diff = self.rect_coef_ro / self.rect_coef_ao
 
         self.base_status = bool()
         self.br_status = bool()
@@ -95,6 +104,8 @@ class ObjParams(object):
         self.br_cr_rects = [[0, 0, 0, 0]]
         self.br_cr_area = int()
         self.br_ratio = float()
+
+        self.o_class = int()
 
     @staticmethod
     def scale_param(reg_f, val, pred_dist, ref_dist=6):
@@ -115,13 +126,15 @@ class ObjParams(object):
 
     @staticmethod
     def calc_rect_coef(c_a, h, w, h_w_ratio):
-        k = 1 if (h_w_ratio > 0.7) else -1
+        # k = 1 if (h_w_ratio > 0.7) else -1
+        k = 1
         rect_coef = c_a * k * ((h ** 2 + 2 * h * w + w ** 2) / (h * w * 4.0))
 
         return round(rect_coef, 3)
     # TODO Transfer into dataframe class
 
     def detect(self):
+        self.classify()
         is_rect_coeff_belongs = self.check_rect_coeff(self.rect_coef_diff)
         is_extent_belongs = self.check_extent(self.extent_ao)
         is_margin_crossed = self.check_margin(self.base_rect_ao[0], self.base_rect_ao[2])
@@ -131,6 +144,13 @@ class ObjParams(object):
             self.base_status = True
         else:
             self.base_status = False
+
+    def classify(self):
+        if self.dist_ao < 30 and self.rect_coef_diff < 3:
+            self.o_class = int(CLASSIFIER.predict(poly.fit_transform([[self.rect_coef_diff, self.h_w_ratio_ao]])))
+        else:
+            self.o_class = 3
+
 
     @staticmethod
     def check_rect_coeff(coeff):

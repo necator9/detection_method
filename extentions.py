@@ -121,7 +121,7 @@ class Database(object):
         self.cur.execute('''CREATE TABLE {} (Img_name TEXT, Obj_id INT, Rect_coeff_diff REAL, Rect_coeff_ro REAL, 
         Rect_coeff_ao REAL, dist_ao REAL, c_a_ro REAL, c_a_ao REAL, Extent REAL, Status TEXT, Base_status TEXT, 
         Br_status TEXT, Br_ratio REAL, h_w_ratio_ao REAL, Br_cross_area INT, x_ao INT, y_ao INT, w_ao INT, h_ao INT, 
-        x_ro INT, y_ro INT, w_ro INT, h_ro INT)'''.format(self.table_name))
+        x_ro INT, y_ro INT, w_ro INT, h_ro INT, o_class INT)'''.format(self.table_name))
 
         self.db.commit()
 
@@ -132,7 +132,7 @@ class Database(object):
 
         self.cur.executemany('''INSERT INTO {}(Img_name, Obj_id, Rect_coeff_diff, Rect_coeff_ro, Rect_coeff_ao, dist_ao, 
         c_a_ro, c_a_ao, Extent, Status, Base_status, Br_status, Br_ratio, h_w_ratio_ao, Br_cross_area, x_ao, y_ao, w_ao, 
-        h_ao, x_ro, y_ro, w_ro, h_ro) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''.
+        h_ao, x_ro, y_ro, w_ro, h_ro, o_class) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''.
                              format(self.table_name), db_arr)
 
         if len(d_frame.ex_objects) > 0:
@@ -140,7 +140,7 @@ class Database(object):
             db_split_arr = self.get_base_params(d_frame.ex_objects, img_name)
             self.cur.executemany('''INSERT INTO {}(Img_name, Obj_id, Rect_coeff_diff, Rect_coeff_ro, Rect_coeff_ao, 
             dist_ao, c_a_ro, c_a_ao, Extent, Status, Base_status, Br_status, Br_ratio, h_w_ratio_ao,Br_cross_area, x_ao,
-            y_ao, w_ao, h_ao, x_ro, y_ro, w_ro, h_ro) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''.
+            y_ao, w_ao, h_ao, x_ro, y_ro, w_ro, h_ro, o_class) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''.
                                  format(self.table_name), db_split_arr)
 
         self.db.commit()
@@ -155,7 +155,7 @@ class Database(object):
                     [img_name, obj.obj_id, obj.rect_coef_diff, obj.rect_coef_ro, obj.rect_coef_ao, obj.dist_ao,
                      obj.c_a_ro, obj.c_a_ao, obj.extent_ao, str(obj.gen_status), str(obj.base_status),
                      str(obj.br_status), obj.br_ratio, obj.h_w_ratio_ao, obj.br_cr_area, obj.x_ao, obj.y_ao, obj.w_ao,
-                     obj.h_ao, obj.x_ro, obj.y_ro, obj.w_ro, obj.h_ro])
+                     obj.h_ao, obj.x_ro, obj.y_ro, obj.w_ro, obj.h_ro, obj.o_class])
 
         return db_arr
 
@@ -218,6 +218,8 @@ class Draw(object):
         if not conf.SAVE_SINGLE:
             self.save_single = blank_fn
 
+        self.color_map = {0: (255, 0, 0), 1: (0, 255, 0), 2: (0, 0, 255), 3: (0, 0, 0)}
+
     def update_borders(self):
         if not self.borders_updated_flag:
             self.borders_updated_flag = True
@@ -227,7 +229,6 @@ class Draw(object):
             self.y_border[:] = (0, 0, 255)
 
     def draw_multiple_images(self, data_frame, draw_frame):
-
         self.update_borders()
 
         self.draw_img_structure = draw_frame
@@ -287,13 +288,10 @@ class Draw(object):
     def put_name(img, text):
         cv2.putText(img, text, (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
 
-    @staticmethod
-    def draw_rects(img, objects):
+    def draw_rects(self, img, objects):
         for obj in objects:
-            if obj.gen_status:
-                color = (0, 0, 255)
-            else:
-                color = (0, 255, 0)
+            color = self.color_map[obj.o_class]
+
             x, y, w, h = obj.base_rect_ao
             cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
             cv2.putText(img, str(obj.obj_id), (x + 5, y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,

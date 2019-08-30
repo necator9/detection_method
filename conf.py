@@ -26,8 +26,7 @@ SAVE_VERBOSE = True
 WRITE_TO_DB = True
 WRITE_TO_PICKLE = False
 # TODO Check why the sqlite does not accept "." in path of out database
-OUT_DIR = "/home/ivan/experiments/TZK_january/random"
-# OUT_DIR = "/home/ivan/experiments/diff_16m_ped_filtered/"
+OUT_DIR = "/home/ivan/experiments/TZK_january/bicycle"
 # OUT_DIR = "/home/ivan/experiments/diff_11m_ped_filtered/"
 # OUT_DIR = "/home/ivan/experiments/bicyclist_random_filtered/"
 # OUT_DIR = "/home/ivan/experiments/chaos/"
@@ -43,11 +42,10 @@ LOG_LEVEL = "INFO"
 PATH_TO_LOGS = "/home/ivan/logs/"
 
 # Camera installation parameters
-# IN_DIR = "/home/ivan/experiments/sources/TZK_january/3m_4l/random/"
+IN_DIR = '/home/ivan/experiments/sources/TZK_january/3m_4l/bicycle'
 ANGLE = 21
 HEIGHT = 3
 
-
-IN_DIR = '/home/ivan/experiments/sources/TZK_january/3m_4l/random/'
+# IN_DIR = "/home/ivan/experiments/sources/5m_ped_filtered/"
 # ANGLE = 13
 # HEIGHT = 3.1
