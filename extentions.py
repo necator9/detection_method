@@ -303,7 +303,7 @@ class Draw(object):
     def draw_virual_object(self, img, objects):
         for obj in objects:
             color = (255, 0, 0)
-            x, y, w, h = (obj.x_ao + obj.w_ao / 2) - obj.w_ro / 2, obj.y_ro - obj.h_ro / 2, obj.w_ro, obj.h_ro
+            x, y, w, h = (obj.x_ao + obj.w_ao / 2) - obj.w_ro / 2, obj.y_ro, obj.w_ro, obj.h_ro
             cv2.rectangle(img, (x, y), (x + w, y + h), color, 1)
 
     @staticmethod

@@ -18,12 +18,28 @@ poly = PolynomialFeatures(6, include_bias=True)
 
 DETECTION_LOG = detection_logging.create_log("detection.log", "DETECTION THREAD")
 
-
-
 CLASSIFIER = pickle.load(open("/home/ivan/Downloads/classifier.pcl", "rb"))
 
 PINHOLE_CAM = pcm.PinholeCameraModel()
-PRED_DIST_F = PINHOLE_CAM.init_y_regress()
+# PRED_DIST_F = PINHOLE_CAM.init_y_regress()
+
+
+def pixels_to_distance(n=10, h=10., r=0, Sh_px=480., FL=35., Sh=26.5):
+    n = Sh_px - n
+    pxlmm = Sh / Sh_px  # print 'pxlmm ', pxlmm
+    # h_px = abs((Sh_px / 2.) - n)
+    h_px = (Sh_px / 2.) - n
+    h_mm = h_px * pxlmm  # print 'hmm ', h_mm
+    bo = np.arctan(h_mm / FL)  # print 'bo ', np.rad2deg(bo)
+    deg = np.deg2rad(r) + bo
+    tan = np.tan(deg) if deg >= 0 else -1.
+    # tan = np.tan(deg)
+    d = (h / tan)
+
+    return d
+
+
+PRED_DIST_F = pixels_to_distance
 
 
 class Detection(threading.Thread):
@@ -83,19 +99,36 @@ class ObjParams(object):
         self.c_a_ao = cv2.contourArea(cnt_ao)
         self.base_rect_ao = self.x_ao, self.y_ao, self.w_ao, self.h_ao = cv2.boundingRect(cnt_ao)
         # Define y-coord as a middle of b.r.
-        self.y_ao = self.y_ao + self.h_ao / 2
+        # self.y_ao = self.y_ao + self.h_ao / 2
         self.h_w_ratio_ao = float(self.h_ao) / self.w_ao
         self.rect_coef_ao = self.calc_rect_coef(self.c_a_ao, self.h_ao, self.w_ao, self.h_w_ratio_ao)
 
         self.extent_ao = float(self.c_a_ao) / (self.w_ao * self.h_ao)
 
         # Estimate distance of the actual object
-        self.dist_ao = PRED_DIST_F(self.y_ao)
+        # self.dist_ao = PRED_DIST_F(self.y_ao)
+        self.dist_ao = PRED_DIST_F(self.y_ao + self.h_ao, conf.HEIGHT, conf.ANGLE, conf.RESIZE_TO[1], 40)
+        # def pixels_to_distance(n=10, h=10., r=0, Sh_px=480., FL=35., Sh=26.5):
 
         # Generate virtual cuboid and calculate its geom parameters
-        self.c_a_ro, self.x_ro, self.y_ro, self.w_ro, self.h_ro = PINHOLE_CAM.get_ref_val(self.dist_ao)
-        self.rect_coef_ro = self.calc_rect_coef(self.c_a_ro, self.h_ro, self.w_ro, float(self.h_ro) / self.w_ro)
-        self.rect_coef_diff = self.rect_coef_ro / self.rect_coef_ao
+        if self.dist_ao > 0:
+            self.c_a_ro, self.x_ro, self.y_ro, self.w_ro, self.h_ro = PINHOLE_CAM.get_ref_val(self.dist_ao)
+            self.rect_coef_ro = self.calc_rect_coef(self.c_a_ro, self.h_ro, self.w_ro, float(self.h_ro) / self.w_ro)
+            self.rect_coef_diff = self.rect_coef_ro / self.rect_coef_ao
+
+            self.w_ao_rw, self.h_ao_rw = PINHOLE_CAM.rotate_height(-conf.HEIGHT, self.dist_ao, self.base_rect_ao)
+            rect_area_ao_rw = self.w_ao_rw * self.h_ao_rw
+            rect_area_ao = self.w_ao * self.h_ao
+            # Find from proportion
+            self.c_ao_rw = self.c_a_ao * rect_area_ao_rw / rect_area_ao
+        else:
+            self.c_a_ro, self.x_ro, self.y_ro, self.w_ro, self.h_ro = 0, 0, 0, 0, 0
+            self.rect_coef_ro = -1
+            self.rect_coef_diff = -1
+
+            self.w_ao_rw = float()
+            self.h_ao_rw = float()
+            self.c_ao_rw = float()
 
         self.base_status = bool()
         self.br_status = bool()

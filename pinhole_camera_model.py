@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import conf
+import math
 
 
 class PinholeCameraModel(object):
@@ -12,6 +13,13 @@ class PinholeCameraModel(object):
         self.rw_x = 0
         self.rw_y = -(conf.HEIGHT - self.obj_dim[1] / 2.0)
         self.rw_angle = -conf.ANGLE
+
+        self.e = self.get_extrinsic_matrix(self.rw_angle)
+        self.k = self.get_intrinsic_matrix(self.img_res)
+
+        self.e_inv = np.linalg.inv(self.e)
+        self.k_inv = np.linalg.inv(self.k[:, :-1])
+
 
     def get_cuboid_vertices(self, center_coords):
         # Calculate vertices coordinates of cuboid based on center coordinates
@@ -33,40 +41,43 @@ class PinholeCameraModel(object):
     
         return cube
 
+    def get_extrinsic_matrix(self, ang):
+        ang = np.radians(ang)
+
+        # R_x(angle)
+        r = np.array([[1, 0, 0, 0],
+                      [0, np.cos(ang), -np.sin(ang), 0],
+                      [0, np.sin(ang), np.cos(ang), 0],
+                      [0, 0, 0, 1]])
+
+        return r
+
+    def get_intrinsic_matrix(self, img_res):
+        f_m = 40
+
+        w_img, h_img = img_res
+        w_ccd, h_ccd = 36, 26.5
+
+        fx = f_m * w_img / float(w_ccd)
+        fy = f_m * h_img / float(h_ccd)
+
+        px = w_img / 2.0
+        py = h_img / 2.0
+
+        k = np.array([[fx, 0, px, 0],
+                      [0, fy, py, 0],
+                      [0, 0, 1, 0]])
+
+        return k
+
     def get_point_projection(self, w_coords, angle):
-        def get_extrinsic_matrix(ang):
-            ang = np.radians(ang)
 
-            # R_x(angle)
-            r = np.array([[1, 0, 0, 0],
-                          [0, np.cos(ang), -np.sin(ang), 0],
-                          [0, np.sin(ang), np.cos(ang), 0],
-                          [0, 0, 0, 1]])
-
-            return r
-
-        def get_intrinsic_matrix(img_res):
-            f_m = 40
-
-            w_img, h_img = img_res
-            w_ccd, h_ccd = 36, 26.5
-
-            fx = f_m * w_img / float(w_ccd)
-            fy = f_m * h_img / float(h_ccd)
-
-            px = w_img / 2.0
-            py = h_img / 2.0
-
-            k = np.array([[fx, 0, px, 0],
-                          [0, fy, py, 0],
-                          [0, 0, 1, 0]])
-
-            return k
-        e = get_extrinsic_matrix(angle)
-        k = get_intrinsic_matrix(self.img_res)
+        # TODO transfer to constructor
+        # e = get_extrinsic_matrix(angle)
+        # k = get_intrinsic_matrix(self.img_res)
     
-        cam_coords = np.dot(e, w_coords)
-        img_coords_hom = np.dot(k, cam_coords)
+        cam_coords = np.dot(self.e, w_coords)
+        img_coords_hom = np.dot(self.k, cam_coords)
     
         # Transform from hom coords
         u, v, _ = img_coords_hom / cam_coords[2]
@@ -178,7 +189,7 @@ class PinholeCameraModel(object):
     def calc_geom_params(polygon):
         c_a = cv2.contourArea(polygon)
         b_r = cv2.boundingRect(polygon)
-        y = b_r[1] + b_r[3] / 2
+        y = b_r[1]  # + b_r[3] / 2
         x = b_r[0]
         w = b_r[2]
         h = b_r[3]
@@ -211,6 +222,7 @@ class PinholeCameraModel(object):
             return ref_2d_params
         else:
             print 'Raise an exception, no such scenario'
+            return 1, 1, 1, 1, 1
 
     def init_y_regress(self):
         # Train regression
@@ -221,4 +233,46 @@ class PinholeCameraModel(object):
         y_img_d_poly = np.poly1d(np.polyfit(z_2d_params[2], z_range_f, 8))
 
         return y_img_d_poly
+
+    def get_3d_point(self, img_coords, y, z):
+        z_cam_coords = (y * np.sin(np.radians(self.rw_angle))) + (z * np.cos(np.radians(self.rw_angle)))
+
+        img_coords_prime = z_cam_coords * img_coords
+
+        camera_coords = self.k_inv.dot(img_coords_prime.T)
+        camera_coords[1] = -camera_coords[1]  # Some magic
+
+        camera_coords_prime = np.array([np.append(camera_coords, np.array(1))])
+        rw_coords = self.e_inv.dot(camera_coords_prime.T)
+
+        return rw_coords.T[0]
+
+    def rotate_height(self, y_rw, z_rw, b_rect):
+        x, y, w, h = b_rect
+
+        # Find angle c through distance to the object and camera height
+        c_an = abs(math.degrees(math.atan(y_rw / z_rw)))
+
+        # Find angles b and g
+        g_an = 90 - c_an
+        b_an = 180 - abs(self.rw_angle) - g_an
+
+        # Find length of rotated C in px
+        br_h_2d = h * math.sin(math.radians(b_an)) / math.sin(math.radians(g_an))
+
+        br_left_down_2d = np.array([[x, y + h, 1]])
+        br_right_down_2d = np.array([x + w, y + h, 1])
+        br_down_2d = [br_left_down_2d, br_right_down_2d]
+        z_rw = z_rw - 0.15
+        br_down_3d = [self.get_3d_point(br_vertex_2d, y_rw, z_rw) for br_vertex_2d in br_down_2d]
+
+        br_left_down_3d = br_down_3d[0][0]
+        br_right_down_3d = br_down_3d[1][0]
+        br_x_down_list = [br_left_down_3d, br_right_down_3d]
+
+        br_w_3d = abs(max(br_x_down_list) - min(br_x_down_list))
+
+        br_h_3d = br_h_2d * br_w_3d / float(w)
+
+        return br_w_3d, br_h_3d
 
