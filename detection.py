@@ -24,19 +24,7 @@ PINHOLE_CAM = pcm.PinholeCameraModel()
 # PRED_DIST_F = PINHOLE_CAM.init_y_regress()
 
 
-def pixels_to_distance(n=10, h=10., r=0, Sh_px=480., FL=35., Sh=26.5):
-    n = Sh_px - n
-    pxlmm = Sh / Sh_px  # print 'pxlmm ', pxlmm
-    # h_px = abs((Sh_px / 2.) - n)
-    h_px = (Sh_px / 2.) - n
-    h_mm = h_px * pxlmm  # print 'hmm ', h_mm
-    bo = np.arctan(h_mm / FL)  # print 'bo ', np.rad2deg(bo)
-    deg = np.deg2rad(r) + bo
-    tan = np.tan(deg) if deg >= 0 else -1.
-    # tan = np.tan(deg)
-    d = (h / tan)
 
-    return d
 
 
 PRED_DIST_F = pixels_to_distance
@@ -107,15 +95,16 @@ class ObjParams(object):
 
         # Estimate distance of the actual object
         # self.dist_ao = PRED_DIST_F(self.y_ao)
-        self.dist_ao = PRED_DIST_F(self.y_ao + self.h_ao, conf.HEIGHT, conf.ANGLE, conf.RESIZE_TO[1], 40)
+        self.dist_ao = PRED_DIST_F(self.y_ao + self.h_ao, conf.HEIGHT, conf.ANGLE, conf.RESIZE_TO[1], FL=40)
         # def pixels_to_distance(n=10, h=10., r=0, Sh_px=480., FL=35., Sh=26.5):
 
         # Generate virtual cuboid and calculate its geom parameters
         if self.dist_ao > 0:
-            self.c_a_ro, self.x_ro, self.y_ro, self.w_ro, self.h_ro = PINHOLE_CAM.get_ref_val(self.dist_ao)
-            self.rect_coef_ro = self.calc_rect_coef(self.c_a_ro, self.h_ro, self.w_ro, float(self.h_ro) / self.w_ro)
-            self.rect_coef_diff = self.rect_coef_ro / self.rect_coef_ao
+            # self.c_a_ro, self.x_ro, self.y_ro, self.w_ro, self.h_ro = PINHOLE_CAM.get_ref_val(self.dist_ao)
+            # self.rect_coef_ro = self.calc_rect_coef(self.c_a_ro, self.h_ro, self.w_ro, float(self.h_ro) / self.w_ro)
+            # self.rect_coef_diff = self.rect_coef_ro / self.rect_coef_ao
 
+            high_of_the_object(abs(front_coords[1]), front_coords[2], Rect.matrix[4].v, Rect.matrix[0].v)
             self.w_ao_rw, self.h_ao_rw = PINHOLE_CAM.rotate_height(-conf.HEIGHT, self.dist_ao, self.base_rect_ao)
             rect_area_ao_rw = self.w_ao_rw * self.h_ao_rw
             rect_area_ao = self.w_ao * self.h_ao

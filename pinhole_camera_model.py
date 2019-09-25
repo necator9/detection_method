@@ -276,3 +276,53 @@ class PinholeCameraModel(object):
 
         return br_w_3d, br_h_3d
 
+    def get_width(self, y_rw, z_rw, b_rect):
+        x, y, w, h = b_rect
+        br_left_down_2d = np.array([[x, y + h, 1]])
+        br_right_down_2d = np.array([x + w, y + h, 1])
+        br_down_2d = [br_left_down_2d, br_right_down_2d]
+        z_rw = z_rw - 0.15
+        br_down_3d = [self.get_3d_point(br_vertex_2d, y_rw, z_rw) for br_vertex_2d in br_down_2d]
+
+        br_left_down_3d = br_down_3d[0][0]
+        br_right_down_3d = br_down_3d[1][0]
+        br_x_down_list = [br_left_down_3d, br_right_down_3d]
+
+        br_w_3d = abs(max(br_x_down_list) - min(br_x_down_list))
+
+        return br_w_3d
+
+    def find_pixels_angle(self, pix, Sh_px=480., Sh=26.5, FL=35.):
+        pix = Sh_px - pix
+        pxlmm = Sh / Sh_px
+        h_px = (Sh_px / 2.) - pix
+        h_mm = h_px * pxlmm
+        return np.arctan(h_mm / FL)
+
+    def angle_between_pixels(self, pix1, pix2, Sh_px=480., Sh=26.5, FL=35.):
+        a1 = self.find_pixels_angle(pix1, Sh_px, Sh, FL)
+        a2 = self.find_pixels_angle(pix2, Sh_px, Sh, FL)
+        return np.rad2deg(abs(a1 - a2))
+
+    def high_of_the_object(self, h, d, pix1, pix2):
+        hyp = np.sqrt(h ** 2 + d ** 2)
+        gamma = np.rad2deg(np.arctan(d * 1. / h))
+        # print d, h
+        alpha = self.angle_between_pixels(pix1, pix2)
+        beta = 180. - alpha - gamma
+        # print alpha, beta, gamma
+        return hyp * np.sin(np.deg2rad(alpha)) / np.sin(np.deg2rad(beta))
+
+    def pixels_to_distance(self, n=10, h=10., r=0, Sh_px=480., FL=35., Sh=26.5):
+        n = Sh_px - n
+        pxlmm = Sh / Sh_px  # print 'pxlmm ', pxlmm
+        # h_px = abs((Sh_px / 2.) - n)
+        h_px = (Sh_px / 2.) - n
+        h_mm = h_px * pxlmm  # print 'hmm ', h_mm
+        bo = np.arctan(h_mm / FL)  # print 'bo ', np.rad2deg(bo)
+        deg = np.deg2rad(r) + bo
+        tan = np.tan(deg) if deg >= 0 else -1.
+        # tan = np.tan(deg)
+        d = (h / tan)
+
+        return d
