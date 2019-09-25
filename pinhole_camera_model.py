@@ -5,21 +5,24 @@ import math
 
 
 class PinholeCameraModel(object):
-    def __init__(self):
+    def __init__(self, f_m=40, w_ccd=36, h_ccd=26.5):
         self.obj_dim = [0.7, 1.6, 0.3]
         self.img_res = conf.RESIZE_TO
 
         self.rw_z_range = np.arange(0, 30, 0.1)
         self.rw_x = 0
-        self.rw_y = -(conf.HEIGHT - self.obj_dim[1] / 2.0)
+        self.rw_y = -conf.HEIGHT
         self.rw_angle = -conf.ANGLE
 
-        self.e = self.get_extrinsic_matrix(self.rw_angle)
-        self.k = self.get_intrinsic_matrix(self.img_res)
+        self.f_m = f_m
+        self.w_ccd = w_ccd
+        self.h_ccd = h_ccd
+
+        self.e = self.get_extrinsic_matrix()
+        self.k = self.get_intrinsic_matrix()
 
         self.e_inv = np.linalg.inv(self.e)
         self.k_inv = np.linalg.inv(self.k[:, :-1])
-
 
     def get_cuboid_vertices(self, center_coords):
         # Calculate vertices coordinates of cuboid based on center coordinates
@@ -41,8 +44,8 @@ class PinholeCameraModel(object):
     
         return cube
 
-    def get_extrinsic_matrix(self, ang):
-        ang = np.radians(ang)
+    def get_extrinsic_matrix(self):
+        ang = np.radians(self.rw_angle)
 
         # R_x(angle)
         r = np.array([[1, 0, 0, 0],
@@ -52,14 +55,11 @@ class PinholeCameraModel(object):
 
         return r
 
-    def get_intrinsic_matrix(self, img_res):
-        f_m = 40
+    def get_intrinsic_matrix(self):
+        w_img, h_img = self.img_res
 
-        w_img, h_img = img_res
-        w_ccd, h_ccd = 36, 26.5
-
-        fx = f_m * w_img / float(w_ccd)
-        fy = f_m * h_img / float(h_ccd)
+        fx = self.f_m * w_img / float(self.w_ccd)
+        fy = self.f_m * h_img / float(self.h_ccd)
 
         px = w_img / 2.0
         py = h_img / 2.0
@@ -161,7 +161,7 @@ class PinholeCameraModel(object):
                       [cond2, cond2]]
     
             # Add last element is equal to first to close the contour
-            if not (polygon[0] == polygon[-1]).all():
+            if not all(polygon[0] == polygon[-1]):
                 polygon = np.vstack((polygon, [polygon[0]]))
     
             for i in range(len(polygon) - 1):
@@ -247,9 +247,9 @@ class PinholeCameraModel(object):
 
         return rw_coords.T[0]
 
-    def rotate_height(self, y_rw, z_rw, b_rect):
+    def rotate_height(self, z_rw, b_rect):
         x, y, w, h = b_rect
-
+        y_rw = self.rw_y
         # Find angle c through distance to the object and camera height
         c_an = abs(math.degrees(math.atan(y_rw / z_rw)))
 
@@ -276,12 +276,13 @@ class PinholeCameraModel(object):
 
         return br_w_3d, br_h_3d
 
-    def get_width(self, y_rw, z_rw, b_rect):
+    def get_width(self, z_rw, b_rect):
         x, y, w, h = b_rect
+        y_rw = self.rw_y
         br_left_down_2d = np.array([[x, y + h, 1]])
         br_right_down_2d = np.array([x + w, y + h, 1])
         br_down_2d = [br_left_down_2d, br_right_down_2d]
-        z_rw = z_rw - 0.15
+        # z_rw = z_rw - 0.15
         br_down_3d = [self.get_3d_point(br_vertex_2d, y_rw, z_rw) for br_vertex_2d in br_down_2d]
 
         br_left_down_3d = br_down_3d[0][0]
@@ -292,19 +293,25 @@ class PinholeCameraModel(object):
 
         return br_w_3d
 
-    def find_pixels_angle(self, pix, Sh_px=480., Sh=26.5, FL=35.):
+    def find_pixels_angle(self, pix):
+        Sh_px = self.img_res[1]
+        Sh = self.h_ccd
+        FL = self.f_m
         pix = Sh_px - pix
         pxlmm = Sh / Sh_px
         h_px = (Sh_px / 2.) - pix
         h_mm = h_px * pxlmm
         return np.arctan(h_mm / FL)
 
-    def angle_between_pixels(self, pix1, pix2, Sh_px=480., Sh=26.5, FL=35.):
-        a1 = self.find_pixels_angle(pix1, Sh_px, Sh, FL)
-        a2 = self.find_pixels_angle(pix2, Sh_px, Sh, FL)
+    def angle_between_pixels(self, pix1, pix2):
+        a1 = self.find_pixels_angle(pix1)
+        a2 = self.find_pixels_angle(pix2)
         return np.rad2deg(abs(a1 - a2))
 
-    def high_of_the_object(self, h, d, pix1, pix2):
+    def high_of_the_object(self, d, b_rect):
+        pix1, pix2 = b_rect[1], b_rect[1] + b_rect[3]
+
+        h = abs(self.rw_y)
         hyp = np.sqrt(h ** 2 + d ** 2)
         gamma = np.rad2deg(np.arctan(d * 1. / h))
         # print d, h
@@ -313,7 +320,13 @@ class PinholeCameraModel(object):
         # print alpha, beta, gamma
         return hyp * np.sin(np.deg2rad(alpha)) / np.sin(np.deg2rad(beta))
 
-    def pixels_to_distance(self, n=10, h=10., r=0, Sh_px=480., FL=35., Sh=26.5):
+    def pixels_to_distance(self, n):
+        h = abs(self.rw_y)
+        r = abs(self.rw_angle)
+        Sh_px = self.img_res[1]
+        Sh = self.h_ccd
+        FL = self.f_m
+
         n = Sh_px - n
         pxlmm = Sh / Sh_px  # print 'pxlmm ', pxlmm
         # h_px = abs((Sh_px / 2.) - n)
