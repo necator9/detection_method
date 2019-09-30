@@ -1,20 +1,12 @@
 import numpy as np
-import cv2
-import conf
-import math
 
 
 class PinholeCameraModel(object):
-    def __init__(self, f_m=40, w_ccd=36, h_ccd=26.5):
-        self.obj_dim = [0.7, 1.6, 0.3]
-        self.img_res = conf.RESIZE_TO
+    def __init__(self, rw_angle, img_res, f_l=40., w_ccd=36., h_ccd=26.5):
+        self.img_res = img_res
+        self.rw_angle = rw_angle
 
-        self.rw_z_range = np.arange(0, 30, 0.1)
-        self.rw_x = 0
-        self.rw_y = -conf.HEIGHT
-        self.rw_angle = -conf.ANGLE
-
-        self.f_m = f_m
+        self.f_l = f_l
         self.w_ccd = w_ccd
         self.h_ccd = h_ccd
 
@@ -23,26 +15,6 @@ class PinholeCameraModel(object):
 
         self.e_inv = np.linalg.inv(self.e)
         self.k_inv = np.linalg.inv(self.k[:, :-1])
-
-    def get_cuboid_vertices(self, center_coords):
-        # Calculate vertices coordinates of cuboid based on center coordinates
-    
-        x_l = lambda c, obj: c[0] - obj[0] / 2.0
-        x_r = lambda c, obj: c[0] + obj[0] / 2.0
-        y_b = lambda c, obj: c[1] - obj[1] / 2.0
-        y_t = lambda c, obj: c[1] + obj[1] / 2.0
-        z_f = lambda c, obj: c[2] - obj[2] / 2.0
-        z_b = lambda c, obj: c[2] + obj[2] / 2.0
-    
-        cube = [[x_l, y_t, z_f], [x_l, y_b, z_f], [x_r, y_b, z_f], [x_r, y_t, z_f],  # Front rectangle
-                [x_l, y_t, z_b], [x_l, y_b, z_b], [x_r, y_b, z_b], [x_r, y_t, z_b]]  # Back rectangle
-    
-        # Fill the structure by numbers
-        cube = np.array([[coord(center_coords, self.obj_dim) for coord in vertex] for vertex in cube])
-        # Add one to the each vertex to be in homogeneous coordinates
-        cube = np.hstack((cube, np.ones((cube.shape[0], 1))))
-    
-        return cube
 
     def get_extrinsic_matrix(self):
         ang = np.radians(self.rw_angle)
@@ -58,8 +30,8 @@ class PinholeCameraModel(object):
     def get_intrinsic_matrix(self):
         w_img, h_img = self.img_res
 
-        fx = self.f_m * w_img / float(self.w_ccd)
-        fy = self.f_m * h_img / float(self.h_ccd)
+        fx = self.f_l * w_img / float(self.w_ccd)
+        fy = self.f_l * h_img / float(self.h_ccd)
 
         px = w_img / 2.0
         py = h_img / 2.0
@@ -70,169 +42,16 @@ class PinholeCameraModel(object):
 
         return k
 
-    def get_point_projection(self, w_coords, angle):
-
-        # TODO transfer to constructor
-        # e = get_extrinsic_matrix(angle)
-        # k = get_intrinsic_matrix(self.img_res)
-    
+    def get_point_projection(self, w_coords):
         cam_coords = np.dot(self.e, w_coords)
         img_coords_hom = np.dot(self.k, cam_coords)
-    
+
         # Transform from hom coords
         u, v, _ = img_coords_hom / cam_coords[2]
         # Reverse along y axis
         v = self.img_res[1] - v
-    
+
         return [u, v]
-
-    # Sutherland-Hodgman Polygon-Clipping Algorithm
-    def clip_poly(self, polygon):
-        def ii_p(clip_polygon_, polygon, i, border=None):
-            clip_polygon_.append(polygon[i + 1])
-            # print "Both inside, p: {}".format(polygon[i + 1])
-    
-        def io_i(clip_polygon_, polygon, i, border):
-            l = line(polygon[i][0], polygon[i + 1][0])
-            r = list(intersection(border, l))
-            clip_polygon_.append([r])
-            # print "Inside - Outside, p: {}, p+1 {}, save i: {}".format(polygon[i], polygon[i + 1], r)
-    
-        def oo(clip_polygon_, polygon, i, border=None):
-            # print "Both outside, p: {}, p+1 {}".format(polygon[i], polygon[i + 1])
-            pass
-    
-        def oi_ip(clip_polygon_, polygon, i, border):
-            l = line(polygon[i][0], polygon[i + 1][0])
-            r = list(intersection(border, l))
-            clip_polygon_.append([r])
-            clip_polygon_.append(polygon[i + 1])
-            # print "Outside - Inside, p: {}, p+1 {}, i: {}".format(polygon[i], polygon[i + 1], r)
-    
-        def line(p1, p2):
-            a = (p1[1] - p2[1])
-            b = (p2[0] - p1[0])
-            c = (p1[0] * p2[1] - p2[0] * p1[1])
-            return a, b, -c
-    
-        def intersection(l1, l2):
-            d = l1[0] * l2[1] - l1[1] * l2[0]
-            dx = l1[2] * l2[1] - l1[1] * l2[2]
-            dy = l1[0] * l2[2] - l1[2] * l2[0]
-            if d != 0:
-                x = dx / d
-                y = dy / d
-                return x, y
-            else:
-                return False
-    
-        w_img, h_img = self.img_res
-    
-        if (polygon.T[0].min() >= 0 and polygon.T[0].max() <= w_img) and \
-                (polygon.T[1].min() >= 0 and polygon.T[1].max() <= h_img):
-    
-            return polygon
-    
-        cond1, cond2 = lambda a, b: a > b, lambda a, b: a < b
-        cond3, cond4 = lambda a, b: a >= b, lambda a, b: a <= b
-    
-        routine = [ii_p, io_i, oi_ip, oo]
-    
-        left_border = line([0, 0], [0, h_img])
-        right_border = line([w_img, 0], [w_img, h_img])
-        b_border = line([0, h_img], [w_img, h_img])
-        t_border = line([0, 0], [w_img, 0])
-    
-        l_clip_m = [routine, left_border, 0, 0, [cond3, cond2]]
-        r_clip_m = [routine[::-1], right_border, w_img, 0, [cond1, cond4]]
-        b_clip_m = [routine, b_border, h_img, 1, [cond4, cond1]]
-        t_clip_m = [routine[::-1], t_border, 0, 1, [cond2, cond3]]
-    
-        clip_m = [l_clip_m, r_clip_m, b_clip_m, t_clip_m]
-    
-        for c_i, clip_case in enumerate(clip_m):
-            clip_polygon = list()
-            cond1 = clip_case[4][0]
-            cond2 = clip_case[4][1]
-    
-            cond_m = [[cond1, cond1],
-                      [cond1, cond2],
-                      [cond2, cond1],
-                      [cond2, cond2]]
-    
-            # Add last element is equal to first to close the contour
-            if not all(polygon[0] == polygon[-1]):
-                polygon = np.vstack((polygon, [polygon[0]]))
-    
-            for i in range(len(polygon) - 1):
-                for ind, cond_case in enumerate(cond_m):
-                    if cond_case[0](polygon[i][0][clip_case[3]], clip_case[2]) and \
-                            cond_case[1](polygon[i + 1][0][clip_case[3]], clip_case[2]):
-    
-                        clip_case[0][ind](clip_polygon, polygon, i, border=clip_case[1])
-    
-            polygon = np.array(clip_polygon, dtype='int32')
-    
-            if len(polygon) == 0:
-                return None
-    
-        return np.array(polygon, dtype='int32')
-
-    def get_polygon(self, vertices, angle):
-        raw_polygon = np.array([[self.get_point_projection(vertex, angle)] for vertex in vertices], dtype='int32')
-        convex_hull = cv2.convexHull(raw_polygon)
-        clipped_convex_hull = self.clip_poly(convex_hull)
-
-        return clipped_convex_hull
-
-    @staticmethod
-    def calc_geom_params(polygon):
-        c_a = cv2.contourArea(polygon)
-        b_r = cv2.boundingRect(polygon)
-        y = b_r[1]  # + b_r[3] / 2
-        x = b_r[0]
-        w = b_r[2]
-        h = b_r[3]
-
-        return c_a, x, y, w, h
-
-    def get_2d_params(self, x, y, z, angle):
-        # Generate a cuboid object
-        cuboid = self.get_cuboid_vertices((x, y, z))
-        # Get polygons of the cuboid
-        polygon = self.get_polygon(cuboid, angle)
-
-        if polygon is None:
-            return None
-        else:
-            return self.calc_geom_params(polygon)
-
-    @staticmethod
-    def drop_nones(x, y):
-        # Filter both by y
-        nones_i = [i for i, e in enumerate(y) if e is None]
-        y_f = [j for i, j in enumerate(y) if i not in nones_i]
-        x_f = [j for i, j in enumerate(x) if i not in nones_i]
-
-        return x_f, y_f
-
-    def get_ref_val(self, z_ref):
-        ref_2d_params = self.get_2d_params(self.rw_x, self.rw_y, z_ref, self.rw_angle)
-        if ref_2d_params is not None:
-            return ref_2d_params
-        else:
-            print 'Raise an exception, no such scenario'
-            return 1, 1, 1, 1, 1
-
-    def init_y_regress(self):
-        # Train regression
-        z_2d_params = [self.get_2d_params(self.rw_x, self.rw_y, z, self.rw_angle) for z in self.rw_z_range]
-        z_range_f, z_2d_params = self.drop_nones(self.rw_z_range, z_2d_params)
-        z_2d_params = zip(*z_2d_params)
-        # y coord on distance
-        y_img_d_poly = np.poly1d(np.polyfit(z_2d_params[2], z_range_f, 8))
-
-        return y_img_d_poly
 
     def get_3d_point(self, img_coords, y, z):
         z_cam_coords = (y * np.sin(np.radians(self.rw_angle))) + (z * np.cos(np.radians(self.rw_angle)))
@@ -247,42 +66,12 @@ class PinholeCameraModel(object):
 
         return rw_coords.T[0]
 
-    def rotate_height(self, z_rw, b_rect):
+    def get_width(self, y_rw, z_rw, b_rect):
         x, y, w, h = b_rect
-        y_rw = self.rw_y
-        # Find angle c through distance to the object and camera height
-        c_an = abs(math.degrees(math.atan(y_rw / z_rw)))
-
-        # Find angles b and g
-        g_an = 90 - c_an
-        b_an = 180 - abs(self.rw_angle) - g_an
-
-        # Find length of rotated C in px
-        br_h_2d = h * math.sin(math.radians(b_an)) / math.sin(math.radians(g_an))
 
         br_left_down_2d = np.array([[x, y + h, 1]])
         br_right_down_2d = np.array([x + w, y + h, 1])
         br_down_2d = [br_left_down_2d, br_right_down_2d]
-        z_rw = z_rw - 0.15
-        br_down_3d = [self.get_3d_point(br_vertex_2d, y_rw, z_rw) for br_vertex_2d in br_down_2d]
-
-        br_left_down_3d = br_down_3d[0][0]
-        br_right_down_3d = br_down_3d[1][0]
-        br_x_down_list = [br_left_down_3d, br_right_down_3d]
-
-        br_w_3d = abs(max(br_x_down_list) - min(br_x_down_list))
-
-        br_h_3d = br_h_2d * br_w_3d / float(w)
-
-        return br_w_3d, br_h_3d
-
-    def get_width(self, z_rw, b_rect):
-        x, y, w, h = b_rect
-        y_rw = self.rw_y
-        br_left_down_2d = np.array([[x, y + h, 1]])
-        br_right_down_2d = np.array([x + w, y + h, 1])
-        br_down_2d = [br_left_down_2d, br_right_down_2d]
-        # z_rw = z_rw - 0.15
         br_down_3d = [self.get_3d_point(br_vertex_2d, y_rw, z_rw) for br_vertex_2d in br_down_2d]
 
         br_left_down_3d = br_down_3d[0][0]
@@ -296,7 +85,7 @@ class PinholeCameraModel(object):
     def find_pixels_angle(self, pix):
         Sh_px = self.img_res[1]
         Sh = self.h_ccd
-        FL = self.f_m
+        FL = self.f_l
         pix = Sh_px - pix
         pxlmm = Sh / Sh_px
         h_px = (Sh_px / 2.) - pix
@@ -308,24 +97,21 @@ class PinholeCameraModel(object):
         a2 = self.find_pixels_angle(pix2)
         return np.rad2deg(abs(a1 - a2))
 
-    def high_of_the_object(self, d, b_rect):
+    def get_height(self, rw_y, d, b_rect):
         pix1, pix2 = b_rect[1], b_rect[1] + b_rect[3]
-
-        h = abs(self.rw_y)
+        h = abs(rw_y)
         hyp = np.sqrt(h ** 2 + d ** 2)
         gamma = np.rad2deg(np.arctan(d * 1. / h))
-        # print d, h
         alpha = self.angle_between_pixels(pix1, pix2)
         beta = 180. - alpha - gamma
-        # print alpha, beta, gamma
         return hyp * np.sin(np.deg2rad(alpha)) / np.sin(np.deg2rad(beta))
 
-    def pixels_to_distance(self, n):
-        h = abs(self.rw_y)
+    def pixels_to_distance(self, rw_y, n):
+        h = abs(rw_y)
         r = abs(self.rw_angle)
-        Sh_px = self.img_res[1]
+        Sh_px = float(self.img_res[1])
         Sh = self.h_ccd
-        FL = self.f_m
+        FL = self.f_l
 
         n = Sh_px - n
         pxlmm = Sh / Sh_px  # print 'pxlmm ', pxlmm
@@ -339,3 +125,94 @@ class PinholeCameraModel(object):
         d = (h / tan)
 
         return d
+
+
+# Sutherland-Hodgman Polygon-Clipping Algorithm
+def clip_poly(polygon, img_res):
+    def ii_p(clip_polygon_, polygon, i, border=None):
+        clip_polygon_.append(polygon[i + 1])
+        # print "Both inside, p: {}".format(polygon[i + 1])
+
+    def io_i(clip_polygon_, polygon, i, border):
+        l = line(polygon[i][0], polygon[i + 1][0])
+        r = list(intersection(border, l))
+        clip_polygon_.append([r])
+        # print "Inside - Outside, p: {}, p+1 {}, save i: {}".format(polygon[i], polygon[i + 1], r)
+
+    def oo(clip_polygon_, polygon, i, border=None):
+        # print "Both outside, p: {}, p+1 {}".format(polygon[i], polygon[i + 1])
+        pass
+
+    def oi_ip(clip_polygon_, polygon, i, border):
+        l = line(polygon[i][0], polygon[i + 1][0])
+        r = list(intersection(border, l))
+        clip_polygon_.append([r])
+        clip_polygon_.append(polygon[i + 1])
+        # print "Outside - Inside, p: {}, p+1 {}, i: {}".format(polygon[i], polygon[i + 1], r)
+
+    def line(p1, p2):
+        a = (p1[1] - p2[1])
+        b = (p2[0] - p1[0])
+        c = (p1[0] * p2[1] - p2[0] * p1[1])
+        return a, b, -c
+
+    def intersection(l1, l2):
+        d = l1[0] * l2[1] - l1[1] * l2[0]
+        dx = l1[2] * l2[1] - l1[1] * l2[2]
+        dy = l1[0] * l2[2] - l1[2] * l2[0]
+        if d != 0:
+            x = dx / d
+            y = dy / d
+            return x, y
+        else:
+            return False
+
+    w_img, h_img = img_res
+
+    if (polygon.T[0].min() >= 0 and polygon.T[0].max() <= w_img) and \
+            (polygon.T[1].min() >= 0 and polygon.T[1].max() <= h_img):
+        return polygon
+
+    cond1, cond2 = lambda a, b: a > b, lambda a, b: a < b
+    cond3, cond4 = lambda a, b: a >= b, lambda a, b: a <= b
+
+    routine = [ii_p, io_i, oi_ip, oo]
+
+    left_border = line([0, 0], [0, h_img])
+    right_border = line([w_img, 0], [w_img, h_img])
+    b_border = line([0, h_img], [w_img, h_img])
+    t_border = line([0, 0], [w_img, 0])
+
+    l_clip_m = [routine, left_border, 0, 0, [cond3, cond2]]
+    r_clip_m = [routine[::-1], right_border, w_img, 0, [cond1, cond4]]
+    b_clip_m = [routine, b_border, h_img, 1, [cond4, cond1]]
+    t_clip_m = [routine[::-1], t_border, 0, 1, [cond2, cond3]]
+
+    clip_m = [l_clip_m, r_clip_m, b_clip_m, t_clip_m]
+
+    for c_i, clip_case in enumerate(clip_m):
+        clip_polygon = list()
+        cond1 = clip_case[4][0]
+        cond2 = clip_case[4][1]
+
+        cond_m = [[cond1, cond1],
+                  [cond1, cond2],
+                  [cond2, cond1],
+                  [cond2, cond2]]
+
+        # Add last element is equal to first to close the contour
+        if not all(polygon[0] == polygon[-1]):
+            polygon = np.vstack((polygon, [polygon[0]]))
+
+        for i in range(len(polygon) - 1):
+            for ind, cond_case in enumerate(cond_m):
+                if cond_case[0](polygon[i][0][clip_case[3]], clip_case[2]) and \
+                        cond_case[1](polygon[i + 1][0][clip_case[3]], clip_case[2]):
+                    clip_case[0][ind](clip_polygon, polygon, i, border=clip_case[1])
+
+        polygon = np.array(clip_polygon, dtype='int32')
+
+        if len(polygon) == 0:
+            return None
+
+    return np.array(polygon, dtype='int32')

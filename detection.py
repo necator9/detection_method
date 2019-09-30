@@ -20,7 +20,8 @@ DETECTION_LOG = detection_logging.create_log("detection.log", "DETECTION THREAD"
 
 CLASSIFIER = pickle.load(open("/home/ivan/Downloads/classifier.pcl", "rb"))
 
-PINHOLE_CAM = pcm.PinholeCameraModel()
+PINHOLE_CAM = pcm.PinholeCameraModel(rw_angle=-conf.ANGLE, f_l=40, w_ccd=36, h_ccd=26.5,
+                                     img_res=conf.RESIZE_TO)
 
 
 class Detection(threading.Thread):
@@ -55,7 +56,7 @@ class Detection(threading.Thread):
                 continue
 
             frame.orig_img, draw.mog_mask.data, draw.filtered.data, frame.filled = prepare_img.process(frame.orig_img)
-            draw.bright_mask.data, draw.extent_split_mask.data = frame.calculate()
+            draw.bright_mask.data, draw.extent_split_mask.data = frame.calculate
 
             try:
                 self.data_frame_q.put_nowait(frame)
@@ -88,7 +89,7 @@ class ObjParams(object):
 
         # Estimate distance of the actual object
         # self.dist_ao = PRED_DIST_F(self.y_ao)
-        self.dist_ao = PINHOLE_CAM.pixels_to_distance(self.y_ao + self.h_ao)
+        self.dist_ao = PINHOLE_CAM.pixels_to_distance(-conf.HEIGHT, self.y_ao + self.h_ao)
         # def pixels_to_distance(n=10, h=10., r=0, Sh_px=480., FL=35., Sh=26.5):
 
         # Generate virtual cuboid and calculate its geom parameters
@@ -100,8 +101,8 @@ class ObjParams(object):
             # self.rect_coef_ro = self.calc_rect_coef(self.c_a_ro, self.h_ro, self.w_ro, float(self.h_ro) / self.w_ro)
             # self.rect_coef_diff = self.rect_coef_ro / self.rect_coef_ao
 
-            self.w_ao_rw = PINHOLE_CAM.get_width(self.dist_ao, self.base_rect_ao)
-            self.h_ao_rw = PINHOLE_CAM.high_of_the_object(self.dist_ao, self.base_rect_ao)
+            self.w_ao_rw = PINHOLE_CAM.get_width(-conf.HEIGHT, self.dist_ao, self.base_rect_ao)
+            self.h_ao_rw = PINHOLE_CAM.get_height(-conf.HEIGHT, self.dist_ao, self.base_rect_ao)
             rect_area_ao_rw = self.w_ao_rw * self.h_ao_rw
             rect_area_ao = self.w_ao * self.h_ao
             # Find from proportion
@@ -193,6 +194,7 @@ class PreprocessImg(object):
     def __init__(self):
         self.mog2 = cv2.createBackgroundSubtractorMOG2(detectShadows=True)
         self.f_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, conf.F_KERNEL_SIZE)
+        # self.f1_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 1))
         self.clahe_adjust = cv2.createCLAHE(clipLimit=8.0, tileGridSize=(8, 8))
         self.set_ratio_done = bool()
 
@@ -207,7 +209,8 @@ class PreprocessImg(object):
         _, mog_mask = cv2.threshold(mog_mask, 127, 255, cv2.THRESH_BINARY)
 
         filtered_mask = cv2.morphologyEx(mog_mask, cv2.MORPH_OPEN, self.f_kernel)
-        filled_mask = cv2.dilate(filtered_mask, None, iterations=conf.DILATE_ITERATIONS)
+        # filled_mask = cv2.dilate(filtered_mask, None, iterations=conf.DILATE_ITERATIONS)
+        filled_mask = filtered_mask
 
         return orig_img, mog_mask, filtered_mask, filled_mask
 
@@ -234,19 +237,29 @@ class DataFrame(object):
 
         self.br_rects = list()
 
+    @property
     def calculate(self):
-        self.base_objects, self.base_contours = self._basic_process(self.filled)
+        self.base_objects, self.base_contours = self.basic_process(self.filled)
         bright_mask = self.calc_bright_coeff()
-        ex_filled_mask = self._extent_split_process()
-        self.ex_objects, _ = self._basic_process(ex_filled_mask)
+        #
+        for obj in self.base_objects:
+            is_extent = obj.extent_ao < 0.5
+            is_width = 3 < obj.w_ao_rw < 5
+            is_distance = obj.dist_ao < 30
+
+            if is_extent and is_width and is_distance:
+                self.filled = self.split_object()
+                self.ex_objects, _ = self.basic_process(self.filled)
+                self.base_objects = self.ex_objects
+
         self.calc_bright_coeff()
 
         self.detect()
 
-        return bright_mask, ex_filled_mask
+        return bright_mask, self.filled
 
     @staticmethod
-    def _basic_process(filled_mask):
+    def basic_process(filled_mask):
         objects = list()
 
         _, contours, _ = cv2.findContours(filled_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -259,15 +272,15 @@ class DataFrame(object):
         return objects, contours
 
     # TODO remake to crop and analyze only one object, only problem object should be considered further
-    def _extent_split_process(self):
-        def make_split(bin_mask, fill=0.68, tail=0.25): # fill - amount of zeros in coloumn in percent ratio  
+    def split_object(self):
+        def make_split(bin_mask, fill=0.68, tail=0.25): # fill - amount of zeros in coloumn in percent ratio
             def calc_split_point(vector):
                 last_zero_ind, percent = 0, 0.0
                 zero_indexes, = np.where(vector == 0)
 
                 if zero_indexes.size > 0:
                     last_zero_ind = zero_indexes.max()
-                    percent = last_zero_ind / float(vector.size) # Get relative size of empty area by x axis
+                    percent = last_zero_ind / float(vector.size)  # Get relative size of empty area by x axis
 
                 return last_zero_ind, percent
 
@@ -291,19 +304,22 @@ class DataFrame(object):
                     bin_mask[:, ind] = 0
 
             return bin_mask
-        ex_filled_mask = np.zeros((conf.RESIZE_TO[1], conf.RESIZE_TO[0]), np.uint8) # create minimal image
-        for obj in self.base_objects:
-            is_extent = obj.extent_ao < 0.6
-            is_rect_coeff = -10000 < obj.rect_coef_ao < -2000  # Try to reduce to -5000 or so
 
-            if is_extent and is_rect_coeff and not obj.base_status and not obj.br_status:
+        # ex_filled_mask = np.zeros((conf.RESIZE_TO[1], conf.RESIZE_TO[0]), np.uint8) # create minimal image
+
+        for obj in self.base_objects:
+            is_extent = obj.extent_ao < 0.5
+            is_width = obj.w_ao_rw > 3
+            is_dist = obj.dist_ao < 30
+
+            if is_extent and is_width and is_dist:
                 x, y, w, h = obj.base_rect_ao
                 split_mask = make_split(self.filled[y:y + h, x:x + w])
-                ex_filled_mask[y:y+h, x:x + w] = split_mask[:, :]
+                self.filled[y:y+h, x:x + w] = split_mask[:, :]
                 #ex_filled_mask[y:y+h, x:x + w] = self.filled_mask[y:y+h, x:x + w]
 #                cv2.line(ex_filled_mask, (x + int(w / 2), 0), (x + int(w / 2), conf.RESIZE_TO[1]), (0, 0, 0), 3)
 
-        return ex_filled_mask
+        return self.filled
 
     def calc_bright_coeff(self):
         # if len(self.base_objects) > 0:
@@ -328,11 +344,11 @@ class DataFrame(object):
         return brightness_mask
 
     def detect(self):
-        self.base_frame_status = self.__take_frame_status(self.base_objects)
-        self.ex_frame_status = self.__take_frame_status(self.ex_objects)
+        self.base_frame_status = self.take_frame_status(self.base_objects)
+        self.ex_frame_status = self.take_frame_status(self.ex_objects)
 
     @staticmethod
-    def __take_frame_status(objects):
+    def take_frame_status(objects):
         status_arr = list()
         for obj in objects:
             obj.gen_status = obj.base_status and not obj.br_status

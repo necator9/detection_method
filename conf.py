@@ -9,8 +9,8 @@ VIRTUAL_CAMERA = True
 # Detection parameters
 RESIZE_TO = [320, 240]        # Width and height of an image for processing [100, 240]
 # F_KERNEL_SIZE = (5, 5)           # Size of elliptical filtering kernel in pixels
-F_KERNEL_SIZE = (4, 4)           # Size of elliptical filtering kernel in pixels
-DILATE_ITERATIONS = 1  # was 4
+F_KERNEL_SIZE = (3, 3)           # Size of elliptical filtering kernel in pixels
+DILATE_ITERATIONS = 1  # was 4 # Dialation off
 
 MARGIN = (0, 0)
 # COEFF_RANGE = (9000, 19000)
@@ -26,11 +26,11 @@ SAVE_VERBOSE = False
 WRITE_TO_DB = True
 WRITE_TO_PICKLE = False
 # TODO Check why the sqlite does not accept "." in path of out database
-# OUT_DIR = "/home/ivan/experiments/TZK_january/bicycle_new_dist_method"
+# OUT_DIR = "/home/ivan/experiments/TZK_january/bicycle_new_dist_method_1"
 # OUT_DIR = "/home/ivan/experiments/11m_ped_new_dist_method/"
-# OUT_DIR = "/home/ivan/experiments/random_new_dist_method_1/"
+OUT_DIR = "/home/ivan/experiments/random_new_dist_method_1/"
 # OUT_DIR = "/home/ivan/experiments/chaos/"
-OUT_DIR = "/home/ivan/experiments/11m_ped_new_dist_method_1/"
+# OUT_DIR = "/home/ivan/experiments/16m_ped_new_dist_method_1/"
 
 
 # Timers parameters
@@ -44,14 +44,14 @@ LOG_LEVEL = "INFO"
 PATH_TO_LOGS = "/home/ivan/logs/"
 
 # # Camera installation parameters
-# IN_DIR = '/home/ivan/experiments/sources/TZK_january/3m_4l/random/'
-# ANGLE = 21
-# HEIGHT = 3
+IN_DIR = '/home/ivan/experiments/sources/TZK_january/3m_4l/random/'
+ANGLE = 21
+HEIGHT = 3
 #
 # IN_DIR = "/home/ivan/experiments/sources/bicyclist_random_filtered/"
 # ANGLE = 13
 # HEIGHT = 3.1
 
-IN_DIR = "/home/ivan/experiments/sources/11m_ped_filtered/"
-ANGLE = 13
-HEIGHT = 3.1
+# IN_DIR = "/home/ivan/experiments/sources/11m_ped_filtered/"
+# ANGLE = 13
+# HEIGHT = 3.1
