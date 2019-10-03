@@ -21,9 +21,9 @@ X_MARGIN = 0
 
 # Saving parameters
 SAVE_SINGLE = False
-SAVE_VERBOSE = True
+SAVE_VERBOSE = False
 
-WRITE_TO_DB = True
+WRITE_TO_DB = False
 WRITE_TO_PICKLE = False
 # TODO Check why the sqlite does not accept "." in path of out database
 # OUT_DIR = "/home/ivan/experiments/TZK_january/bicycle_new_dist_method_1"
@@ -35,7 +35,7 @@ OUT_DIR = "/home/ivan/experiments/11m_ped_new_dist_method/"
 
 # Timers parameters
 TIMERS = True
-TIME_WINDOW = 100
+TIME_WINDOW = 10
 
 # Logging parameters
 SHOW_LOGS = True

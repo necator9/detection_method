@@ -74,48 +74,47 @@ class Detection(threading.Thread):
             self.timer.get_time()
 
 
+class CountorAreaTooSmall(Exception):
+    def __init__(self):
+        Exception.__init__(self, "CountorAreaTooSmall")
+
+
+class InfiniteDistance(Exception):
+    def __init__(self):
+        Exception.__init__(self, "InfiniteDistance")
+
+
 class ObjParams(object):
     def __init__(self, obj_id, cnt_ao):
-        self.obj_id = obj_id
-
-        # Calculate geom parameters of an actual object
         self.c_a_ao = cv2.contourArea(cnt_ao)
+
+        if self.c_a_ao < 20:
+            raise CountorAreaTooSmall
+
+        self.obj_id = obj_id
+        # Calculate geom parameters of an actual object
         self.base_rect_ao = self.x_ao, self.y_ao, self.w_ao, self.h_ao = cv2.boundingRect(cnt_ao)
         # Define y-coord as a middle of b.r.
-        # self.y_ao = self.y_ao + self.h_ao / 2
+
         self.h_w_ratio_ao = float(self.h_ao) / self.w_ao
         self.rect_coef_ao = self.calc_rect_coef(self.c_a_ao, self.h_ao, self.w_ao, self.h_w_ratio_ao)
-
         self.extent_ao = float(self.c_a_ao) / (self.w_ao * self.h_ao)
-
-        # Estimate distance of the actual object
-        # self.dist_ao = PRED_DIST_F(self.y_ao)
         self.dist_ao = PINHOLE_CAM.pixels_to_distance(-conf.HEIGHT, self.y_ao + self.h_ao)
-        # def pixels_to_distance(n=10, h=10., r=0, Sh_px=480., FL=35., Sh=26.5):
+
+        if self.dist_ao <= 0:
+            raise InfiniteDistance
 
         # Generate virtual cuboid and calculate its geom parameters
-        if self.dist_ao > 0:
-            self.c_a_ro, self.x_ro, self.y_ro, self.w_ro, self.h_ro = 0, 0, 0, 0, 0
-            self.rect_coef_ro = -1
-            self.rect_coef_diff = -1
-            # self.c_a_ro, self.x_ro, self.y_ro, self.w_ro, self.h_ro = PINHOLE_CAM.get_ref_val(self.dist_ao)
-            # self.rect_coef_ro = self.calc_rect_coef(self.c_a_ro, self.h_ro, self.w_ro, float(self.h_ro) / self.w_ro)
-            # self.rect_coef_diff = self.rect_coef_ro / self.rect_coef_ao
+        self.c_a_ro, self.x_ro, self.y_ro, self.w_ro, self.h_ro = 0, 0, 0, 0, 0
+        self.rect_coef_ro = -1
+        self.rect_coef_diff = -1
 
-            self.w_ao_rw = PINHOLE_CAM.get_width(-conf.HEIGHT, self.dist_ao, self.base_rect_ao)
-            self.h_ao_rw = PINHOLE_CAM.get_height(-conf.HEIGHT, self.dist_ao, self.base_rect_ao)
-            rect_area_ao_rw = self.w_ao_rw * self.h_ao_rw
-            rect_area_ao = self.w_ao * self.h_ao
-            # Find from proportion
-            self.c_ao_rw = self.c_a_ao * rect_area_ao_rw / rect_area_ao
-        else:
-            self.c_a_ro, self.x_ro, self.y_ro, self.w_ro, self.h_ro = 0, 0, 0, 0, 0
-            self.rect_coef_ro = -1
-            self.rect_coef_diff = -1
-
-            self.w_ao_rw = float()
-            self.h_ao_rw = float()
-            self.c_ao_rw = float()
+        self.w_ao_rw = PINHOLE_CAM.get_width(-conf.HEIGHT, self.dist_ao, self.base_rect_ao)
+        self.h_ao_rw = PINHOLE_CAM.get_height(-conf.HEIGHT, self.dist_ao, self.base_rect_ao)
+        rect_area_ao_rw = self.w_ao_rw * self.h_ao_rw
+        rect_area_ao = self.w_ao * self.h_ao
+        # Find from proportion
+        self.c_ao_rw = self.c_a_ao * rect_area_ao_rw / rect_area_ao
 
         self.base_status = bool()
         self.br_status = bool()
@@ -266,9 +265,12 @@ class DataFrame(object):
         _, contours, _ = cv2.findContours(filled_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         for obj_id, contour in enumerate(contours):
-            obj = ObjParams(obj_id, contour)
-            obj.process_obj()
-            objects.append(obj)
+            try:
+                obj = ObjParams(obj_id, contour)
+                obj.process_obj()
+                objects.append(obj)
+            except (CountorAreaTooSmall, InfiniteDistance):
+                continue
 
         return objects, contours
 
