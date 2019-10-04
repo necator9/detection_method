@@ -12,13 +12,13 @@ F_KERNEL_SIZE = (3, 3)    # Size of elliptical filtering kernel
 DILATE_ITERATIONS = 1     # Dialation is not used
 
 
-MARGIN = 5
+MARGIN = 2
 
 # Saving parameters
 SAVE_SINGLE = False
-SAVE_VERBOSE = False
+SAVE_VERBOSE = True
 
-WRITE_TO_DB = False
+WRITE_TO_DB = True
 WRITE_TO_PICKLE = False
 # TODO Check why the sqlite does not accept "." in path of out database
 # OUT_DIR = "/home/ivan/experiments/TZK_january/bicycle_new_dist_method_1"

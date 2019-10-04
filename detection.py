@@ -225,8 +225,7 @@ class DataFrame(object):
 
             self.base_objects += self.ex_objects
 
-        self.base_frame_status = self.take_frame_status(self.base_objects)
-        self.ex_frame_status = self.take_frame_status(self.ex_objects)
+        self.base_frame_status = any([obj.base_status for obj in self.base_objects])
 
         return np.dtype('uint8'), self.filled
 
@@ -287,28 +286,6 @@ class DataFrame(object):
             split_img[y:y+h, x:x + w] = split_mask[:, :]
 
         return split_img
-
-    def calc_bright_coeff(self):
-        # if len(self.base_objects) > 0:
-        #     brightness_mask = np.zeros((conf.RESIZE_TO[1], conf.RESIZE_TO[0]), np.uint8)
-        #
-        #     brightness_mask[np.where(self.orig_img > 265)] = [255]   # Chose later appropriate values
-        #     _, contours, _ = cv2.findContours(brightness_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        #     self.br_rects = [cv2.boundingRect(contour) for contour in contours]
-        #
-        for obj in self.base_objects:
-        #         obj.br_cr_rects = [self.intersection(obj.base_rect_ao, br_rect) for br_rect in self.br_rects]
-        #         obj.br_cr_area = sum([rect[2] * rect[3] for rect in obj.br_cr_rects])
-            segment = self.orig_img[obj.y_ao: obj.y_ao + obj.h_ao, obj.x_ao: obj.x_ao + obj.w_ao]
-            obj.br_ratio = segment.mean()
-        #         obj.br_status = obj.br_ratio > conf.BRIGHTNESS_THRESHOLD
-        #
-        # else:
-        #     brightness_mask = np.dtype('uint8')
-
-        brightness_mask = np.dtype('uint8')
-
-        return brightness_mask
 
     @staticmethod
     def take_frame_status(objects):

@@ -267,11 +267,11 @@ class Draw(object):
         h_stack2 = np.hstack((self.draw_img_structure.bright_mask.data, self.x_border,
                               self.draw_img_structure.rect_cont.data,
                               self.x_border, self.draw_img_structure.status.data))
-        h_stack3 = np.hstack(
-            (self.draw_img_structure.extent_split_mask.data, self.x_border, self.draw_img_structure.ex_rect_cont.data,
-             self.x_border, self.draw_img_structure.ex_status.data))
+        # h_stack3 = np.hstack(
+        #     (self.draw_img_structure.extent_split_mask.data, self.x_border, self.draw_img_structure.ex_rect_cont.data,
+        #      self.x_border, self.draw_img_structure.ex_status.data))
 
-        self.out_img.data = np.vstack((h_stack1, self.y_border, h_stack2, self.y_border, h_stack3))
+        self.out_img.data = np.vstack((h_stack1, self.y_border, h_stack2, self.y_border)) # , h_stack3
 
         return self.out_img.data
 
