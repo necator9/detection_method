@@ -7,17 +7,12 @@ FPS = 7
 VIRTUAL_CAMERA = True
 
 # Detection parameters
-RESIZE_TO = [320, 240]        # Width and height of an image for processing [100, 240]
-# F_KERNEL_SIZE = (5, 5)           # Size of elliptical filtering kernel in pixels
-F_KERNEL_SIZE = (3, 3)           # Size of elliptical filtering kernel in pixels
-DILATE_ITERATIONS = 1  # was 4 # Dialation off
+IMG_RES = [320, 240]      # Width and height of an image to resize for processing
+F_KERNEL_SIZE = (3, 3)    # Size of elliptical filtering kernel
+DILATE_ITERATIONS = 1     # Dialation is not used
 
-MARGIN = (0, 0)
-# COEFF_RANGE = (9000, 19000)
-COEFF_RANGE = (-0.2, 0.6)
-EXTENT_THRESHOLD = 0.35
-BRIGHTNESS_THRESHOLD = 0.2
-X_MARGIN = 0
+
+MARGIN = 5
 
 # Saving parameters
 SAVE_SINGLE = False
@@ -27,15 +22,15 @@ WRITE_TO_DB = False
 WRITE_TO_PICKLE = False
 # TODO Check why the sqlite does not accept "." in path of out database
 # OUT_DIR = "/home/ivan/experiments/TZK_january/bicycle_new_dist_method_1"
-OUT_DIR = "/home/ivan/experiments/11m_ped_new_dist_method/"
+OUT_DIR = "/home/ivan/experiments/11m_ped_new_dist_method_1/"
 # OUT_DIR = "/home/ivan/experiments/random_new_dist_method_1/"
-# OUT_DIR = "/home/ivan/experiments/chaos/"
+# OUT_DIR = "/home/ivan/experiments/bicyclist_random_filtered/"
 # OUT_DIR = "/home/ivan/experiments/16m_ped_new_dist_method_1/"
 
 
 # Timers parameters
 TIMERS = True
-TIME_WINDOW = 10
+TIME_WINDOW = 25
 
 # Logging parameters
 SHOW_LOGS = True
