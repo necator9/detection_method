@@ -73,7 +73,7 @@ class Saving(threading.Thread):
         SAVE_COUNTER += 1
 
     def finish_writing(self):
-        SAVER_LOG.info("Writing finishing...")
+        SAVER_LOG.info("Finishing writing ...")
         if not self.data_frame_q.empty():
             q_size = self.data_frame_q.qsize()
             for i in range(self.data_frame_q.qsize()):
@@ -218,7 +218,9 @@ class Draw(object):
         if not conf.SAVE_SINGLE:
             self.save_single = blank_fn
 
-        self.color_map = {0: (255, 0, 0), 1: (0, 255, 0), 2: (0, 0, 255), 3: (0, 0, 0), 4: (0, 255, 255)}
+        # self.color_map = {0: (255, 0, 0), 1: (0, 255, 0), 2: (0, 0, 255), 3: (0, 0, 0), 4: (0, 255, 255)}
+        self.color_map = {0: (0, 0, 0), 1: (0, 255, 0)}
+
 
     def update_borders(self):
         if not self.borders_updated_flag:

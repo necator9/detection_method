@@ -21,7 +21,9 @@ poly = PolynomialFeatures(2, include_bias=True)
 DETECTION_LOG = detection_logging.create_log("detection.log", "DETECTION THREAD")
 
 # CLASSIFIER = pickle.load(open("/home/ivan/Downloads/classifier.pcl", "rb"))
-CLASSIFIER = pickle.load(open("clf.pcl", "rb"))
+# CLASSIFIER = pickle.load(open("clf.pcl", "rb"))
+CLASSIFIER = pickle.load(open("/home/ivan/Downloads/clf.pcl", "rb"))
+
 
 PINHOLE_CAM = pcm.PinholeCameraModel(rw_angle=-conf.ANGLE, f_l=40, w_ccd=36, h_ccd=26.5,
                                      img_res=conf.IMG_RES)
@@ -143,10 +145,11 @@ class ObjParams(object):
             self.base_status = False
 
     def classify(self):
-        if self.dist_ao < 30 and 0 < self.h_ao_rw < 3 and 0 < self.w_ao_rw < 8 :
-            self.o_class = int(CLASSIFIER.predict(poly.fit_transform([[self.h_ao_rw, self.w_ao_rw, self.c_ao_rw]])))
+        if self.dist_ao < 30 and 0 < self.h_ao_rw < 5 and 0 < self.w_ao_rw < 8 :
+            self.o_class = int(CLASSIFIER.predict(poly.fit_transform([[self.w_ao_rw, self.h_ao_rw,  self.c_ao_rw,
+                                                                       -conf.HEIGHT, self.dist_ao, -conf.ANGLE]])))
         else:
-            self.o_class = 3
+            self.o_class = 0
 
         return self.o_class
 

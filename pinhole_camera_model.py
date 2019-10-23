@@ -1,3 +1,4 @@
+from __future__ import division
 import numpy as np
 
 
@@ -201,7 +202,8 @@ def clip_poly(polygon, img_res):
                   [cond2, cond2]]
 
         # Add last element is equal to first to close the contour
-        if not all(polygon[0] == polygon[-1]):
+        st = polygon[0] == polygon[-1]
+        if not st.all():
             polygon = np.vstack((polygon, [polygon[0]]))
 
         for i in range(len(polygon) - 1):
