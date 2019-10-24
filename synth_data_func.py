@@ -1,6 +1,7 @@
 from __future__ import division
 import numpy as np
 import cv2
+import pyblur
 
 from pinhole_camera_model import clip_poly
 
@@ -30,6 +31,43 @@ def find_obj_params1(m_o_vert, faces, height, pinhole_cam, kernel_size):
         mask = cv2.filter2D(mask, -1, kernel)
 
         _, mask = cv2.threshold(mask, 75, 255, cv2.THRESH_BINARY)
+        cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        c_a_pxs = [cv2.contourArea(cnt) for cnt in cnts]
+
+        if any(c_a_pxs):
+            c_a_px_i = c_a_pxs.index(max(c_a_pxs))
+            c_a_px = c_a_pxs[c_a_px_i]
+
+            b_r = x, y, w, h = cv2.boundingRect(cnts[c_a_px_i])
+            d = pinhole_cam.pixels_to_distance(height, y + h)
+
+            h_rw = pinhole_cam.get_height(height, d, b_r)
+            w_rw = pinhole_cam.get_width(height, d, b_r)
+
+            rect_area_rw = w_rw * h_rw
+            rect_area_px = w * h
+            extent = float(c_a_px) / rect_area_px
+            c_a_rw = c_a_px * rect_area_rw / rect_area_px
+
+            return [d, c_a_rw, w_rw, h_rw, extent, x, y, w, h, c_a_px]
+
+
+def find_obj_params4(m_o_vert, faces, height, pinhole_cam, rotate_y_angle, thr):
+    projections = np.array([pinhole_cam.get_point_projection(vertex) for vertex in m_o_vert], dtype='int32')
+    # polygon = cv2.convexHull(projections)
+    # polygon = clip_poly(polygon, pinhole_cam.img_res)
+
+    if len(projections) > 0:
+        mask = np.zeros((240, 424), np.uint8)
+
+        for face in faces:
+            poly = np.array([projections[i - 1] for i in face])
+            mask = cv2.fillPoly(mask, pts=[poly], color=255)
+
+        mask = pyblur.LinearMotionBlur(mask, 3, (90 - rotate_y_angle), 'full')
+        mask = np.array(mask, np.uint8)
+
+        _, mask = cv2.threshold(mask, thr, 255, cv2.THRESH_BINARY)
         cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         c_a_pxs = [cv2.contourArea(cnt) for cnt in cnts]
 
