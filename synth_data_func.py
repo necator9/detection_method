@@ -64,8 +64,8 @@ def find_obj_params4(m_o_vert, faces, height, pinhole_cam, rotate_y_angle, thr):
             poly = np.array([projections[i - 1] for i in face])
             mask = cv2.fillPoly(mask, pts=[poly], color=255)
 
-        # mask = pyblur.LinearMotionBlur(mask, 3, (90 - rotate_y_angle), 'full')
-        # mask = np.array(mask, np.uint8)
+        mask = pyblur.LinearMotionBlur(mask, 3, (90 - rotate_y_angle), 'full')
+        mask = np.array(mask, np.uint8)
 
         _, mask = cv2.threshold(mask, thr, 255, cv2.THRESH_BINARY)
         cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
