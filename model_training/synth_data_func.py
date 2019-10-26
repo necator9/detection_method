@@ -2,6 +2,7 @@ from __future__ import division
 import numpy as np
 import cv2
 import pyblur
+import os
 
 from pinhole_camera_model import clip_poly
 
@@ -102,6 +103,7 @@ def parse_obj_file(path):
 
 def parse_obj_file1(path, flipZ):
     step = 39.3701
+    path = os.path.join('obj', path)
     with open(path, "r") as fi:
         lines = fi.readlines()
 
