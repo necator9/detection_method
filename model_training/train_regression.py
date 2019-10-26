@@ -32,9 +32,10 @@ def augment_ca(n_df):
     for ca_c in ca_coef:
         n_df[str(ca_c) + 'ca_coef'] = n_df.c_a_rw * ca_c
 
-    n_df.melt(id_vars=['d', 'c_a_rw', 'w_rw', 'h_rw', 'extent', 'x', 'y', 'w', 'h', 'c_a_px', 'x_rw',
+    n_df = n_df.melt(id_vars=['d', 'c_a_rw', 'w_rw', 'h_rw', 'extent', 'x', 'y', 'w', 'h', 'c_a_px', 'x_rw',
                        'y_rw', 'z_rw', 'y_rotation', 'width', 'height', 'depth', 'angle'],
               var_name="ca_coef", value_name="ca_aug")
+
     n_df.c_a_rw = n_df.ca_aug
 
     return n_df
