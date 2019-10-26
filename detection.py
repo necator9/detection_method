@@ -21,8 +21,8 @@ poly = PolynomialFeatures(2, include_bias=True)
 
 DETECTION_LOG = detection_logging.create_log("detection.log", "DETECTION THREAD")
 
-CLASSIFIER = pickle.load(open("/home/ivan/Downloads/pedestrian_only_with_scaling.pcl", "rb"))
-SCALER = pickle.load(open("/home/ivan/Downloads/pedestrian_only_scaler.pcl", "rb"))
+CLASSIFIER = pickle.load(open("/home/ivan/Downloads/ped_scale_wo_ca.pcl", "rb"))
+SCALER = pickle.load(open("/home/ivan/Downloads/ped_scaler.pcl", "rb"))
 # CLASSIFIER = pickle.load(open("clf.pcl", "rb"))
 # CLASSIFIER = pickle.load(open("/home/ivan/Downloads/clf.pcl", "rb"))
 
@@ -147,7 +147,8 @@ class ObjParams(object):
 
     def classify(self):
         if self.dist_ao < 30 and 0 < self.h_ao_rw < 5 and 0 < self.w_ao_rw < 8:
-            scaled_features = SCALER.transform([[self.w_ao_rw, self.h_ao_rw,  self.c_ao_rw,
+            # self.c_ao_rw,
+            scaled_features = SCALER.transform([[self.w_ao_rw, self.h_ao_rw,
                                                 -conf.HEIGHT, self.dist_ao, -conf.ANGLE]])
             self.o_class = int(CLASSIFIER.predict(poly.fit_transform(scaled_features)))
         else:

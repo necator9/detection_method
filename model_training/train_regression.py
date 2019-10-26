@@ -32,21 +32,28 @@ df_walking_man = open_csv('walking-man.obj.csv')
 df_man = open_csv('man.obj.csv')
 df_human = pd.concat([df_woman, df_boy, df_walking_man, df_man], sort=False)
 
-# Noise objects
-df_noise = open_csv('noises_500_ped.csv')
+# Cyclist objects
+df_cyclist = open_csv('cyclist-1.obj.csv')
 
-# df_cyclist = pd.read_csv('cyclist-1.obj.csv')
-# df_cyclist = clean_by_margin(df_cyclist, img_res=(424, 240))
+# Cyclist objects
+df_pair = open_csv('pair.obj.csv')
+
+# Noise objects
+df_noise = open_csv('noises_1000.csv')
+# df_noise = open_csv('noises_500_ped.csv')
+
 
 noise = np.vstack((df_noise.w_rw, df_noise.h_rw, df_noise.c_a_rw, df_noise.y_rw, df_noise.d, df_noise.angle,
                    np.zeros(df_noise.shape[0]))).T
-human = np.vstack((df_human.w_rw, df_human.h_rw, df_human.c_a_rw, df_human.y_rw, df_human.d, df_human.angle,
-                   np.ones(df_human.shape[0]))).T
+ped = np.vstack((df_human.w_rw, df_human.h_rw, df_human.c_a_rw, df_human.y_rw, df_human.d, df_human.angle,
+                 np.ones(df_human.shape[0]))).T
+pair = np.vstack((df_pair.w_rw, df_pair.h_rw, df_pair.c_a_rw, df_pair.y_rw, df_pair.d,
+                  df_pair.angle, np.ones(df_pair.shape[0]) * 2)).T
+cyclist = np.vstack((df_cyclist.w_rw, df_cyclist.h_rw, df_cyclist.c_a_rw, df_cyclist.y_rw, df_cyclist.d,
+                     df_cyclist.angle, np.ones(df_cyclist.shape[0]) * 3)).T
 
-# cyclist = np.vstack((df_cyclist.w_rw, df_cyclist.h_rw, df_cyclist.c_a_rw, df_cyclist.y_rw, df_cyclist.d,
-#                      df_cyclist.angle, np.ones(df_cyclist.shape[0]) * 2)).T
 
-training_data = np.concatenate((noise, human))
+training_data = np.concatenate((noise, ped, pair, cyclist))
 pd_all_data = pd.DataFrame(training_data, columns=['w_rw', 'h_rw', 'c_a_rw', 'y_rw', 'd', 'angle', 'o_class'])
 print 'Data shape: {0}'.format(pd_all_data.shape)
 
@@ -67,9 +74,9 @@ clf = LogisticRegression(solver='newton-cg', C=3, multi_class='auto', n_jobs=-1,
 clf.fit(X_train, y_train)
 
 print 'overall score {}'.format(clf.score(X_test, y_test))
-human_scaled = scaler.transform(human[:, [0, 1, 3, 4, 5]])
+human_scaled = scaler.transform(ped[:, [0, 1, 3, 4, 5]])
 print 'human acc {}'.format(clf.score(poly.fit_transform(human_scaled),
-                                      human[:, -1]))
+                                      ped[:, -1]))
 # print 'cyclist acc {}'.format(clf.score(poly.fit_transform(cyclist[:, range(0, 6)]), cyclist[:, -1]))
 
 with open('clf/ped_scale_wo_ca.pcl', 'wb') as handle:
