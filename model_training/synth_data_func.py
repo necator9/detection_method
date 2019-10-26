@@ -105,8 +105,8 @@ def parse_obj_file1(path, flipZ):
     with open(path, "r") as fi:
         lines = fi.readlines()
 
-    vertices = np.array([(ln[3:]).split() for ln in lines if ln.startswith("v")], dtype='float') / step
-    faces = np.array([(ln[2:]).split() for ln in lines if ln.startswith("f")], dtype='int')
+    vertices = np.array([parse_string(ln) for ln in lines if ln.startswith("v")], dtype='float') / step
+    faces = np.array([parse_string(ln) for ln in lines if ln.startswith("f")], dtype='int')
 
     vertices = np.hstack((vertices, np.ones((vertices.shape[0], 1))))
     if flipZ:
@@ -114,6 +114,13 @@ def parse_obj_file1(path, flipZ):
     vertices = center_obj(vertices)
 
     return vertices, faces
+
+
+def parse_string(string):
+    spl = [el.split('//') for el in string.split()]
+    res = [el[0] for i, el in enumerate(spl) if i != 0]
+
+    return res
 
 
 def center_obj(vert):

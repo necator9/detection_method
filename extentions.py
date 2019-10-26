@@ -219,7 +219,7 @@ class Draw(object):
             self.save_single = blank_fn
 
         # self.color_map = {0: (255, 0, 0), 1: (0, 255, 0), 2: (0, 0, 255), 3: (0, 0, 0), 4: (0, 255, 255)}
-        self.color_map = {0: (0, 0, 0), 1: (0, 255, 0)}
+        self.color_map = {0: (0, 0, 0), 1: (0, 255, 0), 2: (0, 0, 255)}
 
 
     def update_borders(self):

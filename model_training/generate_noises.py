@@ -1,32 +1,56 @@
 from __future__ import division
-
-import itertools
 import numpy as np
 import sys
 
 from pinhole_camera_model import PinholeCameraModel
 from synth_data_func import scale_to_size_all, rotate_y, center_obj
-from generate_noises_func import gen_exter_noises, gen_dha, \
-    get_cuboid_vertices, find_obj_params2, find_obj_params3, find_combinations, generate_dim
+from generate_noises_func import gen_dha, get_cuboid_vertices, find_obj_params3
 import pandas as pd
 
-oh_dim = {"width": (0.3, 0.64), "height": (1.15, 2), "depth": (0.3, 0.8)}
+points_amount = int(sys.argv[1])
 
-tp = sys.argv[1]
+w_rg = [0.01, 3]
+h_rg = [0.01, 3]
+z_rg = [0.01, 3]
 
-if tp == 'ex':
-    # Generate external noises
-    ex_noises = gen_exter_noises(oh_dim, 1, 0)
-    noises_whd = itertools.product(ex_noises['width'], ex_noises['height'], ex_noises['depth'])
+# w_rg = [0.01, 5]
+# h_rg = [0.01, 5]
+# z_rg = [0.01, 5]
 
-else:
-    tp = 'in'
-    # Generate internal noises
-    combi = find_combinations(oh_dim, 1, 0)
-    combi = generate_dim(combi)
-    noises_whd = itertools.chain(*[itertools.product(comb['width'], comb['height'], comb['depth'])
-                                   for comb in combi])
+# ped = {"width": (0.3, 0.64), "height": (1.15, 2), "depth": (0.3, 0.8)}
+ped = {"width": (0.3, 0.64), "height": (1.3, 2), "depth": (0.3, 0.8)}
 
+pair = {"width": (0.64, 1.3), "height": (1.15, 2), "depth": (0.3, 0.8)}
+cyclist = {"width": (0.3, 0.64), "height": (1.5, 1.9), "depth": (1.4, 1.8)}
+
+
+def check_point(candidate, v):
+    w_f = candidate['width'][0] < v[0] < candidate['width'][1]
+    h_f = candidate['height'][0] < v[1] < candidate['height'][1]
+    z_f = candidate['depth'][0] < v[2] < candidate['depth'][1]
+    if w_f and h_f and z_f:
+        return None
+    else:
+        return v
+
+
+noises = []
+while True:
+    v = np.random.uniform(*w_rg), np.random.uniform(*h_rg), np.random.uniform(*z_rg)
+    try:
+        point = check_point(ped, v)
+        # point = check_point(pair, point)
+        # point = check_point(cyclist, point)
+    except TypeError:
+        continue
+
+    if point is not None:
+        noises.append(point)
+        if len(noises) > points_amount:
+            break
+
+noises_whd = np.array(noises)
+ex_noises_xyz, len_xyz = gen_dha(noises_whd)
 generator, len0 = gen_dha(noises_whd)
 
 
@@ -58,7 +82,7 @@ except KeyboardInterrupt:
 df_data = pd.DataFrame(data,
                        columns=['d', 'c_a_rw', 'w_rw', 'h_rw', 'extent', 'x', 'y', 'w', 'h', 'c_a_px', 'x_rw',
                                 'y_rw', 'z_rw', 'y_rotation', 'width', 'height', 'depth', 'angle'])
-df_data.to_csv('noises_{}.csv'.format(tp))
+df_data.to_csv('noises_{}_ped.csv'.format(points_amount))
 
 
 
