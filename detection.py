@@ -14,16 +14,17 @@ import pinhole_camera_model as pcm
 
 import pickle
 from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import PolynomialFeatures
 
 poly = PolynomialFeatures(2, include_bias=True)
 
 DETECTION_LOG = detection_logging.create_log("detection.log", "DETECTION THREAD")
 
-# CLASSIFIER = pickle.load(open("/home/ivan/Downloads/classifier.pcl", "rb"))
+CLASSIFIER = pickle.load(open("/home/ivan/Downloads/pedestrian_only_with_scaling.pcl", "rb"))
+SCALER = pickle.load(open("/home/ivan/Downloads/pedestrian_only_scaler.pcl", "rb"))
 # CLASSIFIER = pickle.load(open("clf.pcl", "rb"))
-CLASSIFIER = pickle.load(open("/home/ivan/Downloads/clf.pcl", "rb"))
-
+# CLASSIFIER = pickle.load(open("/home/ivan/Downloads/clf.pcl", "rb"))
 
 PINHOLE_CAM = pcm.PinholeCameraModel(rw_angle=-conf.ANGLE, f_l=40, w_ccd=36, h_ccd=26.5,
                                      img_res=conf.IMG_RES)
@@ -145,9 +146,10 @@ class ObjParams(object):
             self.base_status = False
 
     def classify(self):
-        if self.dist_ao < 30 and 0 < self.h_ao_rw < 5 and 0 < self.w_ao_rw < 8 :
-            self.o_class = int(CLASSIFIER.predict(poly.fit_transform([[self.w_ao_rw, self.h_ao_rw,  self.c_ao_rw,
-                                                                       -conf.HEIGHT, self.dist_ao, -conf.ANGLE]])))
+        if self.dist_ao < 30 and 0 < self.h_ao_rw < 5 and 0 < self.w_ao_rw < 8:
+            scaled_features = SCALER.transform([[self.w_ao_rw, self.h_ao_rw,  self.c_ao_rw,
+                                                -conf.HEIGHT, self.dist_ao, -conf.ANGLE]])
+            self.o_class = int(CLASSIFIER.predict(poly.fit_transform(scaled_features)))
         else:
             self.o_class = 0
 

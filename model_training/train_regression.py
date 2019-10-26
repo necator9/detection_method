@@ -67,7 +67,7 @@ clf.fit(X_train, y_train)
 
 print 'overall score {}'.format(clf.score(X_test, y_test))
 human_scaled = scaler.transform(human[:, range(0, 6)])
-print 'woman acc {}'.format(clf.score(poly.fit_transform(human_scaled),
+print 'human acc {}'.format(clf.score(poly.fit_transform(human_scaled),
                                       human[:, -1]))
 # print 'cyclist acc {}'.format(clf.score(poly.fit_transform(cyclist[:, range(0, 6)]), cyclist[:, -1]))
 
