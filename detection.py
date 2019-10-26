@@ -21,8 +21,12 @@ poly = PolynomialFeatures(2, include_bias=True)
 
 DETECTION_LOG = detection_logging.create_log("detection.log", "DETECTION THREAD")
 
-CLASSIFIER = pickle.load(open("/home/ivan/Downloads/ped_scale_wo_ca.pcl", "rb"))
-SCALER = pickle.load(open("/home/ivan/Downloads/ped_scaler.pcl", "rb"))
+# CLASSIFIER = pickle.load(open("/home/ivan/Downloads/ped_scale_wo_ca.pcl", "rb"))
+# SCALER = pickle.load(open("/home/ivan/Downloads/ped_scaler.pcl", "rb"))
+
+CLASSIFIER = pickle.load(open("/home/ivan/Downloads/all.pcl", "rb"))
+SCALER = pickle.load(open("/home/ivan/Downloads/all_scaler.pcl", "rb"))
+
 # CLASSIFIER = pickle.load(open("clf.pcl", "rb"))
 # CLASSIFIER = pickle.load(open("/home/ivan/Downloads/clf.pcl", "rb"))
 
