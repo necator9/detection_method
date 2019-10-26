@@ -50,7 +50,8 @@ training_data = np.concatenate((noise, human))
 pd_all_data = pd.DataFrame(training_data, columns=['w_rw', 'h_rw', 'c_a_rw', 'y_rw', 'd', 'angle', 'o_class'])
 print 'Data shape: {0}'.format(pd_all_data.shape)
 
-X_ = training_data[:, range(0, 6)]
+# 0.356, 0.703, 0.1, -3.1, 15, -13
+X_ = training_data[:, [0, 1, 3, 4, 5]] # range(0, 6)
 y_ = training_data[:, -1]
 
 # Scale the data
@@ -66,13 +67,13 @@ clf = LogisticRegression(solver='newton-cg', C=3, multi_class='auto', n_jobs=-1,
 clf.fit(X_train, y_train)
 
 print 'overall score {}'.format(clf.score(X_test, y_test))
-human_scaled = scaler.transform(human[:, range(0, 6)])
+human_scaled = scaler.transform(human[:, [0, 1, 3, 4, 5]])
 print 'human acc {}'.format(clf.score(poly.fit_transform(human_scaled),
                                       human[:, -1]))
 # print 'cyclist acc {}'.format(clf.score(poly.fit_transform(cyclist[:, range(0, 6)]), cyclist[:, -1]))
 
-with open('clf/pedestrian_only_with_scaling.pcl', 'wb') as handle:
+with open('clf/ped_scale_wo_ca.pcl', 'wb') as handle:
     pickle.dump(clf, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-with open('clf/pedestrian_only_scaler.pcl', 'wb') as handle:
+with open('clf/ped_scaler.pcl', 'wb') as handle:
     pickle.dump(scaler, handle, protocol=pickle.HIGHEST_PROTOCOL)
