@@ -30,7 +30,7 @@ cam_angle = np.arange(0, -70, -5)
 x_range = np.arange(-8, 8, 2)
 y_range = np.arange(-2, -7, -0.3)
 z_range = np.arange(1, 30, 1)
-rotate_y_angle_range = np.linspace(60, 90, 3) # np.arange(0, 90, 22)
+rotate_y_angle_range = np.arange(0, 90, 22)
 thr_range = np.linspace(70, 90, 2)
 iter_params = list(itertools.product(x_range, y_range, z_range, thr_range))
 data = []
@@ -58,7 +58,7 @@ try:
                         data.append(params + [x, y, z, rotate_y_angle] + obj_size + [angle] + [thr])
 
                     it += 1
-                    if it % 100 == 0:
+                    if it % 1000 == 0:
                         print '{:10.2f}, {}\n'.format(it / lens * 100, it)
 
 

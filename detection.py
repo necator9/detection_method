@@ -21,17 +21,25 @@ poly = PolynomialFeatures(2, include_bias=True)
 
 DETECTION_LOG = detection_logging.create_log("detection.log", "DETECTION THREAD")
 
-# CLASSIFIER = pickle.load(open("/home/ivan/Downloads/ped_scale_wo_ca.pcl", "rb"))
+CLASSIFIER = pickle.load(open("/home/ivan/Downloads/ped_and_pair_wo_ca.pcl", "rb"))
+SCALER = pickle.load(open("/home/ivan/Downloads/ped_and_pair_scaler_wo_ca.pcl", "rb"))
+
+# CLASSIFIER = pickle.load(open("/home/ivan/Downloads/ped.pcl", "rb"))
 # SCALER = pickle.load(open("/home/ivan/Downloads/ped_scaler.pcl", "rb"))
 
-CLASSIFIER = pickle.load(open("/home/ivan/Downloads/all.pcl", "rb"))
-SCALER = pickle.load(open("/home/ivan/Downloads/all_scaler.pcl", "rb"))
+# CLASSIFIER = pickle.load(open("/home/ivan/Downloads/ped_pair_wo_ca.pcl", "rb"))
+# SCALER = pickle.load(open("/home/ivan/Downloads/ped_pair_scaler_wo_ca.pcl", "rb"))
 
 # CLASSIFIER = pickle.load(open("clf.pcl", "rb"))
 # CLASSIFIER = pickle.load(open("/home/ivan/Downloads/clf.pcl", "rb"))
 
-PINHOLE_CAM = pcm.PinholeCameraModel(rw_angle=-conf.ANGLE, f_l=40, w_ccd=36, h_ccd=26.5,
-                                     img_res=conf.IMG_RES)
+
+def init_pcm():
+    return pcm.PinholeCameraModel(rw_angle=-conf.ANGLE, f_l=40, w_ccd=36, h_ccd=26.5,
+                                  img_res=conf.IMG_RES)
+
+
+PINHOLE_CAM = init_pcm()
 
 
 class Detection(threading.Thread):
@@ -151,8 +159,8 @@ class ObjParams(object):
 
     def classify(self):
         if self.dist_ao < 30 and 0 < self.h_ao_rw < 5 and 0 < self.w_ao_rw < 8:
-            # self.c_ao_rw,
-            scaled_features = SCALER.transform([[self.w_ao_rw, self.h_ao_rw,
+
+            scaled_features = SCALER.transform([[self.w_ao_rw, self.h_ao_rw,  # self.c_ao_rw,
                                                 -conf.HEIGHT, self.dist_ao, -conf.ANGLE]])
             self.o_class = int(CLASSIFIER.predict(poly.fit_transform(scaled_features)))
         else:
@@ -201,6 +209,8 @@ class PreprocessImg(object):
 
             if conf.IMG_RES[0] != actual_w or conf.IMG_RES[1] != actual_h:
                 conf.IMG_RES[0], conf.IMG_RES[1] = actual_w, actual_h
+                global PINHOLE_CAM
+                PINHOLE_CAM = init_pcm()
 
 
 class DataFrame(object):
@@ -221,7 +231,7 @@ class DataFrame(object):
         # bright_mask = self.calc_bright_coeff()
         #
         split_obj_i = [[i, obj] for i, obj in enumerate(self.base_objects)
-                       if obj.extent_ao < 0.5 and 3 < obj.w_ao_rw < 5 and obj.dist_ao < 30]
+                       if obj.extent_ao < 0.5 and 2 < obj.w_ao_rw < 5 and obj.dist_ao < 30]
 
         split_idx = [it[0] for it in split_obj_i]
         split_obj = [it[1] for it in split_obj_i]

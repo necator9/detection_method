@@ -18,9 +18,12 @@ z_rg = [0.01, 3]
 # z_rg = [0.01, 5]
 
 # ped = {"width": (0.3, 0.64), "height": (1.15, 2), "depth": (0.3, 0.8)}
-ped = {"width": (0.3, 0.64), "height": (1.3, 2), "depth": (0.3, 0.8)}
 
-pair = {"width": (0.64, 1.3), "height": (1.15, 2), "depth": (0.3, 0.8)}
+# ped = {"width": (0.3, 0.64), "height": (1.3, 2), "depth": (0.3, 0.8)}
+# pair = {"width": (0.64, 0.8), "height": (1.3, 2), "depth": (0.3, 1.2)}
+cyclist = {"width": (0.3, 0.64), "height": (1.5, 1.9), "depth": (1.4, 1.8)}
+
+# pair = {"width": (0.64, 1.2), "height": (1.15, 2), "depth": (0.3, 0.8)}
 # cyclist = {"width": (0.3, 0.64), "height": (1.5, 1.9), "depth": (1.4, 1.8)}
 
 
@@ -36,11 +39,11 @@ def check_point(candidate, v):
 
 noises = []
 while True:
-    v = np.random.uniform(*w_rg), np.random.uniform(*h_rg), np.random.uniform(*z_rg)
+    point = np.random.uniform(*w_rg), np.random.uniform(*h_rg), np.random.uniform(*z_rg)
     try:
-        point = check_point(ped, v)
-        point = check_point(pair, point)
-        # point = check_point(cyclist, point)
+        # point = check_point(ped, point)
+        # point = check_point(pair, point)
+        point = check_point(cyclist, point)
     except TypeError:
         continue
 
@@ -82,7 +85,7 @@ except KeyboardInterrupt:
 df_data = pd.DataFrame(data,
                        columns=['d', 'c_a_rw', 'w_rw', 'h_rw', 'extent', 'x', 'y', 'w', 'h', 'c_a_px', 'x_rw',
                                 'y_rw', 'z_rw', 'y_rotation', 'width', 'height', 'depth', 'angle'])
-df_data.to_csv('noises_{}_ped_pair.csv'.format(points_amount))
+df_data.to_csv('noises_{}_cycle.csv'.format(points_amount))
 
 
 
