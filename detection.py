@@ -21,8 +21,8 @@ poly = PolynomialFeatures(2, include_bias=True)
 
 DETECTION_LOG = detection_logging.create_log("detection.log", "DETECTION THREAD")
 
-CLASSIFIER = pickle.load(open("/home/ivan/Downloads/ped_and_pair_wo_ca.pcl", "rb"))
-SCALER = pickle.load(open("/home/ivan/Downloads/ped_and_pair_scaler_wo_ca.pcl", "rb"))
+CLASSIFIER = pickle.load(open("/home/ivan/Downloads/ped_clf.pcl", "rb"))
+SCALER = pickle.load(open("/home/ivan/Downloads/ped_scaler.pcl", "rb"))
 
 # CLASSIFIER = pickle.load(open("/home/ivan/Downloads/ped.pcl", "rb"))
 # SCALER = pickle.load(open("/home/ivan/Downloads/ped_scaler.pcl", "rb"))
@@ -109,7 +109,8 @@ class MarginCrossed(Exception):
 class ObjParams(object):
     def __init__(self, obj_id, cnt_ao):
         self.c_a_ao = cv2.contourArea(cnt_ao)
-        if self.c_a_ao < 30:
+        # if self.c_a_ao < 30:
+        if self.c_a_ao / (conf.IMG_RES[0] * conf.IMG_RES[1]) < 0.002:
             raise CountorAreaTooSmall
 
         self.base_rect_ao = self.x_ao, self.y_ao, self.w_ao, self.h_ao = cv2.boundingRect(cnt_ao)
@@ -160,8 +161,11 @@ class ObjParams(object):
     def classify(self):
         if self.dist_ao < 30 and 0 < self.h_ao_rw < 5 and 0 < self.w_ao_rw < 8:
 
-            scaled_features = SCALER.transform([[self.w_ao_rw, self.h_ao_rw,  # self.c_ao_rw,
-                                                -conf.HEIGHT, self.dist_ao, -conf.ANGLE]])
+            # scaled_features = SCALER.transform([[self.w_ao_rw, self.h_ao_rw,  # self.c_ao_rw,
+            #                                     -conf.HEIGHT, self.dist_ao, -conf.ANGLE]])
+            # scaled_features = SCALER.transform([[self.w_ao_rw, self.h_ao_rw, self.dist_ao]])
+            scaled_features = SCALER.transform([[self.w_ao_rw, self.h_ao_rw, self.c_ao_rw, self.dist_ao]])
+
             self.o_class = int(CLASSIFIER.predict(poly.fit_transform(scaled_features)))
         else:
             self.o_class = 0
@@ -190,14 +194,20 @@ class PreprocessImg(object):
         self.set_ratio(orig_img)
 
         orig_img = self.clahe_adjust.apply(orig_img)
+        # orig_img = cv2.blur(orig_img, (5, 5))
 
         mog_mask = self.mog2.apply(orig_img)
-        _, mog_mask = cv2.threshold(mog_mask, 127, 255, cv2.THRESH_BINARY)
 
         filtered_mask = cv2.morphologyEx(mog_mask, cv2.MORPH_OPEN, self.f_kernel)
+        # filtered_mask = cv2.blur(filtered_mask, (3, 3))
+
+        _, filled_mask = cv2.threshold(filtered_mask, 170, 255, cv2.THRESH_BINARY)
+
+        # filtered_mask = cv2.morphologyEx(mog_mask, cv2.MORPH_OPEN, self.f_kernel)
+
         # filled_mask = cv2.dilate(filtered_mask, None, iterations=conf.DILATE_ITERATIONS)
         # filled_mask = cv2.blur(filtered_mask, (3, 3))
-        filled_mask = cv2.morphologyEx(filtered_mask, cv2.MORPH_OPEN, self.f1_kernel)
+        # filled_mask = cv2.morphologyEx(filtered_mask, cv2.MORPH_OPEN, self.f1_kernel)
 
         return orig_img, mog_mask, filtered_mask, filled_mask
 

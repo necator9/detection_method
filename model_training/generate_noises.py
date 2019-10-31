@@ -19,31 +19,60 @@ z_rg = [0.01, 3]
 
 # ped = {"width": (0.3, 0.64), "height": (1.15, 2), "depth": (0.3, 0.8)}
 
+# ped = {"width": (0.4, 1.), "height": (1.0, 2.1), "depth": (0.4, 1.)}
+ped1 = {"width": (0.4, 0.7), "height": (1.15, 1.2), "depth": (0.4, 0.7)}
+ped2 = {"width": (0.35, 0.9), "height": (1.2, 1.4), "depth": (0.35, 0.9)}
+ped5 = {"width": (0.38, 0.8), "height": (1.4, 1.5), "depth": (0.38, 0.8)}
+ped3 = {"width": (0.4, 1.), "height": (1.5, 1.7), "depth": (0.4, 1.)}
+ped = {"width": (0.5, 1.), "height": (1.7, 2), "depth": (0.5, 1.)}
+ped4 = {"width": (0.58, 1.), "height": (2, 2.15), "depth": (0.58, 1.)}
+
+
+pair = {"width": (0.8, 1.6), "height": (1.4, 2.1), "depth": (0.8, 1.6)}
+
+cyclist = {"width": (1, 1.6), "height": (1.5, 1.6), "depth": (1, 1.6)}
+cyclist1 = {"width": (1, 1.75), "height": (1.6, 1.75), "depth": (1, 1.75)}
+cyclist2 = {"width": (1, 2), "height": (1.75, 2), "depth": (1, 2)}
+cyclist3 = {"width": (1, 2.1), "height": (2, 2.1), "depth": (1, 2.1)}
+
+
+
 # ped = {"width": (0.3, 0.64), "height": (1.3, 2), "depth": (0.3, 0.8)}
 # pair = {"width": (0.64, 0.8), "height": (1.3, 2), "depth": (0.3, 1.2)}
-cyclist = {"width": (0.3, 0.64), "height": (1.5, 1.9), "depth": (1.4, 1.8)}
+# cyclist = {"width": (0.3, 0.64), "height": (1.5, 1.9), "depth": (1.4, 1.8)}
 
 # pair = {"width": (0.64, 1.2), "height": (1.15, 2), "depth": (0.3, 0.8)}
 # cyclist = {"width": (0.3, 0.64), "height": (1.5, 1.9), "depth": (1.4, 1.8)}
 
 
 def check_point(candidate, v):
-    w_f = candidate['width'][0] < v[0] < candidate['width'][1]
-    h_f = candidate['height'][0] < v[1] < candidate['height'][1]
-    z_f = candidate['depth'][0] < v[2] < candidate['depth'][1]
-    if w_f and h_f and z_f:
-        return None
-    else:
+    w_f = not (candidate['width'][0] < v[0] < candidate['width'][1])
+    h_f = not (candidate['height'][0] < v[1] < candidate['height'][1])
+    z_f = not (candidate['depth'][0] < v[2] < candidate['depth'][1])
+
+    if h_f or (w_f and z_f):
         return v
+    else:
+        return None
 
 
 noises = []
 while True:
-    point = np.random.uniform(*w_rg), np.random.uniform(*h_rg), np.random.uniform(*z_rg)
+    point = np.random.uniform(*w_rg), np.random.uniform(*h_rg), 0.01#np.random.uniform(*z_rg)
     try:
-        # point = check_point(ped, point)
-        # point = check_point(pair, point)
+        point = check_point(ped, point)
+        point = check_point(ped1, point)
+        point = check_point(ped2, point)
+        point = check_point(ped3, point)
+        point = check_point(ped4, point)
+        point = check_point(ped5, point)
+
+        point = check_point(pair, point)
+
         point = check_point(cyclist, point)
+        point = check_point(cyclist1, point)
+        point = check_point(cyclist2, point)
+        point = check_point(cyclist3, point)
     except TypeError:
         continue
 
@@ -53,8 +82,8 @@ while True:
             break
 
 noises_whd = np.array(noises)
-ex_noises_xyz, len_xyz = gen_dha(noises_whd)
-generator, len0 = gen_dha(noises_whd)
+generator, len0 = gen_dha(noises_whd, x_range=(0,), y_range=(-3.2,), z_range=np.arange(1, 30, 1),
+                          angle_range=(-13,), y_rotate_range=(0,))
 
 
 obj = np.copy(get_cuboid_vertices((1, 1, 1)))
@@ -85,7 +114,7 @@ except KeyboardInterrupt:
 df_data = pd.DataFrame(data,
                        columns=['d', 'c_a_rw', 'w_rw', 'h_rw', 'extent', 'x', 'y', 'w', 'h', 'c_a_px', 'x_rw',
                                 'y_rw', 'z_rw', 'y_rotation', 'width', 'height', 'depth', 'angle'])
-df_data.to_csv('noises_{}_cycle.csv'.format(points_amount))
+df_data.to_csv('noises_{}_ped_new.csv'.format(points_amount))
 
 
 

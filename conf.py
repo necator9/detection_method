@@ -22,9 +22,9 @@ WRITE_TO_DB = True
 WRITE_TO_PICKLE = False
 # TODO Check why the sqlite does not accept "." in path of out database
 # OUT_DIR = "/home/ivan/experiments/TZK_january/bicycle_new_dist_method_1"
-# OUT_DIR = "/home/ivan/experiments/5m_ped_new_dist_method_1/"
-# OUT_DIR = "/home/ivan/experiments/11m_ped_new_dist_method_1/"
-OUT_DIR = "/home/ivan/experiments/random_new_dist_method_1/"
+OUT_DIR = "/home/ivan/experiments/5m_ped_new_dist_method_1/"
+# OUT_DIR = "/home/ivan/experiments/11m_ped_w_ca/"
+# OUT_DIR = "/home/ivan/experiments/random/"
 # OUT_DIR = "/home/ivan/experiments/bicyclist_random_filtered/"
 # OUT_DIR = "/home/ivan/experiments/3m_4l_ped_1/"
 
@@ -40,9 +40,9 @@ LOG_LEVEL = "INFO"
 PATH_TO_LOGS = "/home/ivan/logs/"
 
 # # Camera installation parameters
-IN_DIR = '/home/ivan/experiments/sources/TZK_january/3m_4l/random/'
-ANGLE = 21
-HEIGHT = 3
+# IN_DIR = '/home/ivan/experiments/sources/TZK_january/3m_4l/random/'
+# ANGLE = 21
+# HEIGHT = 3
 
 # IN_DIR = '/home/ivan/experiments/sources/TZK_january/3m_4l/ped/'
 # ANGLE = 21
@@ -52,8 +52,8 @@ HEIGHT = 3
 # ANGLE = 13
 # HEIGHT = 3.1
 
-# IN_DIR = "/home/ivan/experiments/sources/11m_ped_filtered/"
-# ANGLE = 13
-# HEIGHT = 3.1
+IN_DIR = "/home/ivan/experiments/sources/5m_ped_filtered/"
+ANGLE = 13
+HEIGHT = 3.1
 
 
