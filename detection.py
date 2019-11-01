@@ -241,7 +241,7 @@ class DataFrame(object):
         # bright_mask = self.calc_bright_coeff()
         #
         split_obj_i = [[i, obj] for i, obj in enumerate(self.base_objects)
-                       if obj.extent_ao < 0.5 and 2 < obj.w_ao_rw < 5 and obj.dist_ao < 30]
+                       if obj.extent_ao < 0.5 and 2 < obj.w_ao_rw < 5 and obj.dist_ao < 30 and obj.h_ao_rw < 3]
 
         split_idx = [it[0] for it in split_obj_i]
         split_obj = [it[1] for it in split_obj_i]

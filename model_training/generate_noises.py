@@ -9,9 +9,9 @@ import pandas as pd
 
 points_amount = int(sys.argv[1])
 
-w_rg = [0.01, 3]
+w_rg = [0.01, 5.5]
 h_rg = [0.01, 3]
-z_rg = [0.01, 3]
+z_rg = [0.01, 5.5]
 
 # w_rg = [0.01, 5]
 # h_rg = [0.01, 5]
@@ -21,21 +21,27 @@ z_rg = [0.01, 3]
 
 # ped = {"width": (0.4, 1.), "height": (1.0, 2.1), "depth": (0.4, 1.)}
 ped1 = {"width": (0.4, 0.7), "height": (1.15, 1.2), "depth": (0.4, 0.7)}
-ped2 = {"width": (0.35, 0.9), "height": (1.2, 1.4), "depth": (0.35, 0.9)}
-ped5 = {"width": (0.38, 0.8), "height": (1.4, 1.5), "depth": (0.38, 0.8)}
-ped3 = {"width": (0.4, 1.), "height": (1.5, 1.7), "depth": (0.4, 1.)}
-ped = {"width": (0.5, 1.), "height": (1.7, 2), "depth": (0.5, 1.)}
-ped4 = {"width": (0.58, 1.), "height": (2, 2.15), "depth": (0.58, 1.)}
+ped2 = {"width": (0.35, 0.9), "height": (1.2, 1.4), "depth": (0.35, 0.9)} #
+# ped4 = {"width": (0.35, 1), "height": (1.3, 1.4), "depth": (0.35, 1)} #
+ped5 = {"width": (0.38, 0.9), "height": (1.4, 1.5), "depth": (0.38, 0.9)}
+ped3 = {"width": (0.4, 1), "height": (1.5, 1.7), "depth": (0.4, 1)} #
+ped = {"width": (0.5, 1.), "height": (1.7, 2.1), "depth": (0.5, 1.)}
 
 
-pair = {"width": (0.8, 1.6), "height": (1.4, 2.1), "depth": (0.8, 1.6)}
 
-cyclist = {"width": (1, 1.6), "height": (1.5, 1.6), "depth": (1, 1.6)}
-cyclist1 = {"width": (1, 1.75), "height": (1.6, 1.75), "depth": (1, 1.75)}
+pair = {"width": (0.95, 1.6), "height": (1.5, 2.1), "depth": (0.95, 1.6)}
+
+# cyclist = {"width": (0.9, 1.6), "height": (1.55, 1.6), "depth": (0.9, 1.6)}
+cyclist1 = {"width": (1, 1.7), "height": (1.42, 1.75), "depth": (1, 1.7)}
 cyclist2 = {"width": (1, 2), "height": (1.75, 2), "depth": (1, 2)}
-cyclist3 = {"width": (1, 2.1), "height": (2, 2.1), "depth": (1, 2.1)}
+# cyclist3 = {"width": (1, 2), "height": (2, 2), "depth": (1, 2)}
+
+car1 = {"width": (3, 4.2), "height": (1.55, 1.8), "depth": (3, 4.2)}
+car2 = {"width": (3.2, 4.7), "height": (1.8, 2), "depth": (3.2, 4.7)}
+car3 = {"width": (3.5, 4.8), "height": (2, 2.1), "depth": (3.5, 4.8)}
 
 
+# H + 0.1 wl
 
 # ped = {"width": (0.3, 0.64), "height": (1.3, 2), "depth": (0.3, 0.8)}
 # pair = {"width": (0.64, 0.8), "height": (1.3, 2), "depth": (0.3, 1.2)}
@@ -64,15 +70,20 @@ while True:
         point = check_point(ped1, point)
         point = check_point(ped2, point)
         point = check_point(ped3, point)
-        point = check_point(ped4, point)
+        # point = check_point(ped4, point)
         point = check_point(ped5, point)
 
         point = check_point(pair, point)
 
-        point = check_point(cyclist, point)
+        # point = check_point(cyclist, point)
         point = check_point(cyclist1, point)
         point = check_point(cyclist2, point)
-        point = check_point(cyclist3, point)
+        # point = check_point(cyclist3, point)
+
+        point = check_point(car1, point)
+        point = check_point(car2, point)
+        point = check_point(car3, point)
+
     except TypeError:
         continue
 
