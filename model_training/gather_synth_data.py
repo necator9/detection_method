@@ -23,15 +23,13 @@ vertices, faces = parse_obj_file1(f_name, flipZ)
 
 obj = np.copy(vertices)
 
-hh_range = np.linspace(h_min, h_max, 8)
+hh_range = np.linspace(h_min, h_max, 8)  # car 10 # pair 8
 dimensions = [(0, h, 0) for h in hh_range]
 
 cam_angle = np.arange(0, -70, -5)
-cam_angle = [-10]
 
 x_range = np.arange(-8, 8, 2)
-y_range = np.arange(-2, -7, -0.3)
-y_range = [-3.2]
+y_range = np.arange(-2, -7, -0.2)
 z_range = np.arange(1, 30, 1)
 rotate_y_angle_range = np.arange(0, 90, 22)
 thr_range = np.linspace(70, 90, 2)
@@ -40,7 +38,7 @@ data = []
 
 lens = np.prod([len(i) for i in (hh_range, cam_angle, x_range, y_range, z_range, rotate_y_angle_range,
                                  thr_range)])
-print "total iterations: {}".format(lens)
+print ("total iterations: {}".format(lens))
 it = 0
 
 try:
@@ -62,7 +60,7 @@ try:
 
                     it += 1
                     if it % 1000 == 0:
-                        print '{:10.2f}, {}\n'.format(it / lens * 100, it)
+                        print ('{:10.2f}, {}\n'.format(it / lens * 100, it))
 
 
 except KeyboardInterrupt:
