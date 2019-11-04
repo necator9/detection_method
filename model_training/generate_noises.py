@@ -40,6 +40,18 @@ def check_point(candidate, v):
         return None
 
 
+def write_to_csv(header, data):
+    df_data = pd.DataFrame(data, columns=['d', 'c_a_rw', 'w_rw', 'h_rw', 'extent', 'x', 'y', 'w',
+                                          'h', 'c_a_px', 'x_rw', 'y_rw', 'z_rw', 'y_rotation',
+                                          'width', 'height', 'depth', 'angle'])
+
+    with open('noises_{}_all_x0.csv'.format(points_amount), 'a') as f:
+        df_data.to_csv(f, header=header)
+        header = False
+
+    return header, []
+
+
 noises = []
 while True:
     point = np.random.uniform(*w_rg), np.random.uniform(*h_rg), 0.01#np.random.uniform(*z_rg)
@@ -70,7 +82,7 @@ while True:
 noises_whd = np.array(noises)
 # generator, len0 = gen_dha(noises_whd, x_range=(0,), y_range=(-6,), z_range=np.arange(1, 30, 1),
 #                           angle_range=(-40,), y_rotate_range=(0,))
-generator, len0 = gen_dha(noises_whd, x_range=np.arange(-8, 8, 2), y_range=np.arange(-2, -7, -0.2),
+generator, len0 = gen_dha(noises_whd, x_range=(0,), y_range=np.arange(-2, -7, -0.2),
                           z_range=np.arange(1, 30, 1), angle_range=np.arange(0, -70, -5),
                           y_rotate_range=(0,))
 
@@ -78,7 +90,7 @@ generator, len0 = gen_dha(noises_whd, x_range=np.arange(-8, 8, 2), y_range=np.ar
 obj = np.copy(get_cuboid_vertices((1, 1, 1)))
 c_a_rand_vary = np.arange(0.2, 0.6, 0.01)
 data = []
-
+header = True
 it = 0
 try:
     for dim,  x, y, z, angle, rotate_y_angle in generator:
@@ -95,16 +107,17 @@ try:
             data.append(params + [x, y, z, rotate_y_angle] + obj_size + [angle])
 
         if it % 10000 == 0:
-            print it
+            print(it)
+
+        if it % 1000000 == 0:
+            header, data = write_to_csv(header, data)
+
 
 except KeyboardInterrupt:
     pass
 
-df_data = pd.DataFrame(data,
-                       columns=['d', 'c_a_rw', 'w_rw', 'h_rw', 'extent', 'x', 'y', 'w', 'h', 'c_a_px', 'x_rw',
-                                'y_rw', 'z_rw', 'y_rotation', 'width', 'height', 'depth', 'angle'])
-df_data.to_csv('noises_{}_all.csv'.format(points_amount))
 
+header, data = write_to_csv(header, data)
 
 
 

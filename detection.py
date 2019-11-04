@@ -18,6 +18,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import PolynomialFeatures
 
 poly = PolynomialFeatures(2, include_bias=True)
+poly.fit([[1, 2, 3, 4]])
 
 DETECTION_LOG = detection_logging.create_log("detection.log", "DETECTION THREAD")
 
@@ -166,7 +167,7 @@ class ObjParams(object):
             # scaled_features = SCALER.transform([[self.w_ao_rw, self.h_ao_rw, self.dist_ao]])
             scaled_features = SCALER.transform([[self.w_ao_rw, self.h_ao_rw, self.c_ao_rw, self.dist_ao]])
 
-            self.o_class = int(CLASSIFIER.predict(poly.fit_transform(scaled_features)))
+            self.o_class = int(CLASSIFIER.predict(poly.transform(scaled_features)))
         else:
             self.o_class = 0
 
