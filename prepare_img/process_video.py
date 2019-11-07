@@ -12,6 +12,7 @@ logging.basicConfig(level=logging.INFO)
 in_path = '/home/ivan/movement/pedestrian/'
 
 
+
 def find_obj_params(mog_mask, height, pinhole_cam):
     _, contours, _ = cv2.findContours(mog_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     c_areas = [cv2.contourArea(cnt) for cnt in contours]
