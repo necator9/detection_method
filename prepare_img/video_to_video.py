@@ -2,6 +2,9 @@ import cv2
 import glob
 import os
 import numpy as np
+import subprocess as sp
+import logging
+
 
 # in_dir = 'raw_video/'
 # out_dir = 'raw_video/res_img/'
@@ -24,44 +27,50 @@ try:
     for vid_path in vid_paths:
         data = []
         cap = cv2.VideoCapture(vid_path)
+        logging.info('{} is processing'.format(vid_path))
 
         frame_width = int(cap.get(3))
         frame_height = int(cap.get(4))
         fps = int(cap.get(5))
 
-        name = os.path.split(vid_path)[1][:-4]
+        name = os.path.split(vid_path)[1]
         while cap.isOpened():
             ret, img = cap.read()
-            img = cv2.undistort(img, mtx, dst)
             if ret:
+                img = cv2.undistort(img, mtx, dst)
                 data.append(img)
-                # if len(data) == 1000:
-                #     write_images(data, out_dir)
-                #     break
             else:
                 start = data[-200:]
                 start.reverse()
                 end = data[:-200]
                 dt = start + end
+                out_path = os.path.join(out_dir, name)
+
+                command = [ffmpeg_bin,
+                           '-y',
+                           '-f', 'rawvideo',
+                           '-vcodec', 'rawvideo',
+                           '-s', '{}x{}'.format(frame_width, frame_height),
+                           '-pix_fmt', 'bgr24',
+                           '-r', '{}'.format(fps),
+                           '-i', '-',
+                           '-an',
+                           '-vcodec', 'libx264',
+                           out_path]
+
+                proc = sp.Popen(command, stdin=sp.PIPE, stderr=sp.PIPE)
+
                 for i, img in enumerate(dt):
-                    out_path = os.path.join(out_dir, '{}_{}.jpeg'.format(name, i))
-                    cv2.imwrite(out_path, img)
+                    proc.stdin.write(img.tostring())
+
+                proc.stdin.close()
+                proc.stderr.close()
+                proc.wait()
+
+                break
 
 except KeyboardInterrupt:
     pass
 
 
-command = [ffmpeg_bin,
-           '-y',
-           '-f', 'rawvideo',
-           '-vcodec', 'rawvideo',
-           '-s', '{}x{}'.format(frame_width, frame_height),
-           '-pix_fmt', 'bgr24',
-           # '-pix_fmt', 'gray',
 
-           '-r', '{}'.format(fps),
-           '-i', '-',
-           '-an',
-           '-vcodec', 'libx264',
-
-           os.path.join(out_dir, 'movement_{}_{}_{}.mp4'.format(img_number, COUNTER, tm))]
