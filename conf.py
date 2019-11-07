@@ -23,10 +23,11 @@ WRITE_TO_PICKLE = False
 # TODO Check why the sqlite does not accept "." in path of out database
 # OUT_DIR = "/home/ivan/experiments/TZK_january/bicycle_new_dist_method_1"
 # OUT_DIR = "/home/ivan/experiments/5m_ped_new_dist_method_1/"
-OUT_DIR = "/home/ivan/experiments/11m_ped_w_ca/"
-# OUT_DIR = "/home/ivan/experiments/random/"
-# OUT_DIR = "/home/ivan/experiments/bicyclist_random_filtered/"
-# OUT_DIR = "/home/ivan/experiments/3m_4l_ped_1/"
+# OUT_DIR = "/home/ivan/experiments/11m_ped_wo/"
+# OUT_DIR = "/home/ivan/experiments/chaos_/"
+# OUT_DIR = "/home/ivan/experiments/bicyclist_/"
+OUT_DIR = "/home/ivan/experiments/chaos_wo/"
+# OUT_DIR = "/home/ivan/experiments/group_/"
 
 
 # Timers parameters
@@ -44,6 +45,10 @@ PATH_TO_LOGS = "/home/ivan/logs/"
 # ANGLE = 21
 # HEIGHT = 3
 
+# IN_DIR = '/home/ivan/experiments/sources/TZK_january/3m_4l/group/'
+# ANGLE = 21
+# HEIGHT = 3
+
 # IN_DIR = '/home/ivan/experiments/sources/TZK_january/3m_4l/ped/'
 # ANGLE = 21
 # HEIGHT = 3
@@ -52,7 +57,11 @@ PATH_TO_LOGS = "/home/ivan/logs/"
 # ANGLE = 13
 # HEIGHT = 3.1
 
-IN_DIR = "/home/ivan/experiments/sources/11m_ped_filtered/"
+# IN_DIR = "/home/ivan/experiments/sources/11m_ped_filtered/"
+# ANGLE = 13
+# HEIGHT = 3.1
+
+IN_DIR = "/home/ivan/experiments/sources/chaos/"
 ANGLE = 13
 HEIGHT = 3.1
 

@@ -4,6 +4,7 @@ import itertools
 import numpy as np
 import pandas as pd
 import logging
+import sys
 
 logging.basicConfig(level=logging.INFO)
 
@@ -50,7 +51,7 @@ def gen_w_h(hulls_, points_amount_, w_rg_, h_rg_):
 
 points_amount = 3000
 
-pd_all_data = pd.read_csv('new_csv/all_data.csv')
+pd_all_data = pd.read_csv(sys.argv[1] + '/all_data.csv')
 pd_all_data.y_rw = pd_all_data.y_rw.round(1)
 
 angle_rg = np.arange(0, -70, -5)
