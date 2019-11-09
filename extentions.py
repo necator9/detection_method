@@ -394,39 +394,3 @@ class TimeCounter(object):
         self.watch_log.info("{} iteration t: {}s, FPS: {}. Window size: {} ".format(self.watch_name, average_time,
                                                                                     round(1/average_time, 2),
                                                                                     conf.TIME_WINDOW))
-
-
-
-
-
-
-# class Csv(object):
-#     def __init__(self, name):
-#         self.name = name + ".csv"
-#         fieldnames = ["Img_name", "Object_no", "Status", "Rect_coeff", "hw_ratio", "Contour_area", "Rect_area",
-#                       "Rect_perimeter", "Extent", "x", "y", "w", "h"]
-#         self.f = open(name, 'w')
-#         self.writer = csv.DictWriter(self.f, fieldnames=fieldnames)
-#         self.writer.writeheader()
-#
-#     def write(self, base_objects, img_name):
-#         for i, obj in enumerate(base_objects):
-#             self.writer.writerow({"Img_name": img_name, "Object_no": i + 1, "Status": obj.obj_status,
-#                                   "Rect_coeff": obj.rect_coef, "hw_ratio": obj.h_w_ratio,
-#                                   "Contour_area": obj.contour_area, "Rect_area": obj.rect_area,
-#                                   "Rect_perimeter": obj.rect_perimeter, "Extent": obj.extent,
-#                                   "x": obj.x, "y": obj.y, "w": obj.w, "h": obj.h})
-#
-#     def quit(self):
-#         self.f.close()
-
-
-
-
-
-
-
-
-
-
-

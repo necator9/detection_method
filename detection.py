@@ -27,6 +27,13 @@ SCALER = pickle.load(open("/home/ivan/Downloads/scaler_.pcl", "rb"))
 
 
 def init_pcm():
+    f_l = 3.6
+    w_ccd = 3.4509432207429906
+    h_ccd = 1.937355215491415
+
+    # return pcm.PinholeCameraModel(rw_angle=-conf.ANGLE, f_l=f_l, w_ccd=w_ccd, h_ccd=h_ccd,
+    #                               img_res=conf.IMG_RES)
+
     return pcm.PinholeCameraModel(rw_angle=-conf.ANGLE, f_l=40, w_ccd=36, h_ccd=26.5,
                                   img_res=conf.IMG_RES)
 
@@ -68,17 +75,8 @@ class Detection(threading.Thread):
             frame.orig_img, draw.mog_mask.data, draw.filtered.data, frame.filled = prepare_img.process(frame.orig_img)
             draw.bright_mask.data, draw.extent_split_mask.data = frame.calculate()
 
-            try:
-                self.data_frame_q.put_nowait(frame)
-            except Queue.Full:
-                DETECTION_LOG.error("Data queue is full. Queue size: {}".format(self.data_frame_q.qsize()))
-
-            try:
-                self.draw_frame_q.put_nowait(draw)
-            except Queue.Full:
-                DETECTION_LOG.error("Draw queue is full. Queue size: {}".format(self.data_frame_q.qsize()))
-
-            DETECTION_LOG.debug("Detection iteration performed")
+            self.data_frame_q.put(frame, block=True)
+            self.draw_frame_q.put(draw, block=True)
 
             self.timer.get_time()
 
@@ -101,12 +99,12 @@ class MarginCrossed(Exception):
 class ObjParams(object):
     def __init__(self, obj_id, cnt_ao):
         self.c_a_ao = cv2.contourArea(cnt_ao)
-        # if self.c_a_ao / (conf.IMG_RES[0] * conf.IMG_RES[1]) < 0.002:
+        # if self.c_a_ao / (conf.IMG_RES[0] * conf.IMG_RES[1]) < 0.0005:  # < 0.002:
         #     raise CountorAreaTooSmall
 
         self.base_rect_ao = self.x_ao, self.y_ao, self.w_ao, self.h_ao = cv2.boundingRect(cnt_ao)
-        # if not self.check_margin(margin=conf.MARGIN, img_res=conf.IMG_RES):
-        #     raise MarginCrossed
+        if not self.check_margin(margin=conf.MARGIN, img_res=conf.IMG_RES):
+            raise MarginCrossed
 
         self.dist_ao = PINHOLE_CAM.pixels_to_distance(-conf.HEIGHT, self.y_ao + self.h_ao)
         if self.dist_ao <= 0:
@@ -144,18 +142,18 @@ class ObjParams(object):
     def detect(self):
         o_class = self.classify()
 
-        if o_class != 3:
+        if o_class != 0:
             self.base_status = True
         else:
             self.base_status = False
 
     def classify(self):
-        if self.dist_ao < 30 and 0 < self.h_ao_rw < 5 and 0 < self.w_ao_rw < 8:
-            scaled_features = SCALER.transform([[self.w_ao_rw, self.h_ao_rw,   self.c_ao_rw,
-                                                self.dist_ao, -conf.HEIGHT,  -conf.ANGLE]])
-            self.o_class = int(CLASSIFIER.predict(poly.transform(scaled_features)))
-        else:
-            self.o_class = 0
+        # if self.dist_ao < 30 and 0 < self.h_ao_rw < 5 and 0 < self.w_ao_rw < 8:
+        scaled_features = SCALER.transform([[self.w_ao_rw, self.h_ao_rw,   self.c_ao_rw,
+                                            self.dist_ao, -conf.HEIGHT,  -conf.ANGLE]])
+        self.o_class = int(CLASSIFIER.predict(poly.transform(scaled_features)))
+        # else:
+        #     self.o_class = 0
 
         return self.o_class
 
@@ -169,10 +167,11 @@ class ObjParams(object):
 
 class PreprocessImg(object):
     def __init__(self):
-        self.mog2 = cv2.createBackgroundSubtractorMOG2(detectShadows=True)
-        self.f_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, conf.F_KERNEL_SIZE)
+        # self.mog2 = cv2.createBackgroundSubtractorMOG2(detectShadows=True) # , varThreshold=16
+        self.mog2 = cv2.createBackgroundSubtractorKNN(detectShadows=True)
+        self.f_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
         self.f1_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-        # self.clahe_adjust = cv2.createCLAHE(clipLimit=10.0, tileGridSize=(8, 8))
+        self.clahe_adjust = cv2.createCLAHE(clipLimit=8.0, tileGridSize=(8, 8))
         self.set_ratio_done = bool()
 
     def process(self, orig_img):
@@ -184,7 +183,7 @@ class PreprocessImg(object):
         # orig_img = cv2.blur(orig_img, (5, 5))
 
         mog_mask = self.mog2.apply(orig_img)
-
+        # filtered_mask = mog_mask
         filtered_mask = cv2.morphologyEx(mog_mask, cv2.MORPH_OPEN, self.f_kernel)
         # filtered_mask = cv2.blur(filtered_mask, (3, 3))
 
@@ -192,7 +191,7 @@ class PreprocessImg(object):
 
         # filtered_mask = cv2.morphologyEx(mog_mask, cv2.MORPH_OPEN, self.f_kernel)
 
-        # filled_mask = cv2.dilate(filled_mask    , None, iterations=conf.DILATE_ITERATIONS)
+        # filled_mask = cv2.dilate(filled_mask, None, iterations=conf.DILATE_ITERATIONS)
         # filled_mask = cv2.blur(filtered_mask, (3, 3))
         # filled_mask = cv2.morphologyEx(filtered_mask, cv2.MORPH_OPEN, self.f1_kernel)
 
@@ -303,11 +302,3 @@ class DataFrame(object):
             split_img[y:y+h, x:x + w] = split_mask[:, :]
 
         return split_img
-
-    @staticmethod
-    def take_frame_status(objects):
-        status_arr = list()
-        for obj in objects:
-            obj.gen_status = obj.base_status and not obj.br_status
-            status_arr.append(obj.gen_status)
-        return any(status_arr)

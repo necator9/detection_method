@@ -12,8 +12,8 @@ import logging
 ffmpeg_bin = r'ffmpeg'
 
 
-in_dir = '/home/ivan/ip_cam/res'
-out_dir = '/home/ivan/ip_cam/res_img'
+in_dir = '/home/ivan/experiments/sources/video/14/selected/test/'
+out_dir = '/home/ivan/experiments/sources/video/14/selected/test/res/'
 
 vid_paths = glob.glob(os.path.join(in_dir, '*.mp4'))
 

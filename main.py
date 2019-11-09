@@ -5,7 +5,7 @@ import time
 import conf
 import global_vars
 
-# import train_regression
+
 # from train_regression import TrainRegression
 import capturing
 import detection
@@ -44,28 +44,34 @@ def main():
     stop_event = threading.Event()
     stop_event.set()
 
-    data_frame_q = Queue.Queue(maxsize=5000)
-    draw_frame_q = Queue.Queue(maxsize=5000)
+    data_frame_q = Queue.Queue(maxsize=50)
+    draw_frame_q = Queue.Queue(maxsize=50)
     orig_img_q = Queue.Queue(maxsize=1)
 
     detection_thread = detection.Detection(stop_event, data_frame_q, draw_frame_q, orig_img_q)
     saver_thread = extentions.Saving(data_frame_q, draw_frame_q)
 
-    if conf.VIRTUAL_CAMERA:
-        capturing_thread = capturing.VirtualCamera(orig_img_q, stop_event)
-    else:
-        capturing_thread = capturing.Camera(orig_img_q, stop_event)
+    try:
+        if conf.VIRTUAL_CAMERA:
+            capturing_thread = capturing.VirtualCamera(orig_img_q, stop_event)
+        else:
+            capturing_thread = capturing.Camera(orig_img_q, stop_event)
 
-    if not (conf.WRITE_TO_DB or conf.WRITE_TO_PICKLE or conf.SAVE_VERBOSE or conf.SAVE_SINGLE):
-        saver_thread.start = blank_fn
-        saver_thread.quit = blank_fn
-        saver_thread.join = blank_fn
-        data_frame_q.put_nowait = blank_fn
-        data_frame_q.get = blank_fn
+        if not (conf.WRITE_TO_DB or conf.WRITE_TO_PICKLE or conf.SAVE_VERBOSE or conf.SAVE_SINGLE):
+            saver_thread.start = blank_fn
+            saver_thread.quit = blank_fn
+            saver_thread.join = blank_fn
+            data_frame_q.put_nowait = blank_fn
+            data_frame_q.get = blank_fn
 
-    if not conf.SAVE_VERBOSE:
-        draw_frame_q.put_nowait = blank_fn
-        draw_frame_q.get = blank_fn
+        if not conf.SAVE_VERBOSE:
+            draw_frame_q.put_nowait = blank_fn
+            draw_frame_q.get = blank_fn
+
+    except capturing.StartAppError:
+        stop_event.clear()
+        exit(1)
+
 
     saver_thread.start()
     capturing_thread.start()
