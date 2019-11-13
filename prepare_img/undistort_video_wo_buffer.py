@@ -12,8 +12,8 @@ import logging
 ffmpeg_bin = r'ffmpeg'
 
 
-in_dir = '/home/ivan/experiments/sources/video/14/selected/test/res/2/orig/'
-out_dir = '/home/ivan/experiments/sources/video/14/selected/test/res/2/corrected/'
+in_dir = '/home/ivan/experiments/sources/video/14/selected/test/res/day_hum_cyclist_03/orig/'
+out_dir = '/home/ivan/experiments/sources/video/14/selected/test/res/day_hum_cyclist_03/corrected/'
 
 vid_paths = glob.glob(os.path.join(in_dir, '*.mp4'))
 
@@ -25,7 +25,6 @@ dst = np.array([[-3.99390135e-01, -2.87038173e-01, -1.87622642e-03,  2.57836298e
 
 try:
     for vid_path in vid_paths:
-        data = []
         cap = cv2.VideoCapture(vid_path)
         logging.info('{} is processing'.format(vid_path))
 
@@ -34,35 +33,28 @@ try:
         fps = int(cap.get(5))
 
         name = os.path.split(vid_path)[1]
+        out_path = os.path.join(out_dir, name)
+
+        command = [ffmpeg_bin,
+                   '-y',
+                   '-f', 'rawvideo',
+                   '-vcodec', 'rawvideo',
+                   '-s', '{}x{}'.format(frame_width, frame_height),
+                   '-pix_fmt', 'bgr24',
+                   '-r', '{}'.format(fps),
+                   '-i', '-',
+                   '-an',
+                   '-vcodec', 'libx264',
+                   out_path]
+
+        proc = sp.Popen(command, stdin=sp.PIPE, stderr=sp.PIPE)
+
         while cap.isOpened():
             ret, img = cap.read()
             if ret:
                 img = cv2.undistort(img, mtx, dst)
-                data.append(img)
+                proc.stdin.write(img.tostring())
             else:
-                start = data[-200:]
-                start.reverse()
-                end = data[:-200]
-                dt = start + end
-                out_path = os.path.join(out_dir, name)
-
-                command = [ffmpeg_bin,
-                           '-y',
-                           '-f', 'rawvideo',
-                           '-vcodec', 'rawvideo',
-                           '-s', '{}x{}'.format(frame_width, frame_height),
-                           '-pix_fmt', 'bgr24',
-                           '-r', '{}'.format(fps),
-                           '-i', '-',
-                           '-an',
-                           '-vcodec', 'libx264',
-                           out_path]
-
-                proc = sp.Popen(command, stdin=sp.PIPE, stderr=sp.PIPE)
-
-                for i, img in enumerate(dt):
-                    proc.stdin.write(img.tostring())
-
                 proc.stdin.close()
                 proc.stderr.close()
                 proc.wait()

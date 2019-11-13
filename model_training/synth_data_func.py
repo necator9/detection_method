@@ -90,6 +90,41 @@ def find_obj_params4(m_o_vert, faces, height, pinhole_cam, rotate_y_angle, thr):
             return [d, c_a_rw, w_rw, h_rw, extent, x, y, w, h, c_a_px]
 
 
+def find_obj_params5(m_o_vert, faces, height, pinhole_cam, k_size, img_res):
+    k_size = int(k_size)
+    projections = np.array([pinhole_cam.get_point_projection(vertex) for vertex in m_o_vert], dtype='int32')
+
+    if len(projections) > 0:
+        mask = np.zeros((img_res[1], img_res[0]), np.uint8)
+
+        for face in faces:
+            poly = np.array([projections[i - 1] for i in face])
+            mask = cv2.fillPoly(mask, pts=[poly], color=255)
+
+        mask = cv2.blur(mask, (k_size, k_size))
+
+        _, mask = cv2.threshold(mask, 40, 255, cv2.THRESH_BINARY)
+        cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        c_a_pxs = [cv2.contourArea(cnt) for cnt in cnts]
+
+        if any(c_a_pxs):
+            c_a_px_i = c_a_pxs.index(max(c_a_pxs))
+            c_a_px = c_a_pxs[c_a_px_i]
+
+            b_r = x, y, w, h = cv2.boundingRect(cnts[c_a_px_i])
+            d = pinhole_cam.pixels_to_distance(height, y + h)
+
+            h_rw = pinhole_cam.get_height(height, d, b_r)
+            w_rw = pinhole_cam.get_width(height, d, b_r)
+
+            rect_area_rw = w_rw * h_rw
+            rect_area_px = w * h
+            extent = float(c_a_px) / rect_area_px
+            c_a_rw = c_a_px * rect_area_rw / rect_area_px
+
+            return [d, c_a_rw, w_rw, h_rw, extent, x, y, w, h, c_a_px]
+
+
 def parse_obj_file(path):
     step = 39.3701
     with open(path, "r") as fi:
@@ -108,7 +143,9 @@ def parse_obj_file1(path, flipZ):
         lines = fi.readlines()
 
     vertices = np.array([parse_string(ln) for ln in lines if ln.startswith("v")], dtype='float') / step
-    faces = np.array([parse_string(ln) for ln in lines if ln.startswith("f")], dtype='int')
+    # faces = np.array([parse_string(ln) for ln in lines if ln.startswith("f")], dtype='int')
+    faces = [parse_string(ln) for ln in lines if ln.startswith("f")]
+    faces = [[int(el) for el in ln] for ln in faces]
 
     vertices = np.hstack((vertices, np.ones((vertices.shape[0], 1))))
     if flipZ:

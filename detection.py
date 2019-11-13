@@ -22,8 +22,14 @@ poly.fit([[1, 2, 3, 4, 5, 6]])
 
 DETECTION_LOG = detection_logging.create_log("detection.log", "DETECTION THREAD")
 
-CLASSIFIER = pickle.load(open("/home/ivan/Downloads/clf_.pcl", "rb"))
-SCALER = pickle.load(open("/home/ivan/Downloads/scaler_.pcl", "rb"))
+# CLASSIFIER = pickle.load(open("/home/ivan/Downloads/clf_.pcl", "rb"))
+# SCALER = pickle.load(open("/home/ivan/Downloads/scaler_.pcl", "rb"))
+
+CLASSIFIER = pickle.load(open("/home/ivan/Downloads/clf_sel.pcl", "rb"))
+SCALER = pickle.load(open("/home/ivan/Downloads/scaler_sel.pcl", "rb"))
+
+# CLASSIFIER = pickle.load(open("/home/ivan/Downloads/clf_wo_ca.pcl", "rb"))
+# SCALER = pickle.load(open("/home/ivan/Downloads/scaler_wo_ca.pcl", "rb"))
 
 
 def init_pcm():
@@ -103,8 +109,8 @@ class ObjParams(object):
         #     raise CountorAreaTooSmall
 
         self.base_rect_ao = self.x_ao, self.y_ao, self.w_ao, self.h_ao = cv2.boundingRect(cnt_ao)
-        if not self.check_margin(margin=conf.MARGIN, img_res=conf.IMG_RES):
-            raise MarginCrossed
+        # if not self.check_margin(margin=conf.MARGIN, img_res=conf.IMG_RES):
+        #     raise MarginCrossed
 
         self.dist_ao = PINHOLE_CAM.pixels_to_distance(-conf.HEIGHT, self.y_ao + self.h_ao)
         if self.dist_ao <= 0:
@@ -149,7 +155,7 @@ class ObjParams(object):
 
     def classify(self):
         # if self.dist_ao < 30 and 0 < self.h_ao_rw < 5 and 0 < self.w_ao_rw < 8:
-        scaled_features = SCALER.transform([[self.w_ao_rw, self.h_ao_rw,   self.c_ao_rw,
+        scaled_features = SCALER.transform([[self.w_ao_rw, self.h_ao_rw,  self.c_ao_rw,
                                             self.dist_ao, -conf.HEIGHT,  -conf.ANGLE]])
         self.o_class = int(CLASSIFIER.predict(poly.transform(scaled_features)))
         # else:
@@ -168,10 +174,9 @@ class ObjParams(object):
 class PreprocessImg(object):
     def __init__(self):
         # self.mog2 = cv2.createBackgroundSubtractorMOG2(detectShadows=True) # , varThreshold=16
-        self.mog2 = cv2.createBackgroundSubtractorKNN(detectShadows=True)
+        self.mog2 = cv2.createBackgroundSubtractorKNN(detectShadows=True, history=1500)
         self.f_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-        self.f1_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-        self.clahe_adjust = cv2.createCLAHE(clipLimit=8.0, tileGridSize=(8, 8))
+        self.clahe_adjust = cv2.createCLAHE(clipLimit=10.0, tileGridSize=(8, 8))
         self.set_ratio_done = bool()
 
     def process(self, orig_img):
@@ -179,7 +184,7 @@ class PreprocessImg(object):
         # Update processing resolution according to one after resize (i.e. not correct res. is chosen by user)
         self.set_ratio(orig_img)
 
-        # orig_img = self.clahe_adjust.apply(orig_img)
+        orig_img = self.clahe_adjust.apply(orig_img)
         # orig_img = cv2.blur(orig_img, (5, 5))
 
         mog_mask = self.mog2.apply(orig_img)
@@ -191,7 +196,7 @@ class PreprocessImg(object):
 
         # filtered_mask = cv2.morphologyEx(mog_mask, cv2.MORPH_OPEN, self.f_kernel)
 
-        # filled_mask = cv2.dilate(filled_mask, None, iterations=conf.DILATE_ITERATIONS)
+        filled_mask = cv2.dilate(filled_mask, None, iterations=1)
         # filled_mask = cv2.blur(filtered_mask, (3, 3))
         # filled_mask = cv2.morphologyEx(filtered_mask, cv2.MORPH_OPEN, self.f1_kernel)
 
