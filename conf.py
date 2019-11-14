@@ -32,7 +32,8 @@ WRITE_TO_PICKLE = False
 # OUT_DIR = "/home/ivan/experiments/day_hum_cyclist_424x240_02/"
 # OUT_DIR = "/home/ivan/experiments/day_hum_cyclist_424x240_03/"
 # OUT_DIR = "/home/ivan/experiments/sources/clf_test/night/parking_pgc_01/res_clache"
-OUT_DIR = "/home/ivan/experiments/sources/clf_test/night/sc_2_parking_c_01/res_320x240"
+# OUT_DIR = "/home/ivan/experiments/sources/clf_test/night/sc_2_parking_pg_01/res_320x240_pcm_mog_clahe3"
+OUT_DIR = "/home/ivan/experiments/sources/clf_test/day/v_01/"
 #
 
 # OUT_DIR = "/home/ivan/experiments/group_TZK_wo_ca/"
@@ -59,9 +60,9 @@ PATH_TO_LOGS = "/home/ivan/logs/"
 # ANGLE = 21
 # HEIGHT = 3
 
-IN_DIR = '/home/ivan/experiments/sources/clf_test/night/sc_2_parking_g_01/src_320x240_grayscale/'
-ANGLE = 21
-HEIGHT = 3
+# IN_DIR = '/home/ivan/experiments/sources/clf_test/night/sc_2_parking_g_01/src_320x240_grayscale/'
+# ANGLE = 22 #1!!!!!!!!!!!!!!!1
+# HEIGHT = 3
 
 # IN_DIR = "/home/ivan/experiments/sources/bicyclist_random_filtered_renamed/"
 # ANGLE = 13
@@ -81,11 +82,10 @@ HEIGHT = 3
 # IN_DIR = "/home/ivan/experiments/sources/video/14/selected/test/res/1/img/"
 # IN_DIR = "/home/ivan/experiments/sources/video/14/selected/test/res/day_hum_cyclist_02/img/"
 # IN_DIR = "/home/ivan/experiments/sources/video/14/selected/test/res/day_hum_cyclist_03/img/"
+IN_DIR = '/home/ivan/experiments/sources/video/14/selected/v/movement_14_27_25.37/img/'
 
-# ANGLE = 16
-
-# ANGLE = 16.4801139558
-# HEIGHT = 4.982
+ANGLE = 16.4801139558
+HEIGHT = 4.982
 
 # IN_DIR = '/home/ivan/experiments/sources/TZK_january/3m_4l/bicycle_renamed/'
 # ANGLE = 21

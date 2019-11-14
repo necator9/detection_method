@@ -37,11 +37,14 @@ def init_pcm():
     w_ccd = 3.4509432207429906
     h_ccd = 1.937355215491415
 
-    # return pcm.PinholeCameraModel(rw_angle=-conf.ANGLE, f_l=f_l, w_ccd=w_ccd, h_ccd=h_ccd,
-    #                               img_res=conf.IMG_RES)
-
-    return pcm.PinholeCameraModel(rw_angle=-conf.ANGLE, f_l=40, w_ccd=36, h_ccd=26.5,
+    # f_l = 0.73
+    # w_ccd, h_ccd = 0.6, 0.5363504906095236
+    #
+    return pcm.PinholeCameraModel(rw_angle=-conf.ANGLE, f_l=f_l, w_ccd=w_ccd, h_ccd=h_ccd,
                                   img_res=conf.IMG_RES)
+
+    # return pcm.PinholeCameraModel(rw_angle=-conf.ANGLE, f_l=40, w_ccd=36, h_ccd=26.5,
+    #                               img_res=conf.IMG_RES)
 
 
 PINHOLE_CAM = init_pcm()
@@ -173,10 +176,10 @@ class ObjParams(object):
 
 class PreprocessImg(object):
     def __init__(self):
-        # self.mog2 = cv2.createBackgroundSubtractorMOG2(detectShadows=True) # , varThreshold=16
-        self.mog2 = cv2.createBackgroundSubtractorKNN(detectShadows=True, history=1500)
+        self.mog2 = cv2.createBackgroundSubtractorMOG2(detectShadows=True, history=1500) # , varThreshold=16
+        # self.mog2 = cv2.createBackgroundSubtractorKNN(detectShadows=True, history=1500)
         self.f_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-        self.clahe_adjust = cv2.createCLAHE(clipLimit=10.0, tileGridSize=(8, 8))
+        self.clahe_adjust = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
         self.set_ratio_done = bool()
 
     def process(self, orig_img):
@@ -184,7 +187,7 @@ class PreprocessImg(object):
         # Update processing resolution according to one after resize (i.e. not correct res. is chosen by user)
         self.set_ratio(orig_img)
 
-        orig_img = self.clahe_adjust.apply(orig_img)
+        # orig_img = self.clahe_adjust.apply(orig_img)
         # orig_img = cv2.blur(orig_img, (5, 5))
 
         mog_mask = self.mog2.apply(orig_img)

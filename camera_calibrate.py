@@ -15,7 +15,7 @@ imgpoints = [] # 2d points in image plane.
 
 nm = '/home/ivan/chessboard.mp4'
 nm = '/home/ivan/Desktop/webcam_callib.mp4'
-nm = '/home/ivan/Desktop/webcam_callib_320x240.mp4'
+nm = '/home/ivan/Desktop/webcam_callib_320x240_2.mp4'
 
 
 cap = cv2.VideoCapture(nm)
