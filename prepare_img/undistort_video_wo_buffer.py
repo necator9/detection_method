@@ -12,8 +12,8 @@ import logging
 ffmpeg_bin = r'ffmpeg'
 
 
-in_dir = '/home/ivan/experiments/sources/video/14/selected/v/movement_14_28_25.97/'
-out_dir = '/home/ivan/experiments/sources/video/14/selected/v/movement_14_28_25.97/corrected/'
+in_dir = '/home/ivan/experiments/sources/clf_test/night/v/'
+out_dir = '/home/ivan/experiments/sources/clf_test/night/v/'
 
 vid_paths = glob.glob(os.path.join(in_dir, '*.mp4'))
 
@@ -33,7 +33,7 @@ try:
         fps = int(cap.get(5))
 
         name = os.path.split(vid_path)[1]
-        out_path = os.path.join(out_dir, name)
+        out_path = os.path.join(out_dir, '{}_{}'.format('corrected', name))
 
         command = [ffmpeg_bin,
                    '-y',

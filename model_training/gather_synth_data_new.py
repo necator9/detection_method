@@ -6,7 +6,7 @@ import pandas as pd
 import sys
 
 from synth_data_func import parse_obj_file1, scale_to_size, center_obj, get_kernel_size, find_obj_params5, \
-    rotate_y
+    rotate_y, scale_to_size_all
 from pinhole_camera_model import PinholeCameraModel
 
 
@@ -16,15 +16,20 @@ def str2bool(v):
 
 f_name = sys.argv[1]
 flipZ = str2bool(sys.argv[2])
-h_min = float(sys.argv[3])
-h_max = float(sys.argv[4])
+h_min = 1.3
+h_max = 1.6
+w_min = 0.7
+w_max = 0.8
 
 vertices, faces = parse_obj_file1(f_name, flipZ)
 
 obj = np.copy(vertices)
 
 hh_range = np.linspace(h_min, h_max, 3)  # car 10 # pair 8
-dimensions = [(0, h, 0) for h in hh_range]
+ww_range = np.linspace(w_min, w_max, 3)
+zz_range = [0.8]
+# dimensions = [(0, h, 0) for h in hh_range]
+dimensions = itertools.product(ww_range, hh_range, zz_range)
 
 # cam_angle = np.arange(0, -70, -5)
 cam_angle = [-13, -16, -21]
@@ -44,7 +49,7 @@ thr_range = np.linspace(7, 15, 2)
 iter_params = list(itertools.product(x_range, y_range, z_range, thr_range))
 data = []
 
-lens = np.prod([len(i) for i in (hh_range, cam_angle, x_range, y_range, z_range, rotate_y_angle_range,
+lens = np.prod([len(i) for i in (hh_range, ww_range, zz_range, cam_angle, x_range, y_range, z_range, rotate_y_angle_range,
                                  thr_range)])
 print ("total iterations: {}".format(lens))
 it = 0
@@ -56,11 +61,13 @@ h_ccd = 1.937355215491415
 
 try:
     for angle in cam_angle:
+        print(angle)
         pinhole_cam = PinholeCameraModel(rw_angle=angle, f_l=f_l, w_ccd=w_ccd, h_ccd=h_ccd, img_res=img_res)
         # pinhole_cam = PinholeCameraModel(rw_angle=angle, f_l=40., w_ccd=36., h_ccd=26.5, img_res=[1280, 720])
         for dim in dimensions:
+
             for rotate_y_angle in rotate_y_angle_range:
-                obj = scale_to_size(dim, obj)
+                obj = scale_to_size_all(dim, obj)
                 obj_size = [obj[:, i].max() - obj[:, i].min() for i in range(3)]
                 obj = center_obj(obj)
                 kernel_size = get_kernel_size(rotate_y_angle, (1, 13))

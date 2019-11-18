@@ -1,15 +1,19 @@
 # Camera parameters
-DEVICE = "/home/ivan/experiments/sources/video/14/selected/test/res/movement_14_4_1.5.mp4"
+# DEVICE = "/home/ivan/experiments/sources/clf_test/day/added_to_dataset/pgc_01/movement_14_4_1.5_corrected.mp4"
+DEVICE = "/home/ivan/experiments/sources/clf_test/day/added_to_dataset/p_01/corrected_movement_18_46_45.42.mp4"
+
 RESOLUTION = [1280, 720]
 FPS = 24
 
-# Virtual camera parameters
-VIRTUAL_CAMERA = True
+VIRTUAL_CAMERA = False
 
-# Detection parameters
-IMG_RES = [320, 240]      # Width and height of an image to resize for processing
+IMG_RES = [424, 240]      # Width and height of an image to resize for processing
 # IMG_RES = [1280, 720]
 
+COLOR = 1
+CLAHE_LIMIT = 3         # For grayscale images only (COLOR = 0)
+BGS_METHOD = 'MOG2'
+DILATE_ITERATIONS = 1
 
 MARGIN = 1
 
@@ -33,7 +37,7 @@ WRITE_TO_PICKLE = False
 # OUT_DIR = "/home/ivan/experiments/day_hum_cyclist_424x240_03/"
 # OUT_DIR = "/home/ivan/experiments/sources/clf_test/night/parking_pgc_01/res_clache"
 # OUT_DIR = "/home/ivan/experiments/sources/clf_test/night/sc_2_parking_pg_01/res_320x240_pcm_mog_clahe3"
-OUT_DIR = "/home/ivan/experiments/sources/clf_test/day/v_01/"
+
 #
 
 # OUT_DIR = "/home/ivan/experiments/group_TZK_wo_ca/"
@@ -50,43 +54,28 @@ LOG_LEVEL = "INFO"
 # PATH_TO_LOGS = "/root/logs/"
 PATH_TO_LOGS = "/home/ivan/logs/"
 
-# # Camera installation parameters
-# IN_DIR = '/home/ivan/experiments/sources/TZK_january/3m_4l/random_renamed/'
-# ANGLE = 21
-# HEIGHT = 3
-
-# # Camera installation parameters
-# IN_DIR = '/home/ivan/experiments/sources/TZK_january/3m_4l/ped_renamed/'
-# ANGLE = 21
-# HEIGHT = 3
-
+# Camera installation parameters
 # IN_DIR = '/home/ivan/experiments/sources/clf_test/night/sc_2_parking_g_01/src_320x240_grayscale/'
-# ANGLE = 22 #1!!!!!!!!!!!!!!!1
+# IN_DIR = '/home/ivan/experiments/sources/clf_test/night/sc_2_parking_c_01/src_320x240_grayscale/'
+# OUT_DIR = '/home/ivan/experiments/sources/clf_test/night/sc_2_parking_c_01/res_320x240/'
+# ANGLE = 22
 # HEIGHT = 3
-
-# IN_DIR = "/home/ivan/experiments/sources/bicyclist_random_filtered_renamed/"
-# ANGLE = 13
-# HEIGHT = 3.1
+# FL = 0.73
+# WCCD = 0.6
+# HCCD = 0.5363504906095236
 
 # IN_DIR = "/home/ivan/experiments/sources/clf_test/night/parking_pgc_01/src_424x480_grayscale/"
 # IN_DIR = "/home/ivan/experiments/sources/clf_test/night/parking_c_01/src_424x480_grayscale/"
 # ANGLE = 13
 # HEIGHT = 3.1
+# FL = 40
+# WCCD = 36
+# HCCD = 26.5
 
-# IN_DIR = "/home/ivan/experiments/sources/chaos_renamed/"
-# ANGLE = 13
-# HEIGHT = 3.1
 
-# IN_DIR = '/home/ivan/experiments/sources/video/14/selected/test/res/3/img/'
-# IN_DIR = "/home/ivan/experiments/sources/video/2/cyclist/img/"
-# IN_DIR = "/home/ivan/experiments/sources/video/14/selected/test/res/1/img/"
-# IN_DIR = "/home/ivan/experiments/sources/video/14/selected/test/res/day_hum_cyclist_02/img/"
-# IN_DIR = "/home/ivan/experiments/sources/video/14/selected/test/res/day_hum_cyclist_03/img/"
-IN_DIR = '/home/ivan/experiments/sources/video/14/selected/v/movement_14_27_25.37/img/'
-
-ANGLE = 16.4801139558
+OUT_DIR = '/home/ivan/experiments/sources/clf_test/day/added_to_dataset/p_01/res_424x240_new_clf'
+ANGLE = 17 # 17# 16.4801139558 #
 HEIGHT = 4.982
-
-# IN_DIR = '/home/ivan/experiments/sources/TZK_january/3m_4l/bicycle_renamed/'
-# ANGLE = 21
-# HEIGHT = 3
+FL = 3.6
+WCCD = 3.4509432207429906
+HCCD = 1.937355215491415

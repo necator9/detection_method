@@ -3,7 +3,6 @@ from __future__ import division
 import threading
 
 import cv2
-from imutils import resize
 import numpy as np
 import Queue
 
@@ -11,6 +10,7 @@ import conf
 from extentions import MultipleImagesFrame, TimeCounter
 import detection_logging
 import pinhole_camera_model as pcm
+from pre_processing import PreprocessImg
 
 import pickle
 from sklearn.linear_model import LogisticRegression
@@ -25,29 +25,18 @@ DETECTION_LOG = detection_logging.create_log("detection.log", "DETECTION THREAD"
 # CLASSIFIER = pickle.load(open("/home/ivan/Downloads/clf_.pcl", "rb"))
 # SCALER = pickle.load(open("/home/ivan/Downloads/scaler_.pcl", "rb"))
 
-CLASSIFIER = pickle.load(open("/home/ivan/Downloads/clf_sel.pcl", "rb"))
-SCALER = pickle.load(open("/home/ivan/Downloads/scaler_sel.pcl", "rb"))
+# CLASSIFIER = pickle.load(open("/home/ivan/Downloads/clf_sel.pcl", "rb"))
+# SCALER = pickle.load(open("/home/ivan/Downloads/scaler_sel.pcl", "rb"))
+
+CLASSIFIER = pickle.load(open("/home/ivan/Downloads/clf_sel_new.pcl", "rb"))
+SCALER = pickle.load(open("/home/ivan/Downloads/scaler_sel_new.pcl", "rb"))
 
 # CLASSIFIER = pickle.load(open("/home/ivan/Downloads/clf_wo_ca.pcl", "rb"))
 # SCALER = pickle.load(open("/home/ivan/Downloads/scaler_wo_ca.pcl", "rb"))
 
 
-def init_pcm():
-    f_l = 3.6
-    w_ccd = 3.4509432207429906
-    h_ccd = 1.937355215491415
-
-    # f_l = 0.73
-    # w_ccd, h_ccd = 0.6, 0.5363504906095236
-    #
-    return pcm.PinholeCameraModel(rw_angle=-conf.ANGLE, f_l=f_l, w_ccd=w_ccd, h_ccd=h_ccd,
-                                  img_res=conf.IMG_RES)
-
-    # return pcm.PinholeCameraModel(rw_angle=-conf.ANGLE, f_l=40, w_ccd=36, h_ccd=26.5,
-    #                               img_res=conf.IMG_RES)
-
-
-PINHOLE_CAM = init_pcm()
+PINHOLE_CAM = pcm.PinholeCameraModel(rw_angle=-conf.ANGLE, f_l=conf.FL, w_ccd=conf.WCCD, h_ccd=conf.HCCD,
+                                     img_res=conf.IMG_RES)
 
 
 class Detection(threading.Thread):
@@ -172,49 +161,6 @@ class ObjParams(object):
         status = l_m < self.x_ao and self.x_ao + self.w_ao < r_m and u_m < self.y_ao and self.y_ao + self.h_ao < d_m
 
         return status
-
-
-class PreprocessImg(object):
-    def __init__(self):
-        self.mog2 = cv2.createBackgroundSubtractorMOG2(detectShadows=True, history=1500) # , varThreshold=16
-        # self.mog2 = cv2.createBackgroundSubtractorKNN(detectShadows=True, history=1500)
-        self.f_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-        self.clahe_adjust = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
-        self.set_ratio_done = bool()
-
-    def process(self, orig_img):
-        orig_img = resize(orig_img, height=conf.IMG_RES[1])
-        # Update processing resolution according to one after resize (i.e. not correct res. is chosen by user)
-        self.set_ratio(orig_img)
-
-        # orig_img = self.clahe_adjust.apply(orig_img)
-        # orig_img = cv2.blur(orig_img, (5, 5))
-
-        mog_mask = self.mog2.apply(orig_img)
-        # filtered_mask = mog_mask
-        filtered_mask = cv2.morphologyEx(mog_mask, cv2.MORPH_OPEN, self.f_kernel)
-        # filtered_mask = cv2.blur(filtered_mask, (3, 3))
-
-        _, filled_mask = cv2.threshold(filtered_mask, 170, 255, cv2.THRESH_BINARY)
-
-        # filtered_mask = cv2.morphologyEx(mog_mask, cv2.MORPH_OPEN, self.f_kernel)
-
-        filled_mask = cv2.dilate(filled_mask, None, iterations=1)
-        # filled_mask = cv2.blur(filtered_mask, (3, 3))
-        # filled_mask = cv2.morphologyEx(filtered_mask, cv2.MORPH_OPEN, self.f1_kernel)
-
-        return orig_img, mog_mask, filtered_mask, filled_mask
-
-    def set_ratio(self, img):
-        if not self.set_ratio_done:
-            self.set_ratio_done = True
-            actual_w, actual_h = img.shape[:2][1], img.shape[:2][0]
-            DETECTION_LOG.info("Processing resolution: {}x{}".format(actual_w, actual_h))
-
-            if conf.IMG_RES[0] != actual_w or conf.IMG_RES[1] != actual_h:
-                conf.IMG_RES[0], conf.IMG_RES[1] = actual_w, actual_h
-                global PINHOLE_CAM
-                PINHOLE_CAM = init_pcm()
 
 
 class DataFrame(object):

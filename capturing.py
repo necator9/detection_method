@@ -42,7 +42,7 @@ class VirtualCamera(threading.Thread):
         CAPTURING_LOG.debug("Virtual camera thread has started")
 
         for img_path in self.img_paths:
-            image = cv2.imread(img_path) # , 0
+            image = cv2.imread(img_path, conf.COLOR)
             self.orig_img_q.put(image, block=True)
 
             global_vars.COUNTER += 1
@@ -75,11 +75,12 @@ class Camera(threading.Thread):
 
             if not read_ok:
                 CAPTURING_LOG.error("Capturing failed")
+                self.quit()
 
                 break
 
             try:
-                self.orig_img_q.put(image, timeout=2)
+                self.orig_img_q.put(image, block=True)
             except Queue.Full:
                 CAPTURING_LOG.warning("orig_img_q is full, next iteration")
 
@@ -103,4 +104,5 @@ class Camera(threading.Thread):
 
     def quit(self):
         self.camera.release()
+        self.stop_event.clear()
         CAPTURING_LOG.info("Exiting the Camera thread...")

@@ -54,13 +54,8 @@ points_amount = 3000
 pd_all_data = pd.read_csv(sys.argv[1] + '/all_data.csv')
 pd_all_data.y_rw = pd_all_data.y_rw.round(1)
 
-# angle_rg = np.arange(0, -70, -5)
-# height_rg = np.arange(-2, -7, -0.2)
-# angle_rg = [-16]
-# height_rg = [-5]
-
-height_rg = [-3, -3.1, -5]
-angle_rg = [-13, -16, -21]
+angle_rg = pd_all_data.angle.unique()
+height_rg = pd_all_data.y_rw.unique()
 
 lens = len(angle_rg) * len(height_rg)
 it_params = itertools.product(angle_rg, height_rg)

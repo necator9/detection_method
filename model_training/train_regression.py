@@ -25,7 +25,7 @@ logging.info('Data shape: {0}'.format(pd_all_data.shape))
 training_data = np.vstack((pd_all_data.w_rw, pd_all_data.h_rw, pd_all_data.c_a_rw, pd_all_data.d,
                            pd_all_data.y_rw, pd_all_data.angle, pd_all_data.o_class)).T
 
-features_cols = [0, 1, 3, 4, 5]  # range(6)  #
+features_cols = range(6)  # [0, 1, 3, 4, 5]
 X_ = training_data[:, features_cols]
 y_ = training_data[:, -1]
 
@@ -47,8 +47,8 @@ logging.info('Recall - R=TP/TP+FN: {} '.format(recall_score(y_test, clf.predict(
 logging.info('F1 score - F1=2*(P*R)/(P+R): {}\n'.format(f1_score(y_test, clf.predict(X_test), average=None)))
 logging.info(confusion_matrix(y_test, clf.predict(X_test), labels=[0, 1, 2, 3, 4]))
 
-with open('clf/clf_sel.pcl', 'wb') as handle:
+with open('clf/clf_sel_new.pcl', 'wb') as handle:
     pickle.dump(clf, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-with open('clf/scaler_sel.pcl', 'wb') as handle:
+with open('clf/scaler_sel_new.pcl', 'wb') as handle:
     pickle.dump(scaler, handle, protocol=pickle.HIGHEST_PROTOCOL)
