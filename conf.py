@@ -7,12 +7,13 @@ HEIGHT = cam['height']
 FL = cam['fl']
 WCCD = cam['wccd']
 HCCD = cam['hccd']
-RESOLUTION = cam['img_res']
+RES = cam['img_res']
 FPS = 24
 
 # Device is either /dev/videoX or folder containing images when VIRTUAL_CAMERA == True
-DEVICE = '/home/ivan/experiments/sources/clf_test/night/added_to_dataset/sc_2_parking_pg_02/src_320x240_grayscale_corrected/'
-OUT_DIR = '/home/ivan/experiments/sources/clf_test/night/added_to_dataset/sc_2_parking_pg_02/res_320x240_wo_ca'
+DEVICE = '/home/ivan/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_c_01/src_424x480_grayscale/'
+OUT_DIR = '/home/ivan/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_c_01/res_{}x{}'.\
+        format(RES[0], RES[1])
 VIRTUAL_CAMERA = True
 
 # Pre-processing parameters

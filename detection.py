@@ -36,7 +36,7 @@ SCALER = pickle.load(open("/home/ivan/Downloads/scaler_sel_new.pcl", "rb"))
 
 
 PINHOLE_CAM = pcm.PinholeCameraModel(rw_angle=-conf.ANGLE, f_l=conf.FL, w_ccd=conf.WCCD, h_ccd=conf.HCCD,
-                                     img_res=conf.RESOLUTION)
+                                     img_res=conf.RES)
 
 
 class Detection(threading.Thread):
@@ -248,7 +248,7 @@ class DataFrame(object):
             return bin_mask
 
         # ex_filled_mask = np.zeros((conf.RESIZE_TO[1], conf.RESIZE_TO[0]), np.uint8) # create minimal image
-        split_img = np.zeros((conf.RESOLUTION[1], conf.RESOLUTION[0]), np.uint8)
+        split_img = np.zeros((conf.RES[1], conf.RES[0]), np.uint8)
 
         for obj in obj_to_split:
             x, y, w, h = obj.base_rect_ao

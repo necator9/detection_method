@@ -98,8 +98,8 @@ class Camera(threading.Thread):
             self.stop_event.clear()
 
         # Initial camera configuration
-        self.camera.set(3, conf.RESOLUTION[0])
-        self.camera.set(4, conf.RESOLUTION[1])
+        self.camera.set(3, conf.RES[0])
+        self.camera.set(4, conf.RES[1])
         self.camera.set(5, conf.FPS)
 
     def quit(self):
