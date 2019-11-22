@@ -14,6 +14,8 @@ def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
 
 
+pedestrian_proportional = {'height': [1.3, 1.9, 10], }
+
 f_name = sys.argv[1]
 flipZ = str2bool(sys.argv[2])
 h_min = float(sys.argv[3])
@@ -23,18 +25,18 @@ vertices, faces = parse_obj_file1(f_name, flipZ)
 
 obj = np.copy(vertices)
 
-hh_range = np.linspace(h_min, h_max, 3)  # car 10 # pair 8
+hh_range = np.linspace(h_min, h_max, 10)  # car 10 # pair 8
 dimensions = [(0, h, 0) for h in hh_range]
 
 # cam_angle = np.arange(0, -70, -5)
-cam_angle = [-13, -16, -21]
-# cam_angle = [-16]
+# cam_angle = [-13, -16, -21]
+cam_angle = [-16]
 
 
 x_range = np.arange(-8, 8, 2)
 # y_range = np.arange(-2, -7, -0.2)
-y_range = [-3, -3.1, -4.98]
-# y_range = [-4.98]
+# y_range = [-3, -3.1, -4.98]
+y_range = [-4.98]
 
 z_range = np.arange(1, 30, 1)
 

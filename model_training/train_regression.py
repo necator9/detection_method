@@ -25,7 +25,7 @@ logging.info('Data shape: {0}'.format(pd_all_data.shape))
 training_data = np.vstack((pd_all_data.w_rw, pd_all_data.h_rw, pd_all_data.c_a_rw, pd_all_data.d,
                            pd_all_data.y_rw, pd_all_data.angle, pd_all_data.o_class)).T
 
-features_cols = range(6)  # [0, 1, 3, 4, 5]
+features_cols = [0, 1, 3, 4, 5] # range(6)  #
 X_ = training_data[:, features_cols]
 y_ = training_data[:, -1]
 

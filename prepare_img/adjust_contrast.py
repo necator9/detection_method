@@ -10,8 +10,8 @@ def check_if_dir_exists(path):
 
 
 clahe_adjust = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(6, 6))
-in_path = "/home/ivan/experiments/sources/clf_test/night/sc_2_parking_g_01/src/"
-out_path = "/home/ivan/experiments/sources/clf_test/night/sc_2_parking_g_01/src_320x240_grayscale/"
+in_path = "/home/ivan/experiments/sources/clf_test/night/added_to_dataset/sc_2_parking_pg_02/src_320x240_grayscale/"
+out_path = "/home/ivan/experiments/sources/clf_test/night/added_to_dataset/sc_2_parking_pg_02/src_320x240_grayscale_corrected/"
 
 check_if_dir_exists(out_path)
 

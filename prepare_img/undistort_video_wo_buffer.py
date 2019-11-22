@@ -12,8 +12,8 @@ import logging
 ffmpeg_bin = r'ffmpeg'
 
 
-in_dir = '/home/ivan/experiments/sources/clf_test/night/v/'
-out_dir = '/home/ivan/experiments/sources/clf_test/night/v/'
+in_dir = '/home/ivan/experiments/sources/clf_test/day/added_to_dataset/c_02/'
+out_dir = '/home/ivan/experiments/sources/clf_test/day/added_to_dataset/c_02/'
 
 vid_paths = glob.glob(os.path.join(in_dir, '*.mp4'))
 

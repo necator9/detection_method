@@ -8,7 +8,8 @@ import cv2
 class PreprocessImg(object):
     def __init__(self):
         if conf.BGS_METHOD == 'MOG2':
-            self.bgs_method = cv2.createBackgroundSubtractorMOG2(detectShadows=True, history=1500, varThreshold=16)
+            self.bgs_method = cv2.createBackgroundSubtractorMOG2(detectShadows=True, history=1500,
+                                                                 varThreshold=conf.BG_THR)
         elif conf.BGS_METHOD == 'KNN':
             self.bgs_method = cv2.createBackgroundSubtractorKNN(detectShadows=True, history=1500)
         else:
