@@ -2,13 +2,15 @@ from __future__ import division
 
 import itertools
 import numpy as np
-import pandas as pd
 import sys
+import os
 
 from synth_data_func import parse_obj_file1, center_obj, get_kernel_size, find_obj_params5, \
-    rotate_y, scale_to_size_all, scale_to_size
+    rotate_y, scale_to_size_all, scale_to_size, write_to_csv
 from pinhole_camera_model import PinholeCameraModel
 
+
+OUT_FILE = os.path.join(sys.argv[2], '{}.csv'.format(sys.argv[1]))
 
 obj_info = {'woman_1': {'height': [1.4, 1.95, 10], 'width': [0, 0, 1], 'depth': [0, 0, 1],
                         'file': 'woman-1.obj', 'flipZ': True, 'rotate': [0, 90, 5], 'o_class': 1},
@@ -27,9 +29,12 @@ obj_info = {'woman_1': {'height': [1.4, 1.95, 10], 'width': [0, 0, 1], 'depth': 
             'tall_group_2': {'height': [2.0, 2.05, 3], 'width': [0, 0, 1], 'depth': [0, 0, 1],
                              'file': 'woman-1.obj', 'flipZ': True, 'rotate': [0, 90, 3], 'o_class': 2},
             'cyclist_1': {'height': [1.65, 2.1, 9], 'width': [0, 0, 1], 'depth': [0, 0, 1],
-                          'file': 'cyclist-1.obj', 'flipZ': False, 'rotate': [70, 90, 3], 'o_class': 3},
+                          'file': 'cyclist-1.obj', 'flipZ': False, 'rotate': [65, 90, 3], 'o_class': 3},
             'disp_car': {'height': [1.35, 2, 15], 'width': [1.8, 1.8, 1], 'depth': [3.8, 5, 15],
-                         'file': 'car-3.obj', 'flipZ': True, 'rotate': [90, 90, 1], 'o_class': 4}}
+                         'file': 'car-3.obj', 'flipZ': True, 'rotate': [90, 90, 1], 'o_class': 4},
+            'car_1': {'height': [1.4, 2, 10], 'width': [0, 0, 1], 'depth': [0, 0, 1],
+                      'file': 'car-3.obj', 'flipZ': True, 'rotate': [60, 90, 4], 'o_class': 4}
+            }
 
 working_obj = obj_info[sys.argv[1]]
 
@@ -43,29 +48,24 @@ zz_range = np.linspace(*working_obj['depth'])
 scale = scale_to_size if sum(ww_range + zz_range) == 0 else scale_to_size_all
 dimensions = list(itertools.product(ww_range, hh_range, zz_range))
 
-# cam_angle = np.arange(0, -70, -5)
-# cam_angle = [-13, -16, -21]
-cam_angle = [-16]
-
-
+cam_angle = np.arange(0, -70, -3)  # [-13, -16, -21]  #  [-16]
 x_range = np.arange(-8, 8, 2)
-# y_range = np.arange(-2, -7, -0.2)
-# y_range = [-3, -3.1, -4.98]
-y_range = [-4.98]
-
-z_range = np.arange(1, 30, 0.3)
+y_range = np.arange(-2, -7, -0.2)  # [-3, -3.1, -4.98]  #  [-4.98]
+z_range = np.arange(1, 30, 1)
 
 rotate_y_angle_range = np.linspace(*working_obj['rotate'])
 
 thr_range = np.linspace(7, 15, 2)
 iter_params = list(itertools.product(x_range, y_range, z_range, thr_range))
 data = []
+header = True
 
-lens = np.prod([len(i) for i in (hh_range, ww_range, zz_range, cam_angle, x_range, y_range, z_range, rotate_y_angle_range,
-                                 thr_range)])
-print ("total iterations: {}".format(lens))
+lens = np.prod([len(i) for i in (hh_range, ww_range, zz_range, cam_angle, x_range, y_range, z_range,
+                                 rotate_y_angle_range, thr_range)])
+print("total iterations: {}".format(lens))
 it = 0
 
+# Intrinsic camera parameters
 img_res = [1280, 720]
 f_l = 3.6
 w_ccd = 3.4509432207429906
@@ -88,19 +88,17 @@ try:
                     params = find_obj_params5(m_o_vert, faces, y, pinhole_cam, thr, img_res)
                     if params != None:
                         data.append(params + [x, y, z, rotate_y_angle] + obj_size +
-                                    [angle, thr, working_obj['o_class']])
+                                    [angle, thr, working_obj['o_class'], sys.argv[1]])
+
+                    if it % 1000 == 0:
+                        print('{:10.2f}, {}\n'.format(it / lens * 100, it))
+
+                    if it % 100000 == 0:
+                        header, data = write_to_csv(header, data, OUT_FILE)
 
                     it += 1
-                    if it % 1000 == 0:
-                        print ('{:10.2f}, {}\n'.format(it / lens * 100, it))
-
 
 except KeyboardInterrupt:
     pass
 
-df_data = pd.DataFrame(data,
-                       columns=['d', 'c_a_rw', 'w_rw', 'h_rw', 'extent', 'x', 'y', 'w', 'h', 'c_a_px',
-                                'x_rw', 'y_rw', 'z_rw', 'y_rotation', 'width', 'height', 'depth', 'angle',
-                                'thr', 'o_class'])
-
-df_data.to_csv('csv_plot/{}.csv'.format(sys.argv[1]))
+header, data = write_to_csv(header, data, OUT_FILE)

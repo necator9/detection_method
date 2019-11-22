@@ -3,6 +3,7 @@ import numpy as np
 import pickle
 import logging
 import sys
+import os
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import PolynomialFeatures
@@ -13,19 +14,23 @@ from sklearn.metrics import precision_score, recall_score, confusion_matrix, f1_
 
 logging.basicConfig(level=logging.INFO)
 
+
 # Target group
-target = pd.read_csv(sys.argv[1] + '/all_data.csv')
+target = pd.read_csv(sys.argv[1] + '/all_data.csv', dtype={"o_class": int})
+logging.info('Target shape: {0}'.format(target.shape))
 
 # Noise objects
-df_noise = pd.read_csv(sys.argv[1] + '/new_noises_3000.csv')
+df_noise = pd.read_csv(sys.argv[1] + '/noises.csv', dtype={"o_class": int})
+logging.info('Noise shape: {0}'.format(df_noise.shape))
 
 pd_all_data = pd.concat([target, df_noise], sort=False)
 logging.info('Data shape: {0}'.format(pd_all_data.shape))
 
+
 training_data = np.vstack((pd_all_data.w_rw, pd_all_data.h_rw, pd_all_data.c_a_rw, pd_all_data.d,
                            pd_all_data.y_rw, pd_all_data.angle, pd_all_data.o_class)).T
 
-features_cols = [0, 1, 3, 4, 5] # range(6)  #
+features_cols = [0, 1, 3, 4, 5]  # range(6)  #
 X_ = training_data[:, features_cols]
 y_ = training_data[:, -1]
 
@@ -47,8 +52,8 @@ logging.info('Recall - R=TP/TP+FN: {} '.format(recall_score(y_test, clf.predict(
 logging.info('F1 score - F1=2*(P*R)/(P+R): {}\n'.format(f1_score(y_test, clf.predict(X_test), average=None)))
 logging.info(confusion_matrix(y_test, clf.predict(X_test), labels=[0, 1, 2, 3, 4]))
 
-with open('clf/clf_sel_new.pcl', 'wb') as handle:
+with open(os.path.join(sys.argv[1], 'updated_clf.pcl'), 'wb') as handle:
     pickle.dump(clf, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-with open('clf/scaler_sel_new.pcl', 'wb') as handle:
+with open(os.path.join(sys.argv[1], 'updated_scaler.pcl'), 'wb') as handle:
     pickle.dump(scaler, handle, protocol=pickle.HIGHEST_PROTOCOL)

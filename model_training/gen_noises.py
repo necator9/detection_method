@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import logging
 import sys
+import os
 
 logging.basicConfig(level=logging.INFO)
 
@@ -51,22 +52,21 @@ def gen_w_h(hulls_, points_amount_, w_rg_, h_rg_):
 
 points_amount = 3000
 
-pd_all_data = pd.read_csv(sys.argv[1] + '/all_data.csv')
-pd_all_data.y_rw = pd_all_data.y_rw.round(1)
+data = pd.read_csv(os.path.join(sys.argv[1], 'all_data.csv'))
 
-angle_rg = pd_all_data.angle.unique()
-height_rg = pd_all_data.y_rw.unique()
+angle_rg = data.angle.unique()
+height_rg = data.y_rw.unique()
 
 lens = len(angle_rg) * len(height_rg)
 it_params = itertools.product(angle_rg, height_rg)
 
 noise = pd.DataFrame(columns=['w_rw', 'h_rw', 'c_a_rw', 'd', 'angle', 'y_rw', 'o_class'])
 
+print(angle_rg, height_rg)
 it = 0
 for angle, height in it_params:
     try:
-        a_h_data = pd_all_data[(pd_all_data.o_class != 0) & (pd_all_data.angle == angle)
-                               & (pd_all_data.y_rw == round(height, 1))]
+        a_h_data = data[(data.o_class != 0) & (data.angle == angle) & (data.y_rw == height)]
         w_rg = find_rg((a_h_data.w_rw.min(), a_h_data.w_rw.max()))
         h_rg = find_rg((a_h_data.h_rw.min(), a_h_data.h_rw.max()))
 
@@ -84,7 +84,8 @@ for angle, height in it_params:
         w_h = gen_w_h(hulls, points_amount, w_rg, h_rg)
 
         d_rg = find_rg((a_h_data.d.min(), a_h_data.d.max()), margin=0.5)
-        d = np.expand_dims(np.array([round(i) for i in np.random.uniform(*d_rg, size=[points_amount, 1])]), axis=1)
+        # d = np.expand_dims(np.array([round(i) for i in np.random.uniform(*d_rg, size=[points_amount, 1])]), axis=1)
+        d = np.random.uniform(*d_rg, size=[points_amount, 1])
 
         mu, sigma = 0.5, 0.1
         ca = np.random.normal(mu, sigma, size=[points_amount, 1]) * np.expand_dims(w_h[:, 0], axis=1) * np.expand_dims(
@@ -102,4 +103,4 @@ for angle, height in it_params:
         print("No such angle {} or height {}".format(angle, height))
 
 
-noise.to_csv("new_noises_{}.csv".format(points_amount))
+noise.to_csv(os.path.join(sys.argv[1], 'noises.csv'))

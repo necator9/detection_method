@@ -3,8 +3,12 @@ import numpy as np
 import cv2
 import pyblur
 import os
+import pandas as pd
 
-from pinhole_camera_model import clip_poly
+
+def check_if_dir_exists(path):
+    if not os.path.isdir(path):
+        os.makedirs(path)
 
 
 def find_obj_params1(m_o_vert, faces, height, pinhole_cam, kernel_size):
@@ -243,3 +247,14 @@ def get_kernel_size(angle, min_max_k):
 
 def round_down_to_odd(f):
     return abs(np.ceil(f) // 2 * 2 - 1)
+
+
+def write_to_csv(header_, data_, out_file):
+    df = pd.DataFrame(data_, columns=['d', 'c_a_rw', 'w_rw', 'h_rw', 'extent', 'x', 'y', 'w', 'h', 'c_a_px',
+                                      'x_rw', 'y_rw', 'z_rw', 'y_rotation', 'width', 'height', 'depth', 'angle',
+                                      'thr', 'o_class', 'nm'])
+
+    with open(out_file, 'a') as f:
+        df.to_csv(f, header=header_)
+
+    return False, []
