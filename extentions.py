@@ -118,10 +118,10 @@ class Database(object):
     def write_table(self):
         SAVER_LOG.debug("Database table has been written")
 
-        self.cur.execute('''CREATE TABLE {} (Img_name TEXT, Obj_id INT, Rect_coeff_diff REAL, Rect_coeff_ro REAL, 
-        Rect_coeff_ao REAL, dist_ao REAL, c_a_ro REAL, c_a_ao REAL, Extent REAL, Status TEXT, Base_status TEXT, 
-        Br_status TEXT, Br_ratio REAL, h_w_ratio_ao REAL, Br_cross_area INT, x_ao INT, y_ao INT, w_ao INT, h_ao INT, 
-        x_ro INT, y_ro INT, w_ro INT, h_ro INT, o_class INT, c_a_rw REAL, w_rw REAL, h_rw REAL)'''.format(self.table_name))
+        self.cur.execute('''CREATE TABLE {} (Img_name TEXT, Obj_id INT,
+        Rect_coeff_ao REAL, dist_ao REAL, c_a_ao REAL, Extent REAL, Binary_status TEXT, 
+        h_w_ratio_ao REAL, x_ao INT, y_ao INT, w_ao INT, h_ao INT, 
+        o_class INT, c_a_rw REAL, w_rw REAL, h_rw REAL)'''.format(self.table_name))
 
         self.db.commit()
 
@@ -130,17 +130,17 @@ class Database(object):
         img_name = str(SAVE_COUNTER)
         db_arr = self.get_base_params(d_frame.base_objects, img_name)
 
-        self.cur.executemany('''INSERT INTO {}(Img_name, Obj_id, Rect_coeff_diff, Rect_coeff_ro, Rect_coeff_ao, dist_ao, 
-        c_a_ro, c_a_ao, Extent, Status, Base_status, Br_status, Br_ratio, h_w_ratio_ao, Br_cross_area, x_ao, y_ao, w_ao, 
-        h_ao, x_ro, y_ro, w_ro, h_ro, o_class, c_a_rw, w_rw, h_rw) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''.
+        self.cur.executemany('''INSERT INTO {}(Img_name, Obj_id,  dist_ao, 
+        c_a_ao, Extent, Binary_status, h_w_ratio_ao, x_ao, y_ao, w_ao, 
+        h_ao, o_class, c_a_rw, w_rw, h_rw) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''.
                              format(self.table_name), db_arr)
 
         if len(d_frame.ex_objects) > 0:
             img_name += "_split"
             db_split_arr = self.get_base_params(d_frame.ex_objects, img_name)
-            self.cur.executemany('''INSERT INTO {}(Img_name, Obj_id, Rect_coeff_diff, Rect_coeff_ro, Rect_coeff_ao, 
-            dist_ao, c_a_ro, c_a_ao, Extent, Status, Base_status, Br_status, Br_ratio, h_w_ratio_ao,Br_cross_area, x_ao,
-            y_ao, w_ao, h_ao, x_ro, y_ro, w_ro, h_ro, o_class, c_a_rw, w_rw, h_rw) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''.
+            self.cur.executemany('''INSERT INTO {}(Img_name, Obj_id, 
+            dist_ao, c_a_ao, Extent, Binary_status, h_w_ratio_ao, x_ao,
+            y_ao, w_ao, h_ao, o_class, c_a_rw, w_rw, h_rw) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''.
                                  format(self.table_name), db_split_arr)
 
         self.db.commit()
@@ -152,10 +152,10 @@ class Database(object):
         if len(objects) > 0:
             for obj in objects:
                 db_arr.append(
-                    [img_name, obj.obj_id, obj.rect_coef_diff, obj.rect_coef_ro, obj.rect_coef_ao, obj.dist_ao,
-                     obj.c_a_ro, obj.c_a_ao, obj.extent_ao, str(obj.gen_status), str(obj.base_status),
-                     str(obj.br_status), obj.br_ratio, obj.h_w_ratio_ao, obj.br_cr_area, obj.x_ao, obj.y_ao, obj.w_ao,
-                     obj.h_ao, obj.x_ro, obj.y_ro, obj.w_ro, obj.h_ro, obj.o_class, obj.c_ao_rw, obj.w_ao_rw, obj.h_ao_rw])
+                    [img_name, obj.obj_id, obj.dist_ao,
+                     obj.c_a_ao, obj.extent_ao, str(obj.binary_status),
+                     obj.h_w_ratio_ao, obj.x_ao, obj.y_ao, obj.w_ao,
+                     obj.h_ao, obj.o_class, obj.c_ao_rw, obj.w_ao_rw, obj.h_ao_rw])
 
         return db_arr
 
@@ -235,9 +235,9 @@ class Draw(object):
 
         self.draw_img_structure = draw_frame
 
-        self.draw_img_structure.filled_mask.data = copy.copy(data_frame.filled)
-        self.draw_img_structure.rect_cont.data = copy.copy(data_frame.orig_img)
-        self.draw_img_structure.ex_rect_cont.data = copy.copy(data_frame.orig_img)
+        # self.draw_img_structure.filled_mask.data = copy.copy(data_frame.filled)
+        # self.draw_img_structure.rect_cont.data = copy.copy(data_frame.orig_img)
+        # self.draw_img_structure.ex_rect_cont.data = copy.copy(data_frame.orig_img)
 
         for attr, value in self.draw_img_structure.__dict__.iteritems():
             if len(value.data.shape) == 2:
@@ -255,10 +255,10 @@ class Draw(object):
         self.put_status(self.draw_img_structure.ex_status.data, data_frame.ex_frame_status)
 
         self.draw_rects(self.draw_img_structure.rect_cont.data, data_frame.base_objects)
-        self.draw_virual_object(self.draw_img_structure.rect_cont.data, data_frame.base_objects)
+        # self.draw_virual_object(self.draw_img_structure.rect_cont.data, data_frame.base_objects)
         self.draw_rects(self.draw_img_structure.ex_rect_cont.data, data_frame.ex_objects)
 
-        self.draw_rects_br_cr(self.draw_img_structure.rect_cont.data, data_frame.base_objects)
+        # self.draw_rects_br_cr(self.draw_img_structure.rect_cont.data, data_frame.base_objects)
 
         # self.__draw_contour_areas(self.cont.data, d_frame.base_contours)
         # self.__draw_contour_areas(self.rect_cont.data, d_frame.base_contours)

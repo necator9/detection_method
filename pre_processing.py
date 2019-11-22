@@ -19,7 +19,7 @@ class PreprocessImg(object):
         self.clahe_adjust = cv2.createCLAHE(clipLimit=conf.CLAHE_LIMIT, tileGridSize=(8, 8))
         self.set_ratio_done = bool()
 
-    def process(self, orig_img):
+    def apply(self, orig_img):
         orig_img = imutils.resize(orig_img, height=conf.RES[1])
         # Update processing resolution according to one after resize (i.e. not correct res. is chosen by user)
         self.set_ratio(orig_img)

@@ -53,7 +53,9 @@ class Detection(threading.Thread):
 
     def run(self):
         DETECTION_LOG.info("Detection has started")
-        prepare_img = PreprocessImg()
+        preprocessing = PreprocessImg()
+        steps = dict()
+
         while self.stop_event.is_set():
 
             self.timer.note_time()
@@ -65,13 +67,16 @@ class Detection(threading.Thread):
 
             try:
                 frame.orig_img = self.orig_img_q.get(timeout=2)
+                orig_img = frame.orig_img
             except Queue.Empty:
                 DETECTION_LOG.warning("Timeout reached, no items can be received from orig_img_q")
 
                 continue
 
-            frame.orig_img, draw.mog_mask.data, draw.filtered.data, frame.filled = prepare_img.process(frame.orig_img)
-            draw.bright_mask.data, draw.extent_split_mask.data = frame.calculate()
+            steps['resized_orig'], steps['mask'], steps['filtered'], steps['filled'] = preprocessing.apply(orig_img)
+            draw.mog_mask.data, draw.filtered.data, draw.filled_mask.data = steps['mask'], steps['filtered'], steps['filled']
+            draw.rect_cont.data = steps['resized_orig']
+            draw.bright_mask.data, draw.extent_split_mask.data = frame.calculate(steps['filled'])
 
             self.data_frame_q.put(frame, block=True)
             self.draw_frame_q.put(draw, block=True)
@@ -105,7 +110,7 @@ class ObjParams(object):
         #     raise MarginCrossed
 
         self.dist_ao = PINHOLE_CAM.pixels_to_distance(-conf.HEIGHT, self.y_ao + self.h_ao)
-        if self.dist_ao <= 0:
+        if self.dist_ao <= 0:  # or self.dist_ao > conf.MAX_DISTANCE:
             raise InfiniteDistance
 
         self.obj_id = obj_id
@@ -113,40 +118,20 @@ class ObjParams(object):
         # Calculate geom parameters of an actual object
         self.h_w_ratio_ao = self.h_ao / self.w_ao
         self.extent_ao = self.c_a_ao / (self.w_ao * self.h_ao)
-        # Generate virtual cuboid and calculate its geom parameters
-        self.c_a_ro, self.x_ro, self.y_ro, self.w_ro, self.h_ro = 0, 0, 0, 0, 0
-        self.rect_coef_ro = -1
-        self.rect_coef_diff = -1
-        self.rect_coef_ao = 0
 
         self.w_ao_rw = PINHOLE_CAM.get_width(-conf.HEIGHT, self.dist_ao, self.base_rect_ao)
         self.h_ao_rw = PINHOLE_CAM.get_height(-conf.HEIGHT, self.dist_ao, self.base_rect_ao)
 
         rect_area_ao_rw = self.w_ao_rw * self.h_ao_rw
         rect_area_ao = self.w_ao * self.h_ao
-        # Find from proportion
+
         self.c_ao_rw = self.c_a_ao * rect_area_ao_rw / rect_area_ao
 
-        self.base_status = bool()
-        self.br_status = bool()
-        self.gen_status = bool()
-
-        self.br_cr_rects = [[0, 0, 0, 0]]
-        self.br_cr_area = int()
-        self.br_ratio = float()
-
-        self.o_class = int()
-
-    def detect(self):
-        o_class = self.classify()
-
-        if o_class != 0:
-            self.base_status = True
-        else:
-            self.base_status = False
+        self.o_class = self.classify()
+        self.binary_status = self.o_class > 0
 
     def classify(self):
-        # if self.dist_ao < 30 and 0 < self.h_ao_rw < 5 and 0 < self.w_ao_rw < 8:
+        # if  0 < self.h_ao_rw < 5 and 0 < self.w_ao_rw < 8:
         scaled_features = SCALER.transform([[self.w_ao_rw, self.h_ao_rw,  #self.c_ao_rw,
                                             self.dist_ao, -conf.HEIGHT,  -conf.ANGLE]])
         self.o_class = int(CLASSIFIER.predict(poly.transform(scaled_features)))
@@ -165,8 +150,8 @@ class ObjParams(object):
 
 class DataFrame(object):
     def __init__(self):
-        self.orig_img = np.dtype('uint8')
-        self.filled = np.dtype('uint8')
+        # self.orig_img = np.dtype('uint8')
+        # self.filled = np.dtype('uint8')
 
         self.base_frame_status = None  # Can be False/True/None type
         self.ex_frame_status = None  # Can be False/True/None type
@@ -176,10 +161,9 @@ class DataFrame(object):
 
         self.br_rects = list()
 
-    def calculate(self):
-        self.base_objects, self.base_contours = self.basic_process(self.filled)
-        # bright_mask = self.calc_bright_coeff()
-        #
+    def calculate(self, filled):
+        self.base_objects, self.base_contours = self.basic_process(filled)
+
         split_obj_i = [[i, obj] for i, obj in enumerate(self.base_objects)
                        if obj.extent_ao < 0.5 and 2 < obj.w_ao_rw < 5 and obj.dist_ao < 30 and obj.h_ao_rw < 3]
 
@@ -187,7 +171,7 @@ class DataFrame(object):
         split_obj = [it[1] for it in split_obj_i]
 
         if len(split_obj_i) > 0:
-            split_mask = self.split_object(split_obj)
+            split_mask = self.split_object(split_obj, filled)
             self.ex_objects, _ = self.basic_process(split_mask)
 
             for ele in sorted(split_idx, reverse=True):
@@ -195,9 +179,9 @@ class DataFrame(object):
 
             self.base_objects += self.ex_objects
 
-        self.base_frame_status = any([obj.base_status for obj in self.base_objects])
+        self.base_frame_status = any([obj.binary_status for obj in self.base_objects])
 
-        return np.dtype('uint8'), self.filled
+        return np.dtype('uint8'), filled
 
     @staticmethod
     def basic_process(filled_mask):
@@ -207,15 +191,13 @@ class DataFrame(object):
 
         for obj_id, contour in enumerate(contours):
             try:
-                obj = ObjParams(obj_id, contour)
-                obj.detect()
-                objects.append(obj)
+                objects.append(ObjParams(obj_id, contour))
             except (CountorAreaTooSmall, InfiniteDistance, MarginCrossed):
                 continue
 
         return objects, contours
 
-    def split_object(self, obj_to_split):
+    def split_object(self, obj_to_split, filled):
         def make_split(bin_mask, fill=0.68, tail=0.25): # fill - amount of zeros in coloumn in percent ratio
             def calc_split_point(vector):
                 last_zero_ind, percent = 0, 0.0
@@ -247,12 +229,11 @@ class DataFrame(object):
 
             return bin_mask
 
-        # ex_filled_mask = np.zeros((conf.RESIZE_TO[1], conf.RESIZE_TO[0]), np.uint8) # create minimal image
         split_img = np.zeros((conf.RES[1], conf.RES[0]), np.uint8)
 
         for obj in obj_to_split:
             x, y, w, h = obj.base_rect_ao
-            split_mask = make_split(self.filled[y:y + h, x:x + w])
+            split_mask = make_split(filled[y:y + h, x:x + w])
             split_img[y:y+h, x:x + w] = split_mask[:, :]
 
         return split_img

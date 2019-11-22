@@ -9,6 +9,7 @@ WCCD = cam['wccd']
 HCCD = cam['hccd']
 RES = cam['img_res']
 FPS = 24
+MAX_DISTANCE = 30
 
 # Device is either /dev/videoX or folder containing images when VIRTUAL_CAMERA == True
 DEVICE = '/home/ivan/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_c_01/src_424x480_grayscale/'
