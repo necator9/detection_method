@@ -20,7 +20,7 @@ class PreprocessImg(object):
         self.set_ratio_done = bool()
 
     def process(self, orig_img):
-        orig_img = imutils.resize(orig_img, height=conf.IMG_RES[1])
+        orig_img = imutils.resize(orig_img, height=conf.RESOLUTION[1])
         # Update processing resolution according to one after resize (i.e. not correct res. is chosen by user)
         self.set_ratio(orig_img)
 
@@ -49,7 +49,7 @@ class PreprocessImg(object):
             actual_w, actual_h = img.shape[:2][1], img.shape[:2][0]
             # DETECTION_LOG.info("Processing resolution: {}x{}".format(actual_w, actual_h))
 
-            if conf.IMG_RES[0] != actual_w or conf.IMG_RES[1] != actual_h:
-                conf.IMG_RES[0], conf.IMG_RES[1] = actual_w, actual_h
+            if conf.RESOLUTION[0] != actual_w or conf.RESOLUTION[1] != actual_h:
+                conf.RESOLUTION[0], conf.RESOLUTION[1] = actual_w, actual_h
                 # global PINHOLE_CAM
                 # PINHOLE_CAM = init_pcm()

@@ -225,9 +225,9 @@ class Draw(object):
     def update_borders(self):
         if not self.borders_updated_flag:
             self.borders_updated_flag = True
-            self.x_border = np.zeros((conf.IMG_RES[1], 1, 3), np.uint8)
+            self.x_border = np.zeros((conf.RESOLUTION[1], 1, 3), np.uint8)
             self.x_border[:] = (0, 0, 255)
-            self.y_border = np.zeros((1, conf.IMG_RES[0] * 3 + 2, 3), np.uint8)
+            self.y_border = np.zeros((1, conf.RESOLUTION[0] * 3 + 2, 3), np.uint8)
             self.y_border[:] = (0, 0, 255)
 
     def draw_multiple_images(self, data_frame, draw_frame):
@@ -245,7 +245,7 @@ class Draw(object):
                 # pass
 
             if len(value.data.shape) == 0:
-                value.data = np.zeros((conf.IMG_RES[1], conf.IMG_RES[0], 3), np.uint8)
+                value.data = np.zeros((conf.RESOLUTION[1], conf.RESOLUTION[0], 3), np.uint8)
 
             self.put_name(value.data, value.name)
 
@@ -335,9 +335,9 @@ class Draw(object):
         x_left_up = conf.MARGIN
         y_left_up = 0
         x_left_down = x_left_up
-        y_left_down = conf.IMG_RES[1]
+        y_left_down = conf.RESOLUTION[1]
 
-        x_right_up = conf.IMG_RES[0] - conf.MARGIN - 1
+        x_right_up = conf.RESOLUTION[0] - conf.MARGIN - 1
         y_right_up = 0
         x_right_down = x_right_up
         y_right_down = y_left_down

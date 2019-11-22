@@ -28,7 +28,7 @@ class StartAppError(Exception):
 class VirtualCamera(threading.Thread):
     def __init__(self, orig_img_q, stop_ev):
         super(VirtualCamera, self).__init__(name="virtual_camera")
-        self.dir_path = check_dir(conf.IN_DIR)
+        self.dir_path = check_dir(conf.DEVICE)
 
         self.img_paths = glob.glob(os.path.join(self.dir_path, '*.jpeg'))
         img_names_digits = [int(os.path.split(img_name)[1].split('.')[0]) for img_name in self.img_paths]
