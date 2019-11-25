@@ -4,7 +4,6 @@ import pickle
 import threading
 import numpy as np
 import cv2
-import copy
 import time
 import Queue
 
@@ -20,17 +19,15 @@ def blank_fn(*args, **kwargs):
 
 
 class Saving(threading.Thread):
-    def __init__(self, data_frame_q, draw_frame_q):
+    def __init__(self, data_frame_q):
         super(Saving, self).__init__(name="saving")
 
         self._is_running = bool()
         self.data_frame_q = data_frame_q
-        self.draw_frame_q = draw_frame_q
 
         self.check_if_dir_exists()
         self.db_obj = Database(self.gen_name("sql_database"))
         self.pickle_obj = PickleWrap(self.gen_name("pickle_data.pkl"))
-        self.draw_obj = Draw()
 
     def run(self):
         SAVER_LOG.info("Starting the Saving thread...")
@@ -54,20 +51,9 @@ class Saving(threading.Thread):
 
             return 1
 
-        try:
-            draw_frame = self.draw_frame_q.get(timeout=2)
-        except Queue.Empty:
-            SAVER_LOG.warning("Exception has raised, draw_frame_q is empty")
-
-            return 1
-
         self.db_obj.write(data_frame)
 
         self.pickle_obj.add(data_frame)
-
-        self.draw_obj.save_multiple(data_frame, draw_frame)
-
-        self.draw_obj.save_single(data_frame)
 
         global SAVE_COUNTER
         SAVE_COUNTER += 1
@@ -81,6 +67,7 @@ class Saving(threading.Thread):
                 self.write()
 
         SAVER_LOG.warning("{} elements HAVE BEEN NOT WRITTEN".format(self.data_frame_q.qsize()))
+        self._is_running = False
 
     def check_if_dir_exists(self):
         if not os.path.isdir(conf.OUT_DIR):
@@ -203,168 +190,6 @@ class MultipleImagesFrame(object):
         self.ex_status = ImgStructure("Extent-split status")
 
 
-class Draw(object):
-    def __init__(self):
-        if conf.SAVE_VERBOSE:
-            self.out_img = ImgStructure("Detection result")
-            self.draw_img_structure = MultipleImagesFrame()
-            self.x_border = np.dtype('uint8')
-            self.y_border = np.dtype('uint8')
-            self.borders_updated_flag = bool()
-
-        if not conf.SAVE_VERBOSE:
-            self.save_multiple = blank_fn
-
-        if not conf.SAVE_SINGLE:
-            self.save_single = blank_fn
-
-        self.color_map = {0: (0, 0, 0), 1: (0, 255, 0), 2: (0, 0, 255), 3: (255, 0, 0), 4: (0, 255, 255)}
-        # self.color_map = {0: (0, 0, 0), 1: (0, 255, 0), 2: (0, 0, 255)}
-
-
-    def update_borders(self):
-        if not self.borders_updated_flag:
-            self.borders_updated_flag = True
-            self.x_border = np.zeros((conf.RES[1], 1, 3), np.uint8)
-            self.x_border[:] = (0, 0, 255)
-            self.y_border = np.zeros((1, conf.RES[0] * 3 + 2, 3), np.uint8)
-            self.y_border[:] = (0, 0, 255)
-
-    def draw_multiple_images(self, data_frame, draw_frame):
-        self.update_borders()
-
-        self.draw_img_structure = draw_frame
-
-        # self.draw_img_structure.filled_mask.data = copy.copy(data_frame.filled)
-        # self.draw_img_structure.rect_cont.data = copy.copy(data_frame.orig_img)
-        # self.draw_img_structure.ex_rect_cont.data = copy.copy(data_frame.orig_img)
-
-        for attr, value in self.draw_img_structure.__dict__.iteritems():
-            if len(value.data.shape) == 2:
-                value.data = cv2.cvtColor(value.data, cv2.COLOR_GRAY2BGR)
-                # pass
-
-            if len(value.data.shape) == 0:
-                value.data = np.zeros((conf.RES[1], conf.RES[0], 3), np.uint8)
-
-            self.put_name(value.data, value.name)
-
-        self.put_margin(self.draw_img_structure.rect_cont.data)
-
-        self.put_status(self.draw_img_structure.status.data, data_frame.base_frame_status)
-        self.put_status(self.draw_img_structure.ex_status.data, data_frame.ex_frame_status)
-
-        self.draw_rects(self.draw_img_structure.rect_cont.data, data_frame.base_objects)
-        # self.draw_virual_object(self.draw_img_structure.rect_cont.data, data_frame.base_objects)
-        self.draw_rects(self.draw_img_structure.ex_rect_cont.data, data_frame.ex_objects)
-
-        # self.draw_rects_br_cr(self.draw_img_structure.rect_cont.data, data_frame.base_objects)
-
-        # self.__draw_contour_areas(self.cont.data, d_frame.base_contours)
-        # self.__draw_contour_areas(self.rect_cont.data, d_frame.base_contours)
-
-        h_stack1 = np.hstack((self.draw_img_structure.mog_mask.data, self.x_border,
-                              self.draw_img_structure.filtered.data,
-                              self.x_border, self.draw_img_structure.filled_mask.data))
-        h_stack2 = np.hstack((self.draw_img_structure.bright_mask.data, self.x_border,
-                              self.draw_img_structure.rect_cont.data,
-                              self.x_border, self.draw_img_structure.status.data))
-        # h_stack3 = np.hstack(
-        #     (self.draw_img_structure.extent_split_mask.data, self.x_border, self.draw_img_structure.ex_rect_cont.data,
-        #      self.x_border, self.draw_img_structure.ex_status.data))
-
-        self.out_img.data = np.vstack((h_stack1, self.y_border, h_stack2, self.y_border)) # , h_stack3
-
-        return self.out_img.data
-
-    @staticmethod
-    def draw_single_image(data_frame):
-        data_frame = copy.copy(data_frame)
-        Draw.put_name(data_frame.orig_img, " ")
-        Draw.draw_rects(data_frame.orig_img, data_frame.base_objects)
-        Draw.draw_rects_br_cr(data_frame.orig_img, data_frame.base_objects)
-
-        return data_frame.orig_img
-
-    @staticmethod
-    def put_name(img, text):
-        cv2.putText(img, text, (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
-
-    def draw_rects(self, img, objects):
-        for obj in objects:
-            color = self.color_map[obj.o_class]
-
-            x, y, w, h = obj.base_rect_ao
-            cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
-            cv2.putText(img, str(obj.obj_id), (x + 5, y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                        (0, 0, 255), 1, cv2.LINE_AA)
-            # Put distance value above the rectangle
-            cv2.putText(img, str(round(obj.dist_ao, 1)), (x + 5, y - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                        (255, 0, 0), 1, cv2.LINE_AA)
-
-    def draw_virual_object(self, img, objects):
-        for obj in objects:
-            color = (255, 0, 0)
-            x, y, w, h = (obj.x_ao + obj.w_ao / 2) - obj.w_ro / 2, obj.y_ro, obj.w_ro, obj.h_ro
-            cv2.rectangle(img, (x, y), (x + w, y + h), color, 1)
-
-    @staticmethod
-    def draw_rects_br_cr(img, objects):
-        for obj in objects:
-            for rect in obj.br_cr_rects:
-                x, y, w, h = rect
-                cv2.rectangle(img, (x, y), (x + w, y + h), (255, 255, 255), -1)
-
-    @staticmethod
-    def draw_rects_br(img, rects):
-        for rect in rects:
-            x, y, w, h = rect
-            cv2.rectangle(img, (x, y), (x + w, y + h), (0, 0, 255), -1)
-
-    @staticmethod
-    def draw_contour_areas(img, contours):
-        cv2.drawContours(img, contours, -1, (255, 0, 0), 1)
-
-    @staticmethod
-    def put_status(img, status):
-        cv2.putText(img, str(status), (80, 95), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 1, cv2.LINE_AA)
-
-
-    @staticmethod
-    def put_margin(img):
-        x_left_up = conf.MARGIN
-        y_left_up = 0
-        x_left_down = x_left_up
-        y_left_down = conf.RES[1]
-
-        x_right_up = conf.RES[0] - conf.MARGIN - 1
-        y_right_up = 0
-        x_right_down = x_right_up
-        y_right_down = y_left_down
-
-        cv2.line(img, (x_left_up, y_left_up), (x_left_down, y_left_down), (255, 0, 0), 1)
-        cv2.line(img, (x_right_up, y_right_up), (x_right_down, y_right_down), (255, 0, 0), 1)
-
-    # def show(self):
-    #     cv2.imshow(self.out_img.name, self.out_img.data)
-    #     cv2.waitKey(1)
-    #     time.sleep(1)
-
-    def save(self, out_img, img_name):
-        # Save JPEG with proper name
-        SAVER_LOG.debug("Entry has been written")
-        path = os.path.join(conf.OUT_DIR, "{}_{}.jpeg".format(img_name, SAVE_COUNTER))
-        cv2.imwrite(path, out_img)
-
-    def save_multiple(self, data_frame, draw_frame):
-        out_img = self.draw_multiple_images(data_frame, draw_frame)
-        self.save(out_img, "m_img")
-
-    def save_single(self, data_frame):
-        out_img = self.draw_single_image(data_frame)
-        self.save(out_img, "s_img")
-
-
 class TimeCounter(object):
     def __init__(self, watch_name):
         if conf.TIMERS:
@@ -394,3 +219,56 @@ class TimeCounter(object):
         self.watch_log.info("{} iteration t: {}s, FPS: {}. Window size: {} ".format(self.watch_name, average_time,
                                                                                     round(1/average_time, 2),
                                                                                     conf.TIME_WINDOW))
+
+
+color_map = {0: (0, 0, 0), 1: (0, 255, 0), 2: (0, 0, 255), 3: (255, 0, 0), 4: (0, 255, 255)}
+
+
+def draw_rects(img, objects):
+    for obj in objects:
+        color = color_map[obj.o_class]
+
+        x, y, w, h = obj.base_rect_ao
+        cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
+        cv2.putText(img, str(obj.obj_id), (x + 5, y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                    (0, 0, 255), 1, cv2.LINE_AA)
+        # Put distance value above the rectangle
+        cv2.putText(img, str(round(obj.dist_ao, 1)), (x + 5, y - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                    (255, 0, 0), 1, cv2.LINE_AA)
+
+
+def put_obj_status(img, objects):
+    cntr = 0.1
+    for obj in objects:
+        if obj.o_class > 0:
+            cv2.putText(img, str(obj.o_class_nm), (int(conf.RES[0] * 0.2), int(conf.RES[1] * cntr)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+            cv2.putText(img, str(obj.obj_id), (int(conf.RES[0] * 0.08), int(conf.RES[1] * cntr)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, color_map[obj.o_class], 1, cv2.LINE_AA)
+            cntr += 0.1
+
+
+def write_steps(steps, frame, img_name):
+    blank_img_left = np.zeros((conf.RES[1], conf.RES[0], 3), np.uint8)
+    blank_img_right = np.zeros((conf.RES[1], conf.RES[0], 3), np.uint8)
+
+    for key, img in steps.items():
+        steps[key] = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+        # Name frames
+        cv2.putText(steps[key], key, (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+
+    # Put binary detection status
+    cv2.putText(blank_img_right, str(frame.base_frame_status), (int(conf.RES[0] * 0.3), int(conf.RES[1] * 0.5)),
+                cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 1, cv2.LINE_AA)
+
+    # Put particular obj status
+    put_obj_status(blank_img_left, frame.base_objects)
+
+    draw_rects(steps['resized_orig'], frame.base_objects)
+
+    h_stack1 = np.hstack((steps['mask'], steps['filtered'], steps['filled']))
+    h_stack2 = np.hstack((blank_img_left, steps['resized_orig'], blank_img_right))
+
+    out_img = np.vstack((h_stack1, h_stack2))
+
+    cv2.imwrite(os.path.join(conf.OUT_DIR, img_name), out_img)

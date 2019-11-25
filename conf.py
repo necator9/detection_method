@@ -12,8 +12,8 @@ FPS = 24
 MAX_DISTANCE = 30
 
 # Device is either /dev/videoX or folder containing images when VIRTUAL_CAMERA == True
-DEVICE = '/home/ivan/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_c_01/src_424x480_grayscale/'
-OUT_DIR = '/home/ivan/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_c_01/res_{}x{}'.\
+DEVICE = '/home/ivan/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/src_424x480_grayscale/'
+OUT_DIR = '/home/ivan/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_c_01/test_res_{}x{}'.\
         format(RES[0], RES[1])
 VIRTUAL_CAMERA = True
 
@@ -26,8 +26,7 @@ DILATE_ITERATIONS = 1
 MARGIN = 1
 
 # Saving parameters
-SAVE_SINGLE = False
-SAVE_VERBOSE = True
+WRITE_IMG = False
 
 WRITE_TO_DB = True
 WRITE_TO_PICKLE = False
@@ -41,3 +40,4 @@ TIME_WINDOW = 25
 SHOW_LOGS = True
 LOG_LEVEL = "INFO"
 PATH_TO_LOGS = "/home/ivan/logs/"
+o_class_mapping = {0: 'noise', 1: 'pedestrian', 2: 'group', 3: 'cyclist', 4: 'vehicle'}

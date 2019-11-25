@@ -43,7 +43,7 @@ class VirtualCamera(threading.Thread):
 
         for img_path in self.img_paths:
             image = cv2.imread(img_path, conf.COLOR)
-            self.orig_img_q.put(image, block=True)
+            self.orig_img_q.put((image, os.path.split(img_path)[1]), block=True)
 
             global_vars.COUNTER += 1
 

@@ -11,6 +11,7 @@ from extentions import MultipleImagesFrame, TimeCounter
 import detection_logging
 import pinhole_camera_model as pcm
 from pre_processing import PreprocessImg
+import extentions
 
 import pickle
 from sklearn.linear_model import LogisticRegression
@@ -40,13 +41,12 @@ PINHOLE_CAM = pcm.PinholeCameraModel(rw_angle=-conf.ANGLE, f_l=conf.FL, w_ccd=co
 
 
 class Detection(threading.Thread):
-    def __init__(self, stop_ev, data_frame_q, draw_frame_q, orig_img_q):
+    def __init__(self, stop_ev, data_frame_q, orig_img_q):
         super(Detection, self).__init__(name="detection")
         self.stop_event = stop_ev
         self.img_name = str()
 
         self.data_frame_q = data_frame_q
-        self.draw_frame_q = draw_frame_q
         self.orig_img_q = orig_img_q
 
         self.timer = TimeCounter("detection_timer")
@@ -57,29 +57,26 @@ class Detection(threading.Thread):
         steps = dict()
 
         while self.stop_event.is_set():
-
             self.timer.note_time()
 
             # Data frame containing detected objects
             frame = DataFrame()
-            # Data structure to draw images on output
-            draw = MultipleImagesFrame()
 
             try:
-                frame.orig_img = self.orig_img_q.get(timeout=2)
-                orig_img = frame.orig_img
+                orig_img, img_name = self.orig_img_q.get(timeout=2)
             except Queue.Empty:
                 DETECTION_LOG.warning("Timeout reached, no items can be received from orig_img_q")
 
                 continue
 
             steps['resized_orig'], steps['mask'], steps['filtered'], steps['filled'] = preprocessing.apply(orig_img)
-            draw.mog_mask.data, draw.filtered.data, draw.filled_mask.data = steps['mask'], steps['filtered'], steps['filled']
-            draw.rect_cont.data = steps['resized_orig']
-            draw.bright_mask.data, draw.extent_split_mask.data = frame.calculate(steps['filled'])
+
+            frame.calculate(steps['filled'])
 
             self.data_frame_q.put(frame, block=True)
-            self.draw_frame_q.put(draw, block=True)
+
+            if conf.WRITE_IMG:
+                extentions.write_steps(steps, frame, img_name)
 
             self.timer.get_time()
 
@@ -128,6 +125,7 @@ class ObjParams(object):
         self.c_ao_rw = self.c_a_ao * rect_area_ao_rw / rect_area_ao
 
         self.o_class = self.classify()
+        self.o_class_nm = conf.o_class_mapping[self.o_class]
         self.binary_status = self.o_class > 0
 
     def classify(self):
@@ -150,11 +148,7 @@ class ObjParams(object):
 
 class DataFrame(object):
     def __init__(self):
-        # self.orig_img = np.dtype('uint8')
-        # self.filled = np.dtype('uint8')
-
         self.base_frame_status = None  # Can be False/True/None type
-        self.ex_frame_status = None  # Can be False/True/None type
         self.base_objects = list()
         self.base_contours = list()
         self.ex_objects = list()

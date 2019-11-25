@@ -45,11 +45,10 @@ def main():
     stop_event.set()
 
     data_frame_q = Queue.Queue(maxsize=50)
-    draw_frame_q = Queue.Queue(maxsize=50)
     orig_img_q = Queue.Queue(maxsize=1)
 
-    detection_thread = detection.Detection(stop_event, data_frame_q, draw_frame_q, orig_img_q)
-    saver_thread = extentions.Saving(data_frame_q, draw_frame_q)
+    detection_thread = detection.Detection(stop_event, data_frame_q, orig_img_q)
+    saver_thread = extentions.Saving(data_frame_q)
 
     try:
         if conf.VIRTUAL_CAMERA:
@@ -57,16 +56,13 @@ def main():
         else:
             capturing_thread = capturing.Camera(orig_img_q, stop_event)
 
-        if not (conf.WRITE_TO_DB or conf.WRITE_TO_PICKLE or conf.SAVE_VERBOSE or conf.SAVE_SINGLE):
+        if not (conf.WRITE_TO_DB or conf.WRITE_TO_PICKLE):
             saver_thread.start = blank_fn
             saver_thread.quit = blank_fn
             saver_thread.join = blank_fn
             data_frame_q.put_nowait = blank_fn
             data_frame_q.get = blank_fn
 
-        if not conf.SAVE_VERBOSE:
-            draw_frame_q.put_nowait = blank_fn
-            draw_frame_q.get = blank_fn
 
     except capturing.StartAppError:
         stop_event.clear()
