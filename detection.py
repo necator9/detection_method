@@ -99,16 +99,22 @@ class MarginCrossed(Exception):
 class ObjParams(object):
     def __init__(self, obj_id, cnt_ao):
         self.c_a_ao = cv2.contourArea(cnt_ao)
-        # if self.c_a_ao / (conf.IMG_RES[0] * conf.IMG_RES[1]) < 0.0005:  # < 0.002:
-        #     raise CountorAreaTooSmall
+        if conf.CNT_AREA_FILTERING > 0:
+            if self.c_a_ao / (conf.RES[0] * conf.RES[1]) < 0.0005:  # < 0.002:
+                raise CountorAreaTooSmall
 
         self.base_rect_ao = self.x_ao, self.y_ao, self.w_ao, self.h_ao = cv2.boundingRect(cnt_ao)
-        # if not self.check_margin(margin=conf.MARGIN, img_res=conf.IMG_RES):
-        #     raise MarginCrossed
+        if conf.MARGIN > 0:
+            if not self.check_margin(margin=conf.MARGIN, img_res=conf.RES):
+                raise MarginCrossed
 
         self.dist_ao = PINHOLE_CAM.pixels_to_distance(-conf.HEIGHT, self.y_ao + self.h_ao)
-        if self.dist_ao <= 0:  # or self.dist_ao > conf.MAX_DISTANCE:
+        if self.dist_ao <= 0:
             raise InfiniteDistance
+
+        if conf.MAX_DISTANCE > 0:
+            if self.dist_ao > conf.MAX_DISTANCE:
+                raise InfiniteDistance
 
         self.obj_id = obj_id
 
