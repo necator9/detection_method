@@ -11,12 +11,16 @@ import capturing
 import detection
 import extentions
 import detection_logging
-import Queue
+try:
+   import queue
+except ImportError:
+   import Queue as queue
 import cv2
 
-
+CV_VERSION = int(cv2.__version__[0])
 MAIN_LOGGER = detection_logging.create_log("main.log", "root")
 
+MAIN_LOGGER.info('OpenCV version: {} '.format(cv2.__version__))
 
 def blank_fn(*args, **kwargs):
     pass
@@ -33,19 +37,19 @@ def check_cv_version():
 def main():
     detection_logging.init_log_thread()
 
-    if check_cv_version():
-        time.sleep(1)
-        detection_logging.stop_log_thread()
+#    if check_cv_version():
+#        time.sleep(1)
+#        detection_logging.stop_log_thread()
 
-        exit(1)
+        # exit(1)
 
     MAIN_LOGGER.info("Program has started")
 
     stop_event = threading.Event()
     stop_event.set()
 
-    data_frame_q = Queue.Queue(maxsize=50)
-    orig_img_q = Queue.Queue(maxsize=1)
+    data_frame_q = queue.Queue(maxsize=50)
+    orig_img_q = queue.Queue(maxsize=1)
 
     detection_thread = detection.Detection(stop_event, data_frame_q, orig_img_q)
     saver_thread = extentions.Saving(data_frame_q)

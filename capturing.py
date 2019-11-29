@@ -1,6 +1,11 @@
 import cv2
 import threading
-import Queue
+
+try:
+   import queue
+except ImportError:
+   import Queue as queue
+
 import glob
 import os
 
@@ -81,7 +86,7 @@ class Camera(threading.Thread):
 
             try:
                 self.orig_img_q.put(image, block=True)
-            except Queue.Full:
+            except queue.Full:
                 CAPTURING_LOG.warning("orig_img_q is full, next iteration")
 
                 continue

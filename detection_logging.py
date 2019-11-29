@@ -6,14 +6,19 @@ It also performs all log writing operations in a single thread, while receiving 
 
 import os
 import threading
-import Queue
+
+try:
+   import queue
+except ImportError:
+   import Queue as queue
+
 import logging
 from logging.handlers import RotatingFileHandler
 from conf import LOG_LEVEL, PATH_TO_LOGS, SHOW_LOGS
 import sys
 
 # Define a global queue for receiving the methods from the Logger objects and its arguments
-LOG_QUEUE = Queue.Queue()
+LOG_QUEUE = queue.Queue()
 
 # Set a global variable LOG_LEVEL according to the string variable in conf file
 # Log levels correspond to standard levels defined in the "logging" module
@@ -46,7 +51,7 @@ class LoggingHandler(threading.Thread):
             # loglevel, msg, args, kwargs = self.logging_queue.get()
             try:
                 log_object_method, msg, args, kwargs = LOG_QUEUE.get(timeout=1)
-            except Queue.Empty:
+            except queue.Empty:
                 self.root_logger.warning("Log queue is empty, timeout has reached")
             # Execute the method
             log_object_method(msg, *args, **kwargs)

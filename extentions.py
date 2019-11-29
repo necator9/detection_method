@@ -5,7 +5,11 @@ import threading
 import numpy as np
 import cv2
 import time
-import Queue
+
+try:
+   import queue
+except ImportError:
+   import Queue as queue
 
 import conf
 import detection_logging
@@ -46,7 +50,7 @@ class Saving(threading.Thread):
     def write(self):
         try:
             data_frame = self.data_frame_q.get(timeout=2)
-        except Queue.Empty:
+        except queue.Empty:
             SAVER_LOG.warning("Exception has raised, data_frame_q is empty")
 
             return 1

@@ -10,10 +10,14 @@ HCCD = cam['hccd']
 RES = cam['img_res']
 FPS = 24
 
+# TODO Retrain model without scaling to improve FPS
+# Classifier and scaler paths
+CLF_PATH = '/home/ivan/Downloads/clf_sel_new.pcl'
+SCALER_PATH = '/home/ivan/Downloads/scaler_sel_new.pcl'
 
 # Device is either /dev/videoX or folder containing images when VIRTUAL_CAMERA == True
 DEVICE = '/home/ivan/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/src_424x480_grayscale/'
-OUT_DIR = '/home/ivan/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_c_01/test_res_{}x{}'.\
+OUT_DIR = '/home/ivan/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/test_res_{}x{}'.\
         format(RES[0], RES[1])
 VIRTUAL_CAMERA = True
 
@@ -27,18 +31,18 @@ DILATE_ITERATIONS = 1
 # Cascade filtering to speed up detection by filtering insignificant objects
 # Minimal object cnt area to be considered: object cnt area / RES[0] * RES[1] > CNT_AREA_FILTERING
 # Value of zero to disable filtering
-CNT_AREA_FILTERING = 0  # Chosen 0.0005
+CNT_AREA_FILTERING = 0.001  # Chosen 0.0005
 
 # Ignore objects intersecting with frame margin: left img border + MARGIN < obj coordinates < right img border - MARGIN
 # Value of zero to disable filtering
-MARGIN = 0  # Chosen 1
+MARGIN = 1  # Chosen 1
 
 # Ignore objects which have distance more than MAX_DISTANCE: obj distance > MAX_DISTANCE
 # Value of zero to disable filtering
-MAX_DISTANCE = 0  # Chosen 30
+MAX_DISTANCE = 30  # Chosen 30
 
 # Saving parameters
-WRITE_IMG = False
+WRITE_IMG = True
 
 WRITE_TO_DB = True
 WRITE_TO_PICKLE = False

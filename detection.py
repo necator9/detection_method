@@ -4,14 +4,19 @@ import threading
 
 import cv2
 import numpy as np
-import Queue
+
+try:
+   import queue
+except ImportError:
+   import Queue as queue
 
 import conf
-from extentions import MultipleImagesFrame, TimeCounter
+from extentions import TimeCounter
 import detection_logging
 import pinhole_camera_model as pcm
 from pre_processing import PreprocessImg
 import extentions
+from main import CV_VERSION
 
 import pickle
 from sklearn.linear_model import LogisticRegression
@@ -23,21 +28,14 @@ poly.fit([[1, 2, 3, 4, 5]])
 
 DETECTION_LOG = detection_logging.create_log("detection.log", "DETECTION THREAD")
 
-# CLASSIFIER = pickle.load(open("/home/ivan/Downloads/clf_.pcl", "rb"))
-# SCALER = pickle.load(open("/home/ivan/Downloads/scaler_.pcl", "rb"))
-
-# CLASSIFIER = pickle.load(open("/home/ivan/Downloads/clf_sel.pcl", "rb"))
-# SCALER = pickle.load(open("/home/ivan/Downloads/scaler_sel.pcl", "rb"))
-
-CLASSIFIER = pickle.load(open("/home/ivan/Downloads/clf_sel_new.pcl", "rb"))
-SCALER = pickle.load(open("/home/ivan/Downloads/scaler_sel_new.pcl", "rb"))
-
-# CLASSIFIER = pickle.load(open("/home/ivan/Downloads/clf_wo_ca.pcl", "rb"))
-# SCALER = pickle.load(open("/home/ivan/Downloads/scaler_wo_ca.pcl", "rb"))
-
+CLASSIFIER = pickle.load(open(conf.CLF_PATH, "rb"))
+SCALER = pickle.load(open(conf.SCALER_PATH, "rb"))
 
 PINHOLE_CAM = pcm.PinholeCameraModel(rw_angle=-conf.ANGLE, f_l=conf.FL, w_ccd=conf.WCCD, h_ccd=conf.HCCD,
                                      img_res=conf.RES)
+
+# Bad OpenCV comparability fix
+CNT_IDX = 1 if CV_VERSION >= 3 else 0
 
 
 class Detection(threading.Thread):
@@ -64,7 +62,7 @@ class Detection(threading.Thread):
 
             try:
                 orig_img, img_name = self.orig_img_q.get(timeout=2)
-            except Queue.Empty:
+            except queue.Empty:
                 DETECTION_LOG.warning("Timeout reached, no items can be received from orig_img_q")
 
                 continue
@@ -100,7 +98,7 @@ class ObjParams(object):
     def __init__(self, obj_id, cnt_ao):
         self.c_a_ao = cv2.contourArea(cnt_ao)
         if conf.CNT_AREA_FILTERING > 0:
-            if self.c_a_ao / (conf.RES[0] * conf.RES[1]) < 0.0005:  # < 0.002:
+            if self.c_a_ao / (conf.RES[0] * conf.RES[1]) < conf.CNT_AREA_FILTERING:
                 raise CountorAreaTooSmall
 
         self.base_rect_ao = self.x_ao, self.y_ao, self.w_ao, self.h_ao = cv2.boundingRect(cnt_ao)
@@ -136,9 +134,14 @@ class ObjParams(object):
 
     def classify(self):
         # if  0 < self.h_ao_rw < 5 and 0 < self.w_ao_rw < 8:
+
+        # scaled_features = [[self.w_ao_rw, self.h_ao_rw,  #self.c_ao_rw,
+        #                     self.dist_ao, -conf.HEIGHT,  -conf.ANGLE]]
         scaled_features = SCALER.transform([[self.w_ao_rw, self.h_ao_rw,  #self.c_ao_rw,
                                             self.dist_ao, -conf.HEIGHT,  -conf.ANGLE]])
         self.o_class = int(CLASSIFIER.predict(poly.transform(scaled_features)))
+
+
         # else:
         #     self.o_class = 0
 
@@ -184,10 +187,16 @@ class DataFrame(object):
         return np.dtype('uint8'), filled
 
     @staticmethod
-    def basic_process(filled_mask):
+    def find_contours(filled_mask, cnt_idx):
+        res = cv2.findContours(filled_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        return res[cnt_idx]
+
+    def basic_process(self, filled_mask):
         objects = list()
 
-        _, contours, _ = cv2.findContours(filled_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # _, contours, _ = cv2.findContours(filled_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours = self.find_contours(filled_mask, CNT_IDX)
 
         for obj_id, contour in enumerate(contours):
             try:
