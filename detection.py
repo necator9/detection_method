@@ -221,7 +221,8 @@ class DataFrame(object):
             rows, coloumns = bin_mask.shape
 
             if coloumns >= rows:
-                x_mask = np.asarray([0 if (np.bincount(i)[0] / i.size) >= fill else 1 for i in bin_mask.T], dtype='int8')
+                x_mask = np.asarray([0 if (np.count_nonzero(i == 0) / i.size) >= fill else 1 for i in bin_mask.T],
+                                    dtype='int8')
                 x_mask_l, x_mask_r = x_mask[:x_mask.size // 2], x_mask[x_mask.size // 2:]
 
                 front_ind, front_percent = calc_split_point(x_mask_l)
