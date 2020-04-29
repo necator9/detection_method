@@ -1,5 +1,3 @@
-from __future__ import division
-
 import threading
 
 import cv2
@@ -12,7 +10,7 @@ except ImportError:
 
 import conf
 from extentions import TimeCounter
-import detection_logging
+import logging
 import pinhole_camera_model as pcm
 from pre_processing import PreprocessImg
 import extentions
@@ -25,7 +23,7 @@ from sklearn.preprocessing import PolynomialFeatures
 poly = PolynomialFeatures(2, include_bias=True)
 poly.fit([[1, 2, 3, 4, 5]])
 
-DETECTION_LOG = detection_logging.create_log("detection.log", "DETECTION THREAD")
+logger = logging.getLogger('detect.detect')
 
 CLASSIFIER = pickle.load(open(conf.CLF_PATH, "rb"))
 SCALER = pickle.load(open(conf.SCALER_PATH, "rb"))
@@ -46,7 +44,7 @@ class Detection(threading.Thread):
         self.timer = TimeCounter("detection_timer")
 
     def run(self):
-        DETECTION_LOG.info("Detection has started")
+        logger.info("Detection has started")
         preprocessing = PreprocessImg()
         steps = dict()
 
@@ -59,7 +57,7 @@ class Detection(threading.Thread):
             try:
                 orig_img, img_name = self.orig_img_q.get(timeout=2)
             except queue.Empty:
-                DETECTION_LOG.warning("Timeout reached, no items can be received from orig_img_q")
+                logger.warning("Timeout reached, no items can be received from orig_img_q")
 
                 continue
 
@@ -135,7 +133,7 @@ class ObjParams(object):
         #                     self.dist_ao, -conf.HEIGHT,  -conf.ANGLE]]
         feature_vector = [[self.w_ao_rw, self.h_ao_rw,  self.dist_ao, -conf.HEIGHT,  -conf.ANGLE]]  # self.c_ao_rw,
         scaled_features = SCALER.transform(feature_vector)
-        DETECTION_LOG.debug('Scaled features: {}'.format(scaled_features))
+        logger.debug('Scaled features: {}'.format(scaled_features))
         self.o_class = int(CLASSIFIER.predict(poly.transform(scaled_features)))
 
 

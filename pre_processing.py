@@ -2,19 +2,13 @@ import conf
 from capturing import StartAppError
 import imutils
 import cv2
-from main import CV_VERSION
-# from detection import  DETECTION_LOG
 
 
 class PreprocessImg(object):
     def __init__(self):
         if conf.BGS_METHOD == 'MOG2':
-            if CV_VERSION >= 3:
-                self.bgs_method = cv2.createBackgroundSubtractorMOG2(detectShadows=True, history=1500,
+            self.bgs_method = cv2.createBackgroundSubtractorMOG2(detectShadows=True, history=1500,
                                                                      varThreshold=conf.BG_THR)
-            elif CV_VERSION < 3:
-                self.bgs_method = cv2.BackgroundSubtractorMOG2()
-
         elif conf.BGS_METHOD == 'KNN':
             self.bgs_method = cv2.createBackgroundSubtractorKNN(detectShadows=True, history=1500)
         else:

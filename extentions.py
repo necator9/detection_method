@@ -12,9 +12,9 @@ except ImportError:
    import Queue as queue
 
 import conf
-import detection_logging
+import logging
 
-SAVER_LOG = detection_logging.create_log("saver.log", "Saver")
+logger = logging.getLogger('detect.ext')
 SAVE_COUNTER = int()
 
 
@@ -34,7 +34,7 @@ class Saving(threading.Thread):
         self.pickle_obj = PickleWrap(self.gen_name("pickle_data.pkl"))
 
     def run(self):
-        SAVER_LOG.info("Starting the Saving thread...")
+        logger.info("Starting the Saving thread...")
         self._is_running = True
 
         while self._is_running:
@@ -45,13 +45,13 @@ class Saving(threading.Thread):
         self.db_obj.quit()
         self.pickle_obj.quit()
 
-        SAVER_LOG.info("Saving thread has been finished")
+        logger.info("Saving thread has been finished")
 
     def write(self):
         try:
             data_frame = self.data_frame_q.get(timeout=2)
         except queue.Empty:
-            SAVER_LOG.warning("Exception has raised, data_frame_q is empty")
+            logger.warning("Exception has raised, data_frame_q is empty")
 
             return 1
 
@@ -63,20 +63,20 @@ class Saving(threading.Thread):
         SAVE_COUNTER += 1
 
     def finish_writing(self):
-        SAVER_LOG.info("Finishing writing ...")
+        logger.info("Finishing writing ...")
         if not self.data_frame_q.empty():
             q_size = self.data_frame_q.qsize()
             for i in range(self.data_frame_q.qsize()):
-                SAVER_LOG.debug("{} elements in queue are remaining to write".format(q_size - i))
+                logger.debug("{} elements in queue are remaining to write".format(q_size - i))
                 self.write()
 
-        SAVER_LOG.warning("{} elements HAVE BEEN NOT WRITTEN".format(self.data_frame_q.qsize()))
+        logger.warning("{} elements HAVE BEEN NOT WRITTEN".format(self.data_frame_q.qsize()))
         self._is_running = False
 
     def check_if_dir_exists(self):
         if not os.path.isdir(conf.OUT_DIR):
             os.makedirs(conf.OUT_DIR)
-            SAVER_LOG.info("OUTPUT directory does not exists. New folder has been created")
+            logger.info("OUTPUT directory does not exists. New folder has been created")
 
     def quit(self):
         self._is_running = False
@@ -97,7 +97,7 @@ class Database(object):
     def __init__(self, db_name):
         if conf.WRITE_TO_DB:
             self.db_name = db_name
-            SAVER_LOG.info("Database name: {}".format(self.db_name))
+            logger.info("Database name: {}".format(self.db_name))
             self.db = sqlite3.connect(self.db_name, check_same_thread=False)
             self.cur = self.db.cursor()
             self.table_name = 'object_parameters'
@@ -107,7 +107,7 @@ class Database(object):
             self.quit = blank_fn
 
     def write_table(self):
-        SAVER_LOG.debug("Database table has been written")
+        logger.debug("Database table has been written")
 
         self.cur.execute('''CREATE TABLE {} (Img_name TEXT, Obj_id INT,
         Rect_coeff_ao REAL, dist_ao REAL, c_a_ao REAL, Extent REAL, Binary_status TEXT, 
@@ -151,7 +151,7 @@ class Database(object):
         return db_arr
 
     def quit(self):
-        SAVER_LOG.info("Closing the database...")
+        logger.info("Closing the database...")
         self.db.commit()
         self.db.close()
 
@@ -198,7 +198,7 @@ class TimeCounter(object):
     def __init__(self, watch_name):
         if conf.TIMERS:
             self.watch_name = watch_name
-            self.watch_log = detection_logging.create_log("{}.log".format(self.watch_name), self.watch_name)
+            self.watch_log = logger
             self.start_time = float()
             self.res_time = float()
             self.average_time_list = list()

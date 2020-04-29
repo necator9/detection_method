@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.7
 
 import threading
 import time
@@ -10,17 +10,27 @@ import global_vars
 import capturing
 import detection
 import extentions
-import detection_logging
-try:
-   import queue
-except ImportError:
-   import Queue as queue
+import logging
+import queue
+
 import cv2
 
-CV_VERSION = int(cv2.__version__[0])
-MAIN_LOGGER = detection_logging.create_log("main.log", "root")
 
-MAIN_LOGGER.info('OpenCV version: {} '.format(cv2.__version__))
+# Set up logging,
+logger = logging.getLogger('detect')
+logger.setLevel(logging.INFO)
+file_handler = logging.FileHandler('detection.log')
+ch = logging.StreamHandler()
+
+formatter = logging.Formatter('%(asctime)s %(threadName)s - %(message)s')
+file_handler.setFormatter(formatter)
+ch.setFormatter(formatter)
+
+logger.addHandler(ch)
+logger.addHandler(file_handler)
+
+logger.info('OpenCV version: {} '.format(cv2.__version__))
+
 
 def blank_fn(*args, **kwargs):
     pass
@@ -29,13 +39,12 @@ def blank_fn(*args, **kwargs):
 def check_cv_version():
     cv_version = cv2.__version__[0]
     if int(cv_version) < 3:
-        MAIN_LOGGER.error("The program works only with OpenCV v3.x.x or higher. Current v:{}".format(cv2.__version__))
+        logger.error("The program works only with OpenCV v3.x.x or higher. Current v:{}".format(cv2.__version__))
 
         return True
 
 
 def main():
-    detection_logging.init_log_thread()
 
 #    if check_cv_version():
 #        time.sleep(1)
@@ -43,7 +52,7 @@ def main():
 
         # exit(1)
 
-    MAIN_LOGGER.info("Program has started")
+    logger.debug("Program has started")
 
     stop_event = threading.Event()
     stop_event.set()
@@ -79,10 +88,10 @@ def main():
 
     try:
         while stop_event.is_set():
-            MAIN_LOGGER.info("{} images captured".format(global_vars.COUNTER))
+            logger.info("{} images captured".format(global_vars.COUNTER))
             time.sleep(1)
     except KeyboardInterrupt:
-        MAIN_LOGGER.warning("Keyboard Interrupt, threads are going to stop")
+        logger.warning("Keyboard Interrupt, threads are going to stop")
 
     capturing_thread.quit()
     saver_thread.quit()
@@ -92,11 +101,9 @@ def main():
     saver_thread.join()
 
 
-    MAIN_LOGGER.info("Program finished")
+    logger.debug("Program finished")
 
     time.sleep(1)
-    detection_logging.stop_log_thread()
-
 
 
 if __name__ == '__main__':
