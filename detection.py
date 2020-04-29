@@ -16,7 +16,6 @@ import detection_logging
 import pinhole_camera_model as pcm
 from pre_processing import PreprocessImg
 import extentions
-from main import CV_VERSION
 
 import pickle
 from sklearn.linear_model import LogisticRegression
@@ -33,9 +32,6 @@ SCALER = pickle.load(open(conf.SCALER_PATH, "rb"))
 
 PINHOLE_CAM = pcm.PinholeCameraModel(rw_angle=-conf.ANGLE, f_l=conf.FL, w_ccd=conf.WCCD, h_ccd=conf.HCCD,
                                      img_res=conf.RES)
-
-# Bad OpenCV comparability fix
-CNT_IDX = 1 if CV_VERSION >= 3 else 0
 
 
 class Detection(threading.Thread):
@@ -137,8 +133,9 @@ class ObjParams(object):
 
         # scaled_features = [[self.w_ao_rw, self.h_ao_rw,  #self.c_ao_rw,
         #                     self.dist_ao, -conf.HEIGHT,  -conf.ANGLE]]
-        scaled_features = SCALER.transform([[self.w_ao_rw, self.h_ao_rw,  #self.c_ao_rw,
-                                            self.dist_ao, -conf.HEIGHT,  -conf.ANGLE]])
+        feature_vector = [[self.w_ao_rw, self.h_ao_rw,  self.dist_ao, -conf.HEIGHT,  -conf.ANGLE]]  # self.c_ao_rw,
+        scaled_features = SCALER.transform(feature_vector)
+        DETECTION_LOG.debug('Scaled features: {}'.format(scaled_features))
         self.o_class = int(CLASSIFIER.predict(poly.transform(scaled_features)))
 
 
@@ -167,36 +164,31 @@ class DataFrame(object):
     def calculate(self, filled):
         self.base_objects, self.base_contours = self.basic_process(filled)
 
-        split_obj_i = [[i, obj] for i, obj in enumerate(self.base_objects)
-                       if obj.extent_ao < 0.5 and 2 < obj.w_ao_rw < 5 and obj.dist_ao < 30 and obj.h_ao_rw < 3]
-
-        split_idx = [it[0] for it in split_obj_i]
-        split_obj = [it[1] for it in split_obj_i]
-
-        if len(split_obj_i) > 0:
-            split_mask = self.split_object(split_obj, filled)
-            self.ex_objects, _ = self.basic_process(split_mask)
-
-            for ele in sorted(split_idx, reverse=True):
-                del self.base_objects[ele]
-
-            self.base_objects += self.ex_objects
+        # split_obj_i = [[i, obj] for i, obj in enumerate(self.base_objects)
+        #                if obj.extent_ao < 0.5 and 2 < obj.w_ao_rw < 5 and obj.dist_ao < 30 and obj.h_ao_rw < 3]
+        #
+        # split_idx = [it[0] for it in split_obj_i]
+        # split_obj = [it[1] for it in split_obj_i]
+        #
+        # if len(split_obj_i) > 0:
+        #     split_mask = self.split_object(split_obj, filled)
+        #     self.ex_objects, _ = self.basic_process(split_mask)
+        #
+        #     for ele in sorted(split_idx, reverse=True):
+        #         del self.base_objects[ele]
+        #
+        #     self.base_objects += self.ex_objects
 
         self.base_frame_status = any([obj.binary_status for obj in self.base_objects])
 
         return np.dtype('uint8'), filled
 
-    @staticmethod
-    def find_contours(filled_mask, cnt_idx):
-        res = cv2.findContours(filled_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        return res[cnt_idx]
-
     def basic_process(self, filled_mask):
         objects = list()
 
         # _, contours, _ = cv2.findContours(filled_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        contours = self.find_contours(filled_mask, CNT_IDX)
+        contours,  _ = cv2.findContours(filled_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
 
         for obj_id, contour in enumerate(contours):
             try:

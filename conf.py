@@ -1,5 +1,10 @@
 from camera_parameters import cameras
 
+# Logging parameters
+SHOW_LOGS = True
+LOG_LEVEL = "INFO"
+PATH_TO_LOGS = "/home/ivan/logs/"
+
 # Camera parameters
 cam = cameras['camera_1']
 ANGLE = cam['angle']
@@ -12,13 +17,15 @@ FPS = 24
 
 # TODO Retrain model without scaling to improve FPS
 # Classifier and scaler paths
-CLF_PATH = '/home/ivan/Downloads/clf_sel_new.pcl'
-SCALER_PATH = '/home/ivan/Downloads/scaler_sel_new.pcl'
+# CLF_PATH = 'clf_model/clf_refactored_1.pcl'
+# SCALER_PATH = 'clf_model/scaler_refactored_1.pcl'
+CLF_PATH = 'clf_model/clf_refactored_1.pcl'
+SCALER_PATH = 'clf_model/scaler_refactored_1.pcl'
 
 # Device is either /dev/videoX or folder containing images when VIRTUAL_CAMERA == True
 DEVICE = '/home/ivan/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/src_424x480_grayscale/'
-OUT_DIR = '/home/ivan/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/test_res_{}x{}'.\
-        format(RES[0], RES[1])
+OUT_DIR = '/home/ivan/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/' \
+          'refactored_clf_1_with_ca_{}x{}'.format(RES[0], RES[1])
 VIRTUAL_CAMERA = True
 
 # Pre-processing parameters
@@ -52,8 +59,5 @@ WRITE_TO_PICKLE = False
 TIMERS = True
 TIME_WINDOW = 25
 
-# Logging parameters
-SHOW_LOGS = True
-LOG_LEVEL = "INFO"
-PATH_TO_LOGS = "/home/ivan/logs/"
+
 o_class_mapping = {0: 'noise', 1: 'pedestrian', 2: 'group', 3: 'cyclist', 4: 'vehicle'}
