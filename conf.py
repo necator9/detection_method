@@ -2,7 +2,7 @@ from camera_parameters import cameras
 
 # Logging parameters
 SHOW_LOGS = True
-LOG_LEVEL = "INFO"
+LOG_LEVEL = 20
 PATH_TO_LOGS = "/home/ivan/logs/"
 
 # Camera parameters
@@ -19,13 +19,17 @@ FPS = 24
 # Classifier and scaler paths
 # CLF_PATH = 'clf_model/clf_refactored_1.pcl'
 # SCALER_PATH = 'clf_model/scaler_refactored_1.pcl'
-CLF_PATH = 'clf_model/clf_refactored_1.pcl'
-SCALER_PATH = 'clf_model/scaler_refactored_1.pcl'
+# CLF_PATH = 'clf_model/clf_lr_rw_cases.pcl'
+# SCALER_PATH = 'clf_model/scaler_lr_wo_group_wo_scaler.pcl'
+CLF_PATH = 'clf_model/script_rw_scenes_clf.pcl'
+SCALER_PATH = 'clf_model/scaler_lr_wo_group_wo_scaler.pcl'
 
 # Device is either /dev/videoX or folder containing images when VIRTUAL_CAMERA == True
-DEVICE = '/home/ivan/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/src_424x480_grayscale/'
-OUT_DIR = '/home/ivan/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/' \
-          'refactored_clf_1_with_ca_{}x{}'.format(RES[0], RES[1])
+DEVICE = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/' \
+         'src_424x480_grayscale/'
+OUT_DIR = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/' \
+          'script_trained_rw_cases_{}x{}'.format(RES[0], RES[1])
+
 VIRTUAL_CAMERA = True
 
 # Pre-processing parameters

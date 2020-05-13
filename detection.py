@@ -1,12 +1,7 @@
 import threading
-
 import cv2
 import numpy as np
-
-try:
-   import queue
-except ImportError:
-   import Queue as queue
+import queue
 
 import conf
 from extentions import TimeCounter
@@ -16,17 +11,16 @@ from pre_processing import PreprocessImg
 import extentions
 
 import pickle
-from sklearn.linear_model import LogisticRegression
-from sklearn.preprocessing import StandardScaler
+
 from sklearn.preprocessing import PolynomialFeatures
 
 poly = PolynomialFeatures(2, include_bias=True)
-poly.fit([[1, 2, 3, 4, 5]])
+poly.fit([[1, 2, 3, 4, 5, 6]])
 
 logger = logging.getLogger('detect.detect')
 
 CLASSIFIER = pickle.load(open(conf.CLF_PATH, "rb"))
-SCALER = pickle.load(open(conf.SCALER_PATH, "rb"))
+# SCALER = pickle.load(open(conf.SCALER_PATH, "rb"))
 
 PINHOLE_CAM = pcm.PinholeCameraModel(rw_angle=-conf.ANGLE, f_l=conf.FL, w_ccd=conf.WCCD, h_ccd=conf.HCCD,
                                      img_res=conf.RES)
@@ -40,6 +34,7 @@ class Detection(threading.Thread):
 
         self.data_frame_q = data_frame_q
         self.orig_img_q = orig_img_q
+        self.fe = pcm.FeatureExtractor(-conf.ANGLE, -conf.HEIGHT, conf.RES, (conf.WCCD, conf.HCCD), conf.FL)
 
         self.timer = TimeCounter("detection_timer")
 
@@ -64,6 +59,9 @@ class Detection(threading.Thread):
             steps['resized_orig'], steps['mask'], steps['filtered'], steps['filled'] = preprocessing.apply(orig_img)
 
             frame.calculate(steps['filled'])
+
+            # fr = Frame(steps['filled'], self.fe)
+            # fr.process()
 
             self.data_frame_q.put(frame, block=True)
 
@@ -91,22 +89,22 @@ class MarginCrossed(Exception):
 class ObjParams(object):
     def __init__(self, obj_id, cnt_ao):
         self.c_a_ao = cv2.contourArea(cnt_ao)
-        if conf.CNT_AREA_FILTERING > 0:
-            if self.c_a_ao / (conf.RES[0] * conf.RES[1]) < conf.CNT_AREA_FILTERING:
-                raise CountorAreaTooSmall
+        # if conf.CNT_AREA_FILTERING > 0:
+        #     if self.c_a_ao / (conf.RES[0] * conf.RES[1]) < conf.CNT_AREA_FILTERING:
+        #         raise CountorAreaTooSmall
 
         self.base_rect_ao = self.x_ao, self.y_ao, self.w_ao, self.h_ao = cv2.boundingRect(cnt_ao)
-        if conf.MARGIN > 0:
-            if not self.check_margin(margin=conf.MARGIN, img_res=conf.RES):
-                raise MarginCrossed
+        # if conf.MARGIN > 0:
+        #     if not self.check_margin(margin=conf.MARGIN, img_res=conf.RES):
+        #         raise MarginCrossed
 
         self.dist_ao = PINHOLE_CAM.pixels_to_distance(-conf.HEIGHT, self.y_ao + self.h_ao)
-        if self.dist_ao <= 0:
-            raise InfiniteDistance
+        # if self.dist_ao <= 0:
+        #     raise InfiniteDistance
 
-        if conf.MAX_DISTANCE > 0:
-            if self.dist_ao > conf.MAX_DISTANCE:
-                raise InfiniteDistance
+        # if conf.MAX_DISTANCE > 0:
+        #     if self.dist_ao > conf.MAX_DISTANCE:
+        #         raise InfiniteDistance
 
         self.obj_id = obj_id
 
@@ -131,10 +129,14 @@ class ObjParams(object):
 
         # scaled_features = [[self.w_ao_rw, self.h_ao_rw,  #self.c_ao_rw,
         #                     self.dist_ao, -conf.HEIGHT,  -conf.ANGLE]]
-        feature_vector = [[self.w_ao_rw, self.h_ao_rw,  self.dist_ao, -conf.HEIGHT,  -conf.ANGLE]]  # self.c_ao_rw,
-        scaled_features = SCALER.transform(feature_vector)
-        logger.debug('Scaled features: {}'.format(scaled_features))
-        self.o_class = int(CLASSIFIER.predict(poly.transform(scaled_features)))
+        feature_vector = [[self.w_ao_rw, self.h_ao_rw,  self.c_ao_rw, self.dist_ao, -conf.HEIGHT,  -conf.ANGLE]]  #
+        logger.debug('Feature vector native: {}'.format(feature_vector))
+        # scaled_features = SCALER.transform(feature_vector)
+        # logger.debug('Scaled features: {}'.format(scaled_features))
+        scaled_features = feature_vector
+        poly_features = poly.transform(scaled_features)
+        # logger.debug('Poly features: {}'.format(poly_features))
+        self.o_class = int(CLASSIFIER.predict(poly_features))
 
 
         # else:
@@ -150,6 +152,32 @@ class ObjParams(object):
         return status
 
 
+class Frame(object):
+    def __init__(self, mask, fe_ext):
+        self.mask = mask
+        self.fe_ext = fe_ext
+
+    def find_basic_params(self):
+        cnts, _ = cv2.findContours(self.mask, mode=0, method=1)
+        c_areas = [cv2.contourArea(cnt) for cnt in cnts]
+        b_rects = [cv2.boundingRect(b_r) for b_r in cnts]
+
+        return np.asarray(c_areas), np.asarray(b_rects)
+
+    def process(self):
+        c_areas, b_rects = self.find_basic_params()
+        if len(c_areas) > 0:  # Calculate features when something is present on the mask
+            z_est, x_est, width_est, height_est, rw_ca_est = self.fe_ext.extract_features(c_areas, b_rects)
+            feature_vector = np.stack((width_est, height_est, rw_ca_est, z_est,
+                                                     np.ones(z_est.shape) * -conf.HEIGHT,
+                                                     np.ones(z_est.shape) * -conf.ANGLE), axis=1)
+            logger.debug('Feature vector new: {}'.format(feature_vector))
+            poly_features = poly.transform(feature_vector)
+            # logger.debug('Poly features: {}'.format(poly_features))
+            o_class = CLASSIFIER.predict(poly_features)
+            logger.debug('New method: {}'.format(o_class))
+
+
 class DataFrame(object):
     def __init__(self):
         self.base_frame_status = None  # Can be False/True/None type
@@ -161,6 +189,7 @@ class DataFrame(object):
 
     def calculate(self, filled):
         self.base_objects, self.base_contours = self.basic_process(filled)
+        logger.debug('Native method: {}'.format([obj.o_class for obj in self.base_objects]))
 
         # split_obj_i = [[i, obj] for i, obj in enumerate(self.base_objects)
         #                if obj.extent_ao < 0.5 and 2 < obj.w_ao_rw < 5 and obj.dist_ao < 30 and obj.h_ao_rw < 3]

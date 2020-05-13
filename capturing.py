@@ -1,10 +1,8 @@
 import cv2
 import threading
 
-try:
-   import queue
-except ImportError:
-   import Queue as queue
+import queue
+
 
 import glob
 import os
@@ -15,6 +13,7 @@ import global_vars
 from extentions import TimeCounter
 
 logger = logging.getLogger('detect.capture')
+
 
 def check_dir(dir_path):
     if not os.path.isdir(dir_path):

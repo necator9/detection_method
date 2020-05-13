@@ -18,7 +18,7 @@ import cv2
 
 # Set up logging,
 logger = logging.getLogger('detect')
-logger.setLevel(logging.INFO)
+logger.setLevel(conf.LOG_LEVEL)
 file_handler = logging.FileHandler('detection.log')
 ch = logging.StreamHandler()
 
