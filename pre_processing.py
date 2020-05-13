@@ -2,7 +2,9 @@ import conf
 from capturing import StartAppError
 import imutils
 import cv2
+import logging
 
+logger = logging.getLogger('detect.pre_processing')
 
 class PreprocessImg(object):
     def __init__(self):
@@ -46,9 +48,10 @@ class PreprocessImg(object):
         if not self.set_ratio_done:
             self.set_ratio_done = True
             actual_w, actual_h = img.shape[:2][1], img.shape[:2][0]
-            # DETECTION_LOG.info("Processing resolution: {}x{}".format(actual_w, actual_h))
+            logger.info("Processing resolution: {}x{}".format(actual_w, actual_h))
 
             if conf.RES[0] != actual_w or conf.RES[1] != actual_h:
                 conf.RES[0], conf.RES[1] = actual_w, actual_h
+                logger.info("Processing resolution updated: {}x{}".format(actual_w, actual_h))
                 # global PINHOLE_CAM
                 # PINHOLE_CAM = init_pcm()

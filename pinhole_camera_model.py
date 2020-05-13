@@ -1,5 +1,8 @@
 from __future__ import division
 import numpy as np
+import logging
+
+logger = logging.getLogger('detect.fe_ext')
 
 
 class IntrinsicMtx(object):
@@ -50,8 +53,15 @@ class RotationMtx(object):
         self.mtx[1][1] = a_cos
 
 
-
 class FeatureExtractor(object):
+    """
+    Extract object features from given bounding rectangles and contour areas
+    :param r_x: # Camera rotation angle about x axis in radians
+    :param cam_h: # Ground y coord relative to camera (cam. is origin) in meters
+    :param img_res: # Image resolution (width, height) in px
+    :param sens_dim: # Camera sensor dimensions (width, height) in mm
+    :param f_l: # Focal length in mm
+    """
     def __init__(self, r_x, cam_h, img_res, sens_dim, f_l):
         self.r_x = np.deg2rad(r_x, dtype=np.float32)  # Camera rotation angle about x axis in radians
         self.cam_h = np.asarray(cam_h, dtype=np.float32)  # Ground y coord relative to camera (cam. is origin) in meters
@@ -86,7 +96,7 @@ class FeatureExtractor(object):
         px_x_l_r = np.hstack((b_rect[:, 0], b_rect[:, 0] + b_rect[:, 2]))  # Left and right bottom coords
         # so the [:shape/2] belongs to left and [shape/2:] to the right bound. rect. coordinates
         x_lr_yb_hom = np.stack((px_x_l_r,
-                                np.repeat(px_y_bottom_top[:, 0], 2),
+                                np.tile(px_y_bottom_top[:, 0], 2),
                                 np.ones(2 * px_y_bottom_top.shape[0])), axis=1)
 
         # * Find object coordinates in real world
@@ -113,7 +123,7 @@ class FeatureExtractor(object):
     def estimate_3d_coordinates(self, x_lr_yb_hom, distance):
         # Z cam is a scaling factor which is needed for 3D reconstruction
         z_cam_coords = self.cam_h * np.sin(self.r_x) + distance * np.cos(self.r_x)
-        z_cam_coords = np.expand_dims(np.repeat(z_cam_coords, 2), axis=0).T
+        z_cam_coords = np.expand_dims(np.tile(z_cam_coords, 2), axis=0).T
         cam_xlr_yb_h = x_lr_yb_hom * z_cam_coords
 
         # Transform from image plan to camera coordinate system
@@ -192,7 +202,6 @@ class PinholeCameraModel(object):
 
     def get_3d_point(self, img_coords, y, z):
         z_cam_coords = (y * np.sin(np.radians(self.rw_angle))) + (z * np.cos(np.radians(self.rw_angle)))
-
         img_coords_prime = z_cam_coords * img_coords
 
         camera_coords = self.k_inv.dot(img_coords_prime.T)
@@ -206,7 +215,7 @@ class PinholeCameraModel(object):
     def get_width(self, y_rw, z_rw, b_rect):
         x, y, w, h = b_rect
 
-        br_left_down_2d = np.array([[x, y + h, 1]])
+        br_left_down_2d = np.array([x, y + h, 1])
         br_right_down_2d = np.array([x + w, y + h, 1])
         br_down_2d = [br_left_down_2d, br_right_down_2d]
         br_down_3d = [self.get_3d_point(br_vertex_2d, y_rw, z_rw) for br_vertex_2d in br_down_2d]

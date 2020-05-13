@@ -2,7 +2,7 @@ from camera_parameters import cameras
 
 # Logging parameters
 SHOW_LOGS = True
-LOG_LEVEL = 20
+LOG_LEVEL = 10
 PATH_TO_LOGS = "/home/ivan/logs/"
 
 # Camera parameters
@@ -16,19 +16,14 @@ RES = cam['img_res']
 FPS = 24
 
 # TODO Retrain model without scaling to improve FPS
-# Classifier and scaler paths
-# CLF_PATH = 'clf_model/clf_refactored_1.pcl'
-# SCALER_PATH = 'clf_model/scaler_refactored_1.pcl'
-# CLF_PATH = 'clf_model/clf_lr_rw_cases.pcl'
-# SCALER_PATH = 'clf_model/scaler_lr_wo_group_wo_scaler.pcl'
-CLF_PATH = 'clf_model/script_rw_scenes_clf.pcl'
-SCALER_PATH = 'clf_model/scaler_lr_wo_group_wo_scaler.pcl'
+# Classifier path
+CLF_PATH = 'clf_model/detailed_separate_clf_dict.pcl'
 
 # Device is either /dev/videoX or folder containing images when VIRTUAL_CAMERA == True
 DEVICE = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/' \
          'src_424x480_grayscale/'
 OUT_DIR = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/' \
-          'script_trained_rw_cases_{}x{}'.format(RES[0], RES[1])
+          'separate_clfs_{}x{}'.format(RES[0], RES[1])
 
 VIRTUAL_CAMERA = True
 

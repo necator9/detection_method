@@ -12,15 +12,18 @@ import extentions
 
 import pickle
 
-from sklearn.preprocessing import PolynomialFeatures
-
-poly = PolynomialFeatures(2, include_bias=True)
-poly.fit([[1, 2, 3, 4, 5, 6]])
 
 logger = logging.getLogger('detect.detect')
 
-CLASSIFIER = pickle.load(open(conf.CLF_PATH, "rb"))
-# SCALER = pickle.load(open(conf.SCALER_PATH, "rb"))
+all_classifiers = pickle.load(open(conf.CLF_PATH, "rb"))
+
+heights = [key for key in all_classifiers.keys() if type(key) != str]  # Filter the poly key out
+closest_height = min(heights, key=lambda x: abs(x - (-conf.HEIGHT)))  # Find the closest value among available heights
+angles = list(all_classifiers[closest_height])  # All the available angles for a given height in a form of a list
+closest_angle = min(angles, key=lambda x: abs(x - (-conf.ANGLE)))  # Find the closest value among available angles
+CLASSIFIER = all_classifiers[closest_height][closest_angle]
+
+poly = all_classifiers['poly']
 
 PINHOLE_CAM = pcm.PinholeCameraModel(rw_angle=-conf.ANGLE, f_l=conf.FL, w_ccd=conf.WCCD, h_ccd=conf.HCCD,
                                      img_res=conf.RES)
@@ -60,8 +63,8 @@ class Detection(threading.Thread):
 
             frame.calculate(steps['filled'])
 
-            # fr = Frame(steps['filled'], self.fe)
-            # fr.process()
+            fr = Frame(steps['filled'], self.fe)
+            fr.process()
 
             self.data_frame_q.put(frame, block=True)
 
@@ -129,12 +132,10 @@ class ObjParams(object):
 
         # scaled_features = [[self.w_ao_rw, self.h_ao_rw,  #self.c_ao_rw,
         #                     self.dist_ao, -conf.HEIGHT,  -conf.ANGLE]]
-        feature_vector = [[self.w_ao_rw, self.h_ao_rw,  self.c_ao_rw, self.dist_ao, -conf.HEIGHT,  -conf.ANGLE]]  #
-        logger.debug('Feature vector native: {}'.format(feature_vector))
-        # scaled_features = SCALER.transform(feature_vector)
-        # logger.debug('Scaled features: {}'.format(scaled_features))
-        scaled_features = feature_vector
-        poly_features = poly.transform(scaled_features)
+        feature_vector = [[self.w_ao_rw, self.h_ao_rw,  self.c_ao_rw, self.dist_ao]]  # , -conf.HEIGHT,  -conf.ANGLE
+        #logger.debug('NATIVE Feature vector : {}'.format(feature_vector))
+
+        poly_features = poly.transform(feature_vector)
         # logger.debug('Poly features: {}'.format(poly_features))
         self.o_class = int(CLASSIFIER.predict(poly_features))
 
@@ -168,14 +169,9 @@ class Frame(object):
         c_areas, b_rects = self.find_basic_params()
         if len(c_areas) > 0:  # Calculate features when something is present on the mask
             z_est, x_est, width_est, height_est, rw_ca_est = self.fe_ext.extract_features(c_areas, b_rects)
-            feature_vector = np.stack((width_est, height_est, rw_ca_est, z_est,
-                                                     np.ones(z_est.shape) * -conf.HEIGHT,
-                                                     np.ones(z_est.shape) * -conf.ANGLE), axis=1)
-            logger.debug('Feature vector new: {}'.format(feature_vector))
+            feature_vector = np.stack((width_est, height_est, rw_ca_est, z_est), axis=1)
             poly_features = poly.transform(feature_vector)
-            # logger.debug('Poly features: {}'.format(poly_features))
             o_class = CLASSIFIER.predict(poly_features)
-            logger.debug('New method: {}'.format(o_class))
 
 
 class DataFrame(object):
@@ -189,7 +185,20 @@ class DataFrame(object):
 
     def calculate(self, filled):
         self.base_objects, self.base_contours = self.basic_process(filled)
-        logger.debug('Native method: {}'.format([obj.o_class for obj in self.base_objects]))
+        #logger.debug('Native method: {}'.format([obj.o_class for obj in self.base_objects]))
+        # c_areas = [obj.c_a_ao for obj in self.base_objects]
+        # b_rects = [obj.base_rect_ao for obj in self.base_objects]
+        # rw_distance = [obj.dist_ao for obj in self.base_objects]
+        # rw_height = [obj.h_ao_rw for obj in self.base_objects]
+        # rw_width = [obj.w_ao_rw for obj in self.base_objects]
+        # feature_vector = [[obj.w_ao_rw, obj.h_ao_rw, obj.c_ao_rw, obj.dist_ao] for obj in self.base_objects]
+        # logger.debug('NATIVE Contour areas: {}\nRectangles: {}'.format(c_areas, b_rects))
+        # logger.debug('NATIVE Distance: {}'.format(rw_distance))
+        # logger.debug('NATIVE height: {}'.format(rw_height))
+        # logger.debug('NATIVE width: {}'.format(rw_width))
+        #logger.debug('NATIVE Feature vector : {}'.format(feature_vector))
+        # o_class = [obj.o_class for obj in self.base_objects]
+        # logger.debug('NATIVE class: {}'.format(o_class))
 
         # split_obj_i = [[i, obj] for i, obj in enumerate(self.base_objects)
         #                if obj.extent_ao < 0.5 and 2 < obj.w_ao_rw < 5 and obj.dist_ao < 30 and obj.h_ao_rw < 3]
