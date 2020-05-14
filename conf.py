@@ -51,7 +51,6 @@ MAX_DISTANCE = 30  # Chosen 30
 WRITE_IMG = False
 
 WRITE_TO_DB = True
-WRITE_TO_PICKLE = False
 # TODO Check why the sqlite does not accept "." in path of out database
 
 # Timers parameters

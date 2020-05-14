@@ -1,6 +1,5 @@
 import sqlite3
 import os
-import pickle
 import threading
 import numpy as np
 import cv2
@@ -31,7 +30,6 @@ class Saving(threading.Thread):
 
         self.check_if_dir_exists()
         # self.db_obj = Database(self.gen_name("sql_database"))
-        self.pickle_obj = PickleWrap(self.gen_name("pickle_data.pkl"))
 
     def run(self):
         logger.info("Starting the Saving thread...")
@@ -43,7 +41,6 @@ class Saving(threading.Thread):
 
         self.finish_writing()
         self.db_obj.quit()
-        self.pickle_obj.quit()
 
         logger.info("Saving thread has been finished")
 
@@ -57,7 +54,6 @@ class Saving(threading.Thread):
 
         # self.db_obj.write(data_frame)
 
-        self.pickle_obj.add(data_frame)
 
         global SAVE_COUNTER
         SAVE_COUNTER += 1
@@ -155,22 +151,6 @@ class Saving(threading.Thread):
 #         self.db.commit()
 #         self.db.close()
 
-
-class PickleWrap(object):
-    def __init__(self, pickle_name):
-        if conf.WRITE_TO_PICKLE:
-            self.pickle_name = pickle_name
-            self.pickle_data = list()
-        else:
-            self.add = blank_fn
-            self.quit = blank_fn
-
-    def add(self, data_frame):
-        self.pickle_data.append(data_frame.base_objects)
-
-    def quit(self):
-        with open(self.pickle_name, 'wb') as output:
-            pickle.dump(self.pickle_data, output, pickle.HIGHEST_PROTOCOL)
 
 
 class ImgStructure(object):
