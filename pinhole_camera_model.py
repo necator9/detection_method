@@ -109,7 +109,7 @@ class FeatureExtractor(object):
         px_rect_a = b_rect[:, 2] * b_rect[:, 3]
         rw_ca = ca_px * rw_rect_a / px_rect_a
 
-        return rw_distance, left_bottom[:, 0] - rw_width / 2, rw_width, rw_height, rw_ca
+        return np.stack((rw_width, rw_height, rw_ca, rw_distance,), axis=1), left_bottom[:, 0] + rw_width / 2,
 
     # Estimate distance to the bottom pixel of a bounding rectangle. Based on assumption that object is aligned with the
     # ground surface. Calculation uses angle between vertex and optical center along vertical axis
