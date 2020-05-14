@@ -167,76 +167,87 @@ class Frame(object):
 
         self.max_dist_thr = conf.MAX_DISTANCE
 
-    def find_basic_params(self):
+        self.first_in = np.ones([1])
+
+        self.poly = poly
+        self.clf = CLASSIFIER
+
+    def check_on_empty(fun_to_call):
+        def wrapper(self, parameters):
+            if parameters.size > 0:
+                return fun_to_call(self, parameters)
+            else:
+                return parameters
+
+        return wrapper
+
+    @check_on_empty
+    def find_basic_params(self, *args):
         cnts, _ = cv2.findContours(self.mask, mode=0, method=1)
         c_areas = [cv2.contourArea(cnt) for cnt in cnts]
         b_rects = [cv2.boundingRect(b_r) for b_r in cnts]
 
-        return c_areas, b_rects
+        return np.column_stack((b_rects, c_areas))
 
-    def filter_c_ar(self, c_areas, b_rects):
+    @check_on_empty
+    def filter_c_ar(self, basic_params):
         # Filter out small object below threshold
-        c_ar_filter_mask = c_areas / self.img_area_px < self.c_ar_thr  # Built filtering mask
-        b_rects, c_areas = b_rects[c_ar_filter_mask], c_areas[c_ar_filter_mask]
-        return c_areas, b_rects
+        # c_ar_filter_mask = c_areas / self.img_area_px < self.c_ar_thr  # Built filtering mask
+        # b_rects, c_areas = b_rects[c_ar_filter_mask], c_areas[c_ar_filter_mask]
+        basic_params = basic_params[basic_params[:, -1] / self.img_area_px < self.c_ar_thr]
+        return basic_params
 
-    def filter_margin(self, c_areas, b_rects):
-        margin_filter_mask = ((b_rects[:, 0] > self.left_mar) &  # Built filtering mask
-                              (b_rects[:, 0] + b_rects[:, 2] < self.right_mar) &
-                              (b_rects[:, 1] > self.up_mar) &
-                              (b_rects[:, 1] + b_rects[:, 3] < self.bot_mar))
-        b_rects, c_areas = b_rects[margin_filter_mask], c_areas[margin_filter_mask]
-        return c_areas, b_rects
+    @check_on_empty
+    def filter_margin(self, basic_params):
+        margin_filter_mask = ((basic_params[:, 0] > self.left_mar) &  # Built filtering mask
+                              (basic_params[:, 0] + basic_params[:, 2] < self.right_mar) &
+                              (basic_params[:, 1] > self.up_mar) &
+                              (basic_params[:, 1] + basic_params[:, 3] < self.bot_mar))
 
+        return basic_params[margin_filter_mask]
+
+    @check_on_empty
     def filter_distance(self, feature_vector):
         # Replace exceeding threshold distances with infinity.
         feature_vector[:, 3] = np.where(feature_vector[:, 3] > self.max_dist_thr, np.inf, feature_vector[:, 3])
         return feature_vector
 
+    @check_on_empty
     def filter_infinity(self, feature_vector):
         # Filter out infinity distances. Infinities can be already in the feature_vector before filtering by distance!
         feature_vector = feature_vector[np.isfinite(feature_vector[:, 3])]
         return feature_vector
 
-    def check_on_empty(self, fun_to_call):
-        def wrapper(*args, **kwargs):
-            if args is not None:
-                res = fun_to_call(*args, **kwargs)
-                if res.size != 0:
-                    return res
+    @check_on_empty
+    def extract_features(self, basic_params):
+        return self.fe_ext.extract_features(basic_params)
 
-        return wrapper
+    @check_on_empty
+    def classify(self, feature_vector):
+        poly_features = self.poly.transform(feature_vector)
+        o_class = self.clf.predict(poly_features)
+        return o_class
 
     def process(self):
-        c_areas, b_rects = self.find_basic_params()
-        if len(b_rects) == 0:
-            return None  # Interrupt processing when no objects have been detected on a binary mask
-
-        c_areas, b_rects = np.asarray(c_areas), np.asarray(b_rects)
+        basic_params = self.find_basic_params(self.first_in)
         # Filtering by object contour area size which is in pixels
         if self.c_ar_thr > 0:  # If filtering by contour area size is enabled
-            c_areas, b_rects = self.filter_c_ar(c_areas, b_rects)
-        if c_areas.shape[0] == 0:
-            return None
-
+            basic_params = self.filter_c_ar(basic_params)
         # Filtering by intersection with a frame border
         if self.margin_offset > 0:  # If filtering is enabled
-            c_areas, b_rects = self.filter_margin(c_areas, b_rects)
-        if c_areas.shape[0] == 0:
-            return None
+            basic_params = self.filter_margin(basic_params)
 
-        feature_vector, x_est = self.fe_ext.extract_features(c_areas, b_rects)
+        feature_vector = self.extract_features(basic_params)
+
         # Filter by distance to the object
         if self.max_dist_thr > 0:  # If filtering is enabled
             feature_vector = self.filter_distance(feature_vector)
 
         feature_vector = self.filter_infinity(feature_vector)
-        if feature_vector.shape[0] == 0:
-            return None
 
-        poly_features = poly.transform(feature_vector)
-        o_class = CLASSIFIER.predict(poly_features)
-        print(o_class)
+        o_class = self.classify(feature_vector[:, :4])
+        #print(o_class)
+
 
 
 class DataFrame(object):

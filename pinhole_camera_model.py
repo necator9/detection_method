@@ -76,7 +76,11 @@ class FeatureExtractor(object):
         rot_x_mtx = RotationMtx('rx', None).build(self.r_x)
         self.rev_rot_x_mtx = np.linalg.inv(rot_x_mtx)
 
-    def extract_features(self, ca_px, b_rect):
+    def extract_features(self, basic_params):
+        if basic_params.size == 0:
+            return basic_params, basic_params
+
+        b_rect, ca_px = basic_params[:, :4], basic_params[:, -1]
         # * Transform bounding rectangles to required shape
         # Important! Reverse the y coordinates of bound.rect. along y axis before transformations (self.img_res[1] - y)
         px_y_bottom_top = self.img_res[1] - np.stack((b_rect[:, 1] + b_rect[:, 3], b_rect[:, 1]), axis=1)
@@ -109,7 +113,7 @@ class FeatureExtractor(object):
         px_rect_a = b_rect[:, 2] * b_rect[:, 3]
         rw_ca = ca_px * rw_rect_a / px_rect_a
 
-        return np.stack((rw_width, rw_height, rw_ca, rw_distance,), axis=1), left_bottom[:, 0] + rw_width / 2,
+        return np.stack((rw_width, rw_height, rw_ca, rw_distance, left_bottom[:, 0] + rw_width / 2), axis=1)
 
     # Estimate distance to the bottom pixel of a bounding rectangle. Based on assumption that object is aligned with the
     # ground surface. Calculation uses angle between vertex and optical center along vertical axis
