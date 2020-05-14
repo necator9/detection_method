@@ -92,22 +92,22 @@ class MarginCrossed(Exception):
 class ObjParams(object):
     def __init__(self, obj_id, cnt_ao):
         self.c_a_ao = cv2.contourArea(cnt_ao)
-        # if conf.CNT_AREA_FILTERING > 0:
-        #     if self.c_a_ao / (conf.RES[0] * conf.RES[1]) < conf.CNT_AREA_FILTERING:
-        #         raise CountorAreaTooSmall
-
+        if conf.CNT_AREA_FILTERING > 0:
+            if self.c_a_ao / (conf.RES[0] * conf.RES[1]) < conf.CNT_AREA_FILTERING:
+                raise CountorAreaTooSmall
+        #
         self.base_rect_ao = self.x_ao, self.y_ao, self.w_ao, self.h_ao = cv2.boundingRect(cnt_ao)
-        # if conf.MARGIN > 0:
-        #     if not self.check_margin(margin=conf.MARGIN, img_res=conf.RES):
-        #         raise MarginCrossed
+        if conf.MARGIN > 0:
+            if not self.check_margin(margin=conf.MARGIN, img_res=conf.RES):
+                raise MarginCrossed
 
         self.dist_ao = PINHOLE_CAM.pixels_to_distance(-conf.HEIGHT, self.y_ao + self.h_ao)
-        # if self.dist_ao <= 0:
-        #     raise InfiniteDistance
+        if self.dist_ao <= 0:
+            raise InfiniteDistance
 
-        # if conf.MAX_DISTANCE > 0:
-        #     if self.dist_ao > conf.MAX_DISTANCE:
-        #         raise InfiniteDistance
+        if conf.MAX_DISTANCE > 0:
+            if self.dist_ao > conf.MAX_DISTANCE:
+                raise InfiniteDistance
 
         self.obj_id = obj_id
 
@@ -168,11 +168,21 @@ class Frame(object):
         self.max_dist_thr = conf.MAX_DISTANCE
 
         self.first_in = np.ones([1])
+        self.empty = np.empty([1])
 
         self.poly = poly
         self.clf = CLASSIFIER
 
-    def check_on_empty(fun_to_call):
+    def check_on_conf_flag(fun_to_call):
+        def wrapper(self, fun_arg, flag):
+            if flag:
+                return fun_to_call(self, fun_arg)
+            else:
+                return fun_to_call(self, self.empty)
+
+        return wrapper
+
+    def check_input_on_empty_arr(fun_to_call):
         def wrapper(self, parameters):
             if parameters.size > 0:
                 return fun_to_call(self, parameters)
@@ -181,23 +191,23 @@ class Frame(object):
 
         return wrapper
 
-    @check_on_empty
+    @check_input_on_empty_arr
     def find_basic_params(self, *args):
         cnts, _ = cv2.findContours(self.mask, mode=0, method=1)
         c_areas = [cv2.contourArea(cnt) for cnt in cnts]
         b_rects = [cv2.boundingRect(b_r) for b_r in cnts]
 
-        return np.column_stack((b_rects, c_areas))
+        return np.column_stack((b_rects, c_areas)).astype('int32')
 
-    @check_on_empty
+    @check_on_conf_flag
+    @check_input_on_empty_arr
     def filter_c_ar(self, basic_params):
         # Filter out small object below threshold
-        # c_ar_filter_mask = c_areas / self.img_area_px < self.c_ar_thr  # Built filtering mask
-        # b_rects, c_areas = b_rects[c_ar_filter_mask], c_areas[c_ar_filter_mask]
-        basic_params = basic_params[basic_params[:, -1] / self.img_area_px < self.c_ar_thr]
+        basic_params = basic_params[basic_params[:, -1] / self.img_area_px > self.c_ar_thr]
         return basic_params
 
-    @check_on_empty
+    @check_on_conf_flag
+    @check_input_on_empty_arr
     def filter_margin(self, basic_params):
         margin_filter_mask = ((basic_params[:, 0] > self.left_mar) &  # Built filtering mask
                               (basic_params[:, 0] + basic_params[:, 2] < self.right_mar) &
@@ -206,23 +216,24 @@ class Frame(object):
 
         return basic_params[margin_filter_mask]
 
-    @check_on_empty
+    @check_on_conf_flag
+    @check_input_on_empty_arr
     def filter_distance(self, feature_vector):
         # Replace exceeding threshold distances with infinity.
         feature_vector[:, 3] = np.where(feature_vector[:, 3] > self.max_dist_thr, np.inf, feature_vector[:, 3])
         return feature_vector
 
-    @check_on_empty
+    @check_input_on_empty_arr
     def filter_infinity(self, feature_vector):
         # Filter out infinity distances. Infinities can be already in the feature_vector before filtering by distance!
         feature_vector = feature_vector[np.isfinite(feature_vector[:, 3])]
         return feature_vector
 
-    @check_on_empty
+    @check_input_on_empty_arr
     def extract_features(self, basic_params):
         return self.fe_ext.extract_features(basic_params)
 
-    @check_on_empty
+    @check_input_on_empty_arr
     def classify(self, feature_vector):
         poly_features = self.poly.transform(feature_vector)
         o_class = self.clf.predict(poly_features)
@@ -230,23 +241,19 @@ class Frame(object):
 
     def process(self):
         basic_params = self.find_basic_params(self.first_in)
-        # Filtering by object contour area size which is in pixels
-        if self.c_ar_thr > 0:  # If filtering by contour area size is enabled
-            basic_params = self.filter_c_ar(basic_params)
-        # Filtering by intersection with a frame border
-        #if self.margin_offset > 0:  # If filtering is enabled
-        basic_params = self.filter_margin(basic_params) if self.margin_offset > 0 else basic_params
-
+        # Filtering by object contour area size if filtering by contour area size is enabled
+        basic_params = self.filter_c_ar(basic_params, self.c_ar_thr > 0)
+        # Filtering by intersection with a frame border if filtering is enabled
+        basic_params = self.filter_margin(basic_params, self.margin_offset > 0)
+        # Get features of the object using its bounding rectangles and contour areas
         feature_vector = self.extract_features(basic_params)
-
-        # Filter by distance to the object
-        if self.max_dist_thr > 0:  # If filtering is enabled
-            feature_vector = self.filter_distance(feature_vector)
-
+        # Filter by distance to the object if filtering is enabled
+        feature_vector = self.filter_distance(feature_vector, self.max_dist_thr > 0)
         feature_vector = self.filter_infinity(feature_vector)
 
         o_class = self.classify(feature_vector[:, :4])
-        #print(o_class)
+
+        return np.column_stack((feature_vector, o_class))
 
 
 
@@ -267,14 +274,14 @@ class DataFrame(object):
         # rw_distance = [obj.dist_ao for obj in self.base_objects]
         # rw_height = [obj.h_ao_rw for obj in self.base_objects]
         # rw_width = [obj.w_ao_rw for obj in self.base_objects]
-        # feature_vector = [[obj.w_ao_rw, obj.h_ao_rw, obj.c_ao_rw, obj.dist_ao] for obj in self.base_objects]
+        feature_vector = [[obj.w_ao_rw, obj.h_ao_rw, obj.c_ao_rw, obj.dist_ao] for obj in self.base_objects]
         # logger.debug('NATIVE Contour areas: {}\nRectangles: {}'.format(c_areas, b_rects))
         # logger.debug('NATIVE Distance: {}'.format(rw_distance))
         # logger.debug('NATIVE height: {}'.format(rw_height))
         # logger.debug('NATIVE width: {}'.format(rw_width))
-        #logger.debug('NATIVE Feature vector : {}'.format(feature_vector))
-        # o_class = [obj.o_class for obj in self.base_objects]
-        # logger.debug('NATIVE class: {}'.format(o_class))
+        logger.debug('NATIVE Feature vector : {}'.format(feature_vector))
+        o_class = [obj.o_class for obj in self.base_objects]
+        logger.debug('NATIVE class: {}'.format(o_class))
 
         # split_obj_i = [[i, obj] for i, obj in enumerate(self.base_objects)
         #                if obj.extent_ao < 0.5 and 2 < obj.w_ao_rw < 5 and obj.dist_ao < 30 and obj.h_ao_rw < 3]

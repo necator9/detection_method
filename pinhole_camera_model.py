@@ -77,9 +77,6 @@ class FeatureExtractor(object):
         self.rev_rot_x_mtx = np.linalg.inv(rot_x_mtx)
 
     def extract_features(self, basic_params):
-        if basic_params.size == 0:
-            return basic_params, basic_params
-
         b_rect, ca_px = basic_params[:, :4], basic_params[:, -1]
         # * Transform bounding rectangles to required shape
         # Important! Reverse the y coordinates of bound.rect. along y axis before transformations (self.img_res[1] - y)
