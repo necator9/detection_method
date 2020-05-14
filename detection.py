@@ -234,8 +234,8 @@ class Frame(object):
         if self.c_ar_thr > 0:  # If filtering by contour area size is enabled
             basic_params = self.filter_c_ar(basic_params)
         # Filtering by intersection with a frame border
-        if self.margin_offset > 0:  # If filtering is enabled
-            basic_params = self.filter_margin(basic_params)
+        #if self.margin_offset > 0:  # If filtering is enabled
+        basic_params = self.filter_margin(basic_params) if self.margin_offset > 0 else basic_params
 
         feature_vector = self.extract_features(basic_params)
 
