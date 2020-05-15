@@ -69,7 +69,7 @@ def main():
         else:
             capturing_thread = capturing.Camera(orig_img_q, stop_event)
 
-        if not (conf.WRITE_TO_DB or conf.WRITE_TO_PICKLE):
+        if not (conf.WRITE_TO_CSV):
             saver_thread.start = blank_fn
             saver_thread.quit = blank_fn
             saver_thread.join = blank_fn

@@ -15,7 +15,6 @@ HCCD = cam['hccd']
 RES = cam['img_res']
 FPS = 24
 
-# TODO Retrain model without scaling to improve FPS
 # Classifier path
 CLF_PATH = 'clf_model/detailed_separate_clf_dict.pcl'
 
@@ -50,12 +49,11 @@ MAX_DISTANCE = 30  # Chosen 30
 # Saving parameters
 WRITE_IMG = False
 
-WRITE_TO_DB = True
-# TODO Check why the sqlite does not accept "." in path of out database
+WRITE_TO_CSV = True
 
 # Timers parameters
 TIMERS = True
-TIME_WINDOW = 25
+TIME_WINDOW = 200
 
 
 o_class_mapping = {0: 'noise', 1: 'pedestrian', 2: 'group', 3: 'cyclist', 4: 'vehicle'}

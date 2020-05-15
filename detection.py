@@ -64,14 +64,22 @@ class Detection(threading.Thread):
             # frame.calculate(steps['filled'])
 
             fr = Frame(steps['filled'], self.fe)
-            fr.process()
-
-            self.data_frame_q.put(frame, block=True)
+            res_data = fr.process()
+            if len(res_data) > 0:
+                data_to_save = self.prepare_array_to_save(res_data, int(img_name[: -5]))
+                self.data_frame_q.put(data_to_save, block=True)
 
             if conf.WRITE_IMG:
                 extentions.write_steps(steps, frame, img_name)
 
             self.timer.get_time()
+
+    @ staticmethod
+    def prepare_array_to_save(data, img_num):
+        # Add image number and row indices as first two columns to distinguish objects later
+        return np.column_stack((np.full(data.shape[0], img_num), np.arange(data.shape[0]), data))
+
+
 
 
 class CountorAreaTooSmall(Exception):
@@ -246,11 +254,11 @@ class Frame(object):
         # Filtering by intersection with a frame border if filtering is enabled
         basic_params = self.filter_margin(basic_params, self.margin_offset > 0)
         # Get features of the object using its bounding rectangles and contour areas
-        feature_vector = self.extract_features(basic_params)
+        feature_vector = np.column_stack((self.extract_features(basic_params), basic_params))
         # Filter by distance to the object if filtering is enabled
         feature_vector = self.filter_distance(feature_vector, self.max_dist_thr > 0)
         feature_vector = self.filter_infinity(feature_vector)
-
+        # Pass only informative features to classifier
         o_class = self.classify(feature_vector[:, :4])
 
         return np.column_stack((feature_vector, o_class))

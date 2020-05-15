@@ -1,4 +1,3 @@
-import sqlite3
 import os
 import threading
 import numpy as np
@@ -29,7 +28,7 @@ class Saving(threading.Thread):
         self.data_frame_q = data_frame_q
 
         self.check_if_dir_exists()
-        # self.db_obj = Database(self.gen_name("sql_database"))
+        self.writer = WriteCsv()
 
     def run(self):
         logger.info("Starting the Saving thread...")
@@ -40,7 +39,6 @@ class Saving(threading.Thread):
             # SAVER_LOG.debug("Entry has been written")
 
         self.finish_writing()
-        self.db_obj.quit()
 
         logger.info("Saving thread has been finished")
 
@@ -52,8 +50,7 @@ class Saving(threading.Thread):
 
             return 1
 
-        # self.db_obj.write(data_frame)
-
+        self.writer.write(data_frame)
 
         global SAVE_COUNTER
         SAVE_COUNTER += 1
@@ -76,6 +73,7 @@ class Saving(threading.Thread):
 
     def quit(self):
         self._is_running = False
+        self.writer.quit()
 
     @staticmethod
     def gen_name(name):
@@ -89,68 +87,17 @@ class Saving(threading.Thread):
                 i += 1
 
 
-# class Database(object):
-#     def __init__(self, db_name):
-#         if conf.WRITE_TO_DB:
-#             self.db_name = db_name
-#             logger.info("Database name: {}".format(self.db_name))
-#             self.db = sqlite3.connect(self.db_name, check_same_thread=False)
-#             self.cur = self.db.cursor()
-#             self.table_name = 'object_parameters'
-#             self.write_table()
-#         else:
-#             self.write = blank_fn
-#             self.quit = blank_fn
-#
-#     def write_table(self):
-#         logger.debug("Database table has been written")
-#
-#         self.cur.execute('''CREATE TABLE {} (Img_name TEXT, Obj_id INT,
-#         Rect_coeff_ao REAL, dist_ao REAL, c_a_ao REAL, Extent REAL, Binary_status TEXT,
-#         h_w_ratio_ao REAL, x_ao INT, y_ao INT, w_ao INT, h_ao INT,
-#         o_class INT, c_a_rw REAL, w_rw REAL, h_rw REAL)'''.format(self.table_name))
-#
-#         self.db.commit()
-#
-#     def write(self, d_frame):
-#
-#         img_name = str(SAVE_COUNTER)
-#         db_arr = self.get_base_params(d_frame.base_objects, img_name)
-#
-#         self.cur.executemany('''INSERT INTO {}(Img_name, Obj_id,  dist_ao,
-#         c_a_ao, Extent, Binary_status, h_w_ratio_ao, x_ao, y_ao, w_ao,
-#         h_ao, o_class, c_a_rw, w_rw, h_rw) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''.
-#                              format(self.table_name), db_arr)
-#
-#         if len(d_frame.ex_objects) > 0:
-#             img_name += "_split"
-#             db_split_arr = self.get_base_params(d_frame.ex_objects, img_name)
-#             self.cur.executemany('''INSERT INTO {}(Img_name, Obj_id,
-#             dist_ao, c_a_ao, Extent, Binary_status, h_w_ratio_ao, x_ao,
-#             y_ao, w_ao, h_ao, o_class, c_a_rw, w_rw, h_rw) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''.
-#                                  format(self.table_name), db_split_arr)
-#
-#         self.db.commit()
-#
-#     @staticmethod
-#     def get_base_params(objects, img_name):
-#         # img_name = str(config.COUNTER).zfill(4)
-#         db_arr = list()
-#         if len(objects) > 0:
-#             for obj in objects:
-#                 db_arr.append(
-#                     [img_name, obj.obj_id, obj.dist_ao,
-#                      obj.c_a_ao, obj.extent_ao, str(obj.binary_status),
-#                      obj.h_w_ratio_ao, obj.x_ao, obj.y_ao, obj.w_ao,
-#                      obj.h_ao, obj.o_class, obj.c_ao_rw, obj.w_ao_rw, obj.h_ao_rw])
-#
-#         return db_arr
-#
-#     def quit(self):
-#         logger.info("Closing the database...")
-#         self.db.commit()
-#         self.db.close()
+class WriteCsv(object):
+    def __init__(self):
+        self.fd = open('h{}_a{}.csv'.format(conf.HEIGHT, conf.ANGLE), 'a')
+        self.fmt = '%d,%d,%.2f,%.2f,%.2f,%.1f,%.2f,%d,%d,%d,%d,%d,%d'
+        self.fd.write("img,o_num,rw_w,rw_h,rw_ca,rw_z,rw_x,x,y,w,h,ca,o_class\n")
 
+    def write(self, data):
+        np.savetxt(self.fd, data, fmt=self.fmt)
+
+    def quit(self):
+        self.fd.close()
 
 
 class ImgStructure(object):
