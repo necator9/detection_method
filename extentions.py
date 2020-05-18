@@ -168,6 +168,30 @@ def draw_rects(img, objects):
                     (255, 0, 0), 1, cv2.LINE_AA)
 
 
+def draw_rects_new(img, data_frame):
+    for row in data_frame.astype(int).tolist():
+        o_class = row[-1]
+        if o_class == 0:
+            continue
+
+        o_class_nm = conf.o_class_mapping[o_class]
+
+        x, y, w, h = row[7:11]
+        p1 = (x, y)
+        p2 = (x + w, y + h)
+        color = color_map[o_class]
+        z_rw = row[5]
+        x_rw = row[6]
+        y_rw = -conf.HEIGHT
+        cv2.rectangle(img, p1, p2, color, 1)
+        cv2.putText(img, '({0},{1},{2})'.format(x_rw, y_rw, z_rw), (int(x + w / 2 - conf.RES[0] / 18.26), p2[1] + 15),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.3, color, 1,
+                    cv2.LINE_AA)
+        cv2.putText(img, str(o_class_nm), (int(x + w / 2 - conf.RES[0] / 18.26), y - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.3, color, 1, cv2.LINE_AA)
+
+
+
 def put_obj_status(img, objects):
     cntr = 0.1
     for obj in objects:
@@ -189,13 +213,13 @@ def write_steps(steps, frame, img_name):
         cv2.putText(steps[key], key, (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
 
     # Put binary detection status
-    cv2.putText(blank_img_right, str(frame.base_frame_status), (int(conf.RES[0] * 0.3), int(conf.RES[1] * 0.5)),
-                cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 1, cv2.LINE_AA)
+    # cv2.putText(blank_img_right, str(frame.base_frame_status), (int(conf.RES[0] * 0.3), int(conf.RES[1] * 0.5)),
+    #             cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 1, cv2.LINE_AA)
 
     # Put particular obj status
-    put_obj_status(blank_img_left, frame.base_objects)
+    # put_obj_status(blank_img_left, frame)
 
-    draw_rects(steps['resized_orig'], frame.base_objects)
+    draw_rects_new(steps['resized_orig'], frame)
 
     h_stack1 = np.hstack((steps['mask'], steps['filtered'], steps['filled']))
     h_stack2 = np.hstack((blank_img_left, steps['resized_orig'], blank_img_right))

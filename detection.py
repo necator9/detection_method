@@ -65,12 +65,14 @@ class Detection(threading.Thread):
 
             fr = Frame(steps['filled'], self.fe)
             res_data = fr.process()
+
+            data_to_save = self.prepare_array_to_save(res_data, int(img_name[: -5]))
+
             if len(res_data) > 0:
-                data_to_save = self.prepare_array_to_save(res_data, int(img_name[: -5]))
                 self.data_frame_q.put(data_to_save, block=True)
 
             if conf.WRITE_IMG:
-                extentions.write_steps(steps, frame, img_name)
+                extentions.write_steps(steps, data_to_save, img_name)
 
             self.timer.get_time()
 
@@ -159,6 +161,11 @@ class ObjParams(object):
         status = l_m < self.x_ao and self.x_ao + self.w_ao < r_m and u_m < self.y_ao and self.y_ao + self.h_ao < d_m
 
         return status
+
+
+class FrameIsEmpty(Exception):
+    def __init__(self):
+        Exception.__init__(self, 'No object in frame are present')
 
 
 class Frame(object):

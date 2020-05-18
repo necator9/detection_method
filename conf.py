@@ -48,7 +48,6 @@ MAX_DISTANCE = 30  # Chosen 30
 
 # Saving parameters
 WRITE_IMG = False
-
 WRITE_TO_CSV = True
 
 # Timers parameters
