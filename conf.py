@@ -40,14 +40,14 @@ CNT_AREA_FILTERING = 0.001  # Chosen 0.0005
 
 # Ignore objects intersecting with frame margin: left img border + MARGIN < obj coordinates < right img border - MARGIN
 # Value of zero to disable filtering
-MARGIN = 1  # Chosen 1
+MARGIN = 0  # Chosen 1
 
 # Ignore objects which have distance more than MAX_DISTANCE: obj distance > MAX_DISTANCE
 # Value of zero to disable filtering
 MAX_DISTANCE = 30  # Chosen 30
 
 # Saving parameters
-WRITE_IMG = False
+WRITE_IMG = True
 WRITE_TO_CSV = True
 
 # Timers parameters

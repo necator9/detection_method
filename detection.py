@@ -193,7 +193,7 @@ class Frame(object):
             if flag:
                 return fun_to_call(self, fun_arg)
             else:
-                return fun_to_call(self, self.empty)
+                return fun_arg#fun_to_call(self, self.empty)
 
         return wrapper
 
