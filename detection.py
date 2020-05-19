@@ -26,9 +26,6 @@ CLASSIFIER = all_classifiers[closest_height][closest_angle]
 
 poly = all_classifiers['poly']
 
-PINHOLE_CAM = pcm.PinholeCameraModel(rw_angle=-conf.ANGLE, f_l=conf.FL, w_ccd=conf.WCCD, h_ccd=conf.HCCD,
-                                     img_res=conf.RES)
-
 
 class Detection(threading.Thread):
     def __init__(self, stop_ev, data_frame_q, orig_img_q):
@@ -67,7 +64,6 @@ class Detection(threading.Thread):
                 res_data = self.frame.process(steps['filled'])
                 data_to_save = self.prepare_array_to_save(res_data, int(img_name[: -5]))
                 self.data_frame_q.put(data_to_save, block=True)
-                #coordinates = np.column_stack((data_to_save[:, 6], data_to_save[:, 5], data_to_save[:, -2]))
                 coordinates = data_to_save[data_to_save[:, -1] > 0]
 
             except FrameIsEmpty:

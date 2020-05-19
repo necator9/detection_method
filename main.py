@@ -36,22 +36,7 @@ def blank_fn(*args, **kwargs):
     pass
 
 
-def check_cv_version():
-    cv_version = cv2.__version__[0]
-    if int(cv_version) < 3:
-        logger.error("The program works only with OpenCV v3.x.x or higher. Current v:{}".format(cv2.__version__))
-
-        return True
-
-
 def main():
-
-#    if check_cv_version():
-#        time.sleep(1)
-#        detection_logging.stop_log_thread()
-
-        # exit(1)
-
     logger.debug("Program has started")
 
     stop_event = threading.Event()
@@ -89,7 +74,7 @@ def main():
     try:
         while stop_event.is_set():
             logger.info("{} images captured".format(global_vars.COUNTER))
-            time.sleep(1)
+            time.sleep(30)
     except KeyboardInterrupt:
         logger.warning("Keyboard Interrupt, threads are going to stop")
 
