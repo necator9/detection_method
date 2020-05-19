@@ -3,11 +3,7 @@ import threading
 import numpy as np
 import cv2
 import time
-
-try:
-   import queue
-except ImportError:
-   import Queue as queue
+import queue
 
 import conf
 import logging

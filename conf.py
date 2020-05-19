@@ -47,7 +47,7 @@ MARGIN = 1  # Chosen 1
 MAX_DISTANCE = 30  # Chosen 30
 
 # Saving parameters
-WRITE_IMG = True
+WRITE_IMG = False
 WRITE_TO_CSV = False
 
 # Timers parameters
