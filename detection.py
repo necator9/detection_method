@@ -9,8 +9,10 @@ import logging
 import pinhole_camera_model as pcm
 from pre_processing import PreprocessImg
 import extentions
+import tracker
 
 import pickle
+import copy
 
 
 logger = logging.getLogger('detect.detect')
@@ -41,6 +43,11 @@ class Detection(threading.Thread):
 
         self.timer = TimeCounter("detection_timer")
 
+        self.frame = Frame(self.fe)
+
+        self.empty = np.empty([0])
+        self.tracker = tracker.CentroidTracker()
+
     def run(self):
         logger.info("Detection has started")
         preprocessing = PreprocessImg()
@@ -50,7 +57,7 @@ class Detection(threading.Thread):
             self.timer.note_time()
 
             # Data frame containing detected objects
-            frame = DataFrame()
+            #frame = DataFrame()
 
             try:
                 orig_img, img_name = self.orig_img_q.get(timeout=2)
@@ -62,17 +69,37 @@ class Detection(threading.Thread):
             steps['resized_orig'], steps['mask'], steps['filtered'], steps['filled'] = preprocessing.apply(orig_img)
 
             # frame.calculate(steps['filled'])
+            try:
+                res_data = self.frame.process(steps['filled'])
 
-            fr = Frame(steps['filled'], self.fe)
-            res_data = fr.process()
+                data_to_save = self.prepare_array_to_save(res_data, int(img_name[: -5]))
 
-            data_to_save = self.prepare_array_to_save(res_data, int(img_name[: -5]))
-
-            if len(res_data) > 0:
                 self.data_frame_q.put(data_to_save, block=True)
 
+                #coordinates = np.column_stack((data_to_save[:, 6], data_to_save[:, 5], data_to_save[:, -2]))
+                coordinates = data_to_save[data_to_save[:, -1] > 0]
+
+            except FrameIsEmpty:
+                data_to_save = self.empty
+                coordinates = self.empty
+
+            # print(coordinates)
+            objects, prob_q = self.tracker.update(coordinates)
+
+            to_remove = list()
+            for key, q in prob_q.items():
+                if len(prob_q) < 5:
+                    to_remove.append(key)
+
+            # objects = copy.deepcopy(objects)
+            # prob_q = copy.deepcopy(prob_q)
+            # for key in to_remove:
+            #     del objects[key]
+            #     del prob_q[key]
+            # print(objects)
+
             if conf.WRITE_IMG:
-                extentions.write_steps(steps, data_to_save, img_name)
+                extentions.write_steps(steps, data_to_save, img_name, objects, prob_q)
 
             self.timer.get_time()
 
@@ -169,8 +196,7 @@ class FrameIsEmpty(Exception):
 
 
 class Frame(object):
-    def __init__(self, mask, fe_ext):
-        self.mask = mask
+    def __init__(self, fe_ext):
         self.fe_ext = fe_ext
 
         self.img_area_px = conf.RES[0] * conf.RES[1]
@@ -190,11 +216,7 @@ class Frame(object):
 
     def check_on_conf_flag(fun_to_call):
         def wrapper(self, fun_arg, flag):
-            if flag:
-                return fun_to_call(self, fun_arg)
-            else:
-                return fun_arg#fun_to_call(self, self.empty)
-
+            return fun_to_call(self, fun_arg) if flag else fun_arg
         return wrapper
 
     def check_input_on_empty_arr(fun_to_call):
@@ -202,13 +224,13 @@ class Frame(object):
             if parameters.size > 0:
                 return fun_to_call(self, parameters)
             else:
-                return parameters
+                raise FrameIsEmpty
 
         return wrapper
 
     @check_input_on_empty_arr
-    def find_basic_params(self, *args):
-        cnts, _ = cv2.findContours(self.mask, mode=0, method=1)
+    def find_basic_params(self, mask):
+        cnts, _ = cv2.findContours(mask, mode=0, method=1)
         c_areas = [cv2.contourArea(cnt) for cnt in cnts]
         b_rects = [cv2.boundingRect(b_r) for b_r in cnts]
 
@@ -251,11 +273,13 @@ class Frame(object):
     @check_input_on_empty_arr
     def classify(self, feature_vector):
         poly_features = self.poly.transform(feature_vector)
-        o_class = self.clf.predict(poly_features)
-        return o_class
+        o_prob = self.clf.predict_proba(poly_features)
+        o_class = np.argmax(o_prob, axis=1)
+        o_prob_max = o_prob[np.arange(len(o_class)), o_class]
+        return np.column_stack((o_prob_max, o_class))
 
-    def process(self):
-        basic_params = self.find_basic_params(self.first_in)
+    def process(self, mask):
+        basic_params = self.find_basic_params(mask)
         # Filtering by object contour area size if filtering by contour area size is enabled
         basic_params = self.filter_c_ar(basic_params, self.c_ar_thr > 0)
         # Filtering by intersection with a frame border if filtering is enabled

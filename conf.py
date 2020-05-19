@@ -40,7 +40,7 @@ CNT_AREA_FILTERING = 0.001  # Chosen 0.0005
 
 # Ignore objects intersecting with frame margin: left img border + MARGIN < obj coordinates < right img border - MARGIN
 # Value of zero to disable filtering
-MARGIN = 0  # Chosen 1
+MARGIN = 1  # Chosen 1
 
 # Ignore objects which have distance more than MAX_DISTANCE: obj distance > MAX_DISTANCE
 # Value of zero to disable filtering
@@ -48,11 +48,11 @@ MAX_DISTANCE = 30  # Chosen 30
 
 # Saving parameters
 WRITE_IMG = True
-WRITE_TO_CSV = True
+WRITE_TO_CSV = False
 
 # Timers parameters
 TIMERS = True
 TIME_WINDOW = 200
 
 
-o_class_mapping = {0: 'noise', 1: 'pedestrian', 2: 'group', 3: 'cyclist', 4: 'vehicle'}
+o_class_mapping = {0: 'noise', 1: 'pedestrian', 2: 'cyclist', 3: 'vehicle'}

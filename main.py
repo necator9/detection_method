@@ -69,11 +69,11 @@ def main():
         else:
             capturing_thread = capturing.Camera(orig_img_q, stop_event)
 
-        if not (conf.WRITE_TO_CSV):
+        if not conf.WRITE_TO_CSV:
             saver_thread.start = blank_fn
             saver_thread.quit = blank_fn
             saver_thread.join = blank_fn
-            data_frame_q.put_nowait = blank_fn
+            data_frame_q.put = blank_fn
             data_frame_q.get = blank_fn
 
 

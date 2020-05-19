@@ -90,8 +90,8 @@ class Saving(threading.Thread):
 class WriteCsv(object):
     def __init__(self):
         self.fd = open('h{}_a{}.csv'.format(conf.HEIGHT, conf.ANGLE), 'a')
-        self.fmt = '%d,%d,%.2f,%.2f,%.2f,%.1f,%.2f,%d,%d,%d,%d,%d,%d'
-        self.fd.write("img,o_num,rw_w,rw_h,rw_ca,rw_z,rw_x,x,y,w,h,ca,o_class\n")
+        self.fmt = '%d,%d,%.2f,%.2f,%.2f,%.1f,%.2f,%d,%d,%d,%d,%d,%.2f,%d'
+        self.fd.write("img,o_num,rw_w,rw_h,rw_ca,rw_z,rw_x,x,y,w,h,ca,o_prob,o_class\n")
 
     def write(self, data):
         np.savetxt(self.fd, data, fmt=self.fmt)
@@ -152,7 +152,7 @@ class TimeCounter(object):
                                                                                     conf.TIME_WINDOW))
 
 
-color_map = {0: (0, 0, 0), 1: (0, 255, 0), 2: (0, 0, 255), 3: (255, 0, 0), 4: (0, 255, 255)}
+color_map = {0: (0, 0, 0), 1: (0, 255, 0), 2: (255, 204, 33), 3: (0, 255, 255)}
 
 
 def draw_rects(img, objects):
@@ -169,28 +169,40 @@ def draw_rects(img, objects):
 
 
 def draw_rects_new(img, data_frame):
-    for row in data_frame.astype(int).tolist():
+    for row in data_frame.tolist():
         o_class = row[-1]
         if o_class == 0:
             continue
 
-        o_class_nm = conf.o_class_mapping[o_class]
+        o_prob = row[-2]
 
-        x, y, w, h = row[7:11]
+        o_class_nm = conf.o_class_mapping[o_class]
+        x, y, w, h = [int(param) for param in row[7:11]]
         p1 = (x, y)
         p2 = (x + w, y + h)
         color = color_map[o_class]
-        z_rw = row[5]
-        x_rw = row[6]
-        y_rw = -conf.HEIGHT
+        x_rw, y_rw, z_rw = row[6], -conf.HEIGHT, row[5]
+
         cv2.rectangle(img, p1, p2, color, 1)
-        cv2.putText(img, '({0},{1},{2})'.format(x_rw, y_rw, z_rw), (int(x + w / 2 - conf.RES[0] / 18.26), p2[1] + 15),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.3, color, 1,
-                    cv2.LINE_AA)
-        cv2.putText(img, str(o_class_nm), (int(x + w / 2 - conf.RES[0] / 18.26), y - 10),
+        cv2.putText(img, '({0:.2f},{1:.2f},{2:.2f})'.format(x_rw, y_rw, z_rw), (x, p2[1] + 15),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.3, color, 1, cv2.LINE_AA)
+        cv2.putText(img, '{0:.2f} {1}'.format(o_prob, o_class_nm), (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, color, 1,
+                    cv2.LINE_AA)
 
+def draw_tracking(img, objects, prob_q):
+    if len(objects) == 0:
+        return
 
+    for obj_key in prob_q.keys():
+        average_prob = np.mean(prob_q[obj_key])
+        row = objects[obj_key]
+        x, y, w, h = [int(param) for param in row[7:11]]
+
+        cv2.putText(img, '{0} '.format(obj_key), (x, y - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
+                    (0, 0, 255), 1, cv2.LINE_AA)
+        if len(prob_q[obj_key]) == 5:
+            cv2.putText(img, '{0:.2f}'.format(average_prob), (x + 20, y - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                        (0, 0, 255), 1, cv2.LINE_AA)
 
 def put_obj_status(img, objects):
     cntr = 0.1
@@ -203,7 +215,7 @@ def put_obj_status(img, objects):
             cntr += 0.1
 
 
-def write_steps(steps, frame, img_name):
+def write_steps(steps, frame, img_name, objects, prob_q):
     blank_img_left = np.zeros((conf.RES[1], conf.RES[0], 3), np.uint8)
     blank_img_right = np.zeros((conf.RES[1], conf.RES[0], 3), np.uint8)
 
@@ -220,9 +232,10 @@ def write_steps(steps, frame, img_name):
     # put_obj_status(blank_img_left, frame)
 
     draw_rects_new(steps['resized_orig'], frame)
+    draw_tracking(steps['resized_orig'], objects, prob_q)
 
-    h_stack1 = np.hstack((steps['mask'], steps['filtered'], steps['filled']))
-    h_stack2 = np.hstack((blank_img_left, steps['resized_orig'], blank_img_right))
+    h_stack1 = np.hstack((steps['mask'], steps['filtered']))
+    h_stack2 = np.hstack((steps['filled'], steps['resized_orig']))
 
     out_img = np.vstack((h_stack1, h_stack2))
 
