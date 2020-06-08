@@ -1,16 +1,12 @@
 import cv2
 import threading
-
 import queue
-
-
 import glob
 import os
 
 import logging
 import conf
 import global_vars
-from extentions import TimeCounter
 
 logger = logging.getLogger('detect.capture')
 
@@ -65,7 +61,6 @@ class Camera(threading.Thread):
         self.stop_event = stop_ev
         self.orig_img_q = orig_img_q
         self.camera = cv2.VideoCapture(conf.DEVICE)  # Initialize the camera capture object
-        self.timer = TimeCounter("camera_timer")
 
     # Main thread routine
     def run(self):
@@ -73,7 +68,6 @@ class Camera(threading.Thread):
         self.cam_setup()
 
         while self.stop_event.is_set():
-            self.timer.note_time()
             read_ok, image = self.camera.read()
 
             if not read_ok:
@@ -86,15 +80,13 @@ class Camera(threading.Thread):
 
             try:
                 self.orig_img_q.put((image, '{}.jpeg'.format(global_vars.COUNTER)), block=True)
-                #self.orig_img_q.put(image, block=True)
+                # self.orig_img_q.put(image, block=True)
             except queue.Full:
                 logger.warning("orig_img_q is full, next iteration")
 
                 continue
 
             global_vars.COUNTER += 1
-
-            self.timer.get_time()
 
     def cam_setup(self):
         # Check on successful camera initialization

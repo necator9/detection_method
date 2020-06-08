@@ -19,16 +19,16 @@ FPS = 5
 CLF_PATH = 'clf_model/detailed_separate_clf_dict.pcl'
 
 # Device is either /dev/videoX or folder containing images when VIRTUAL_CAMERA == True
-# DEVICE = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/' \
-#          'src_424x480_grayscale/'
-DEVICE = 2
+DEVICE = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/' \
+         'src_424x480_grayscale/'
+# DEVICE = 2
 # DEVICE = '/mnt/data_partition/experiments/sources/TZK_scene_1/scene_1_merged.mp4'
 OUT_DIR = '/mnt/data_partition/experiments/sources/TZK_scene_1_detection_example/' \
           'video_{}x{}_2'.format(RES[0], RES[1])
 # OUT_DIR = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/' \
 #           'separate_clfs_{}x{}'.format(RES[0], RES[1])
 
-VIRTUAL_CAMERA = False
+VIRTUAL_CAMERA = True
 
 # Pre-processing parameters
 COLOR = cam['color']
@@ -51,7 +51,7 @@ MARGIN = 1  # Chosen 1
 MAX_DISTANCE = 30  # Chosen 30
 
 # Saving parameters
-WRITE_IMG = True
+WRITE_IMG = False
 WRITE_TO_CSV = False
 
 # Timers parameters

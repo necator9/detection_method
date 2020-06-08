@@ -2,9 +2,9 @@ import threading
 import cv2
 import numpy as np
 import queue
+import timeit
 
 import conf
-from extentions import TimeCounter
 import logging
 import pinhole_camera_model as pcm
 from pre_processing import PreprocessImg
@@ -31,26 +31,27 @@ class Detection(threading.Thread):
     def __init__(self, stop_ev, data_frame_q, orig_img_q):
         super(Detection, self).__init__(name="detection")
         self.stop_event = stop_ev
-        self.img_name = str()
 
         self.data_frame_q = data_frame_q
         self.orig_img_q = orig_img_q
         self.fe = pcm.FeatureExtractor(-conf.ANGLE, -conf.HEIGHT, conf.RES, (conf.WCCD, conf.HCCD), conf.FL)
-
-        self.timer = TimeCounter("detection_timer")
 
         self.frame = Frame(self.fe)
 
         self.empty = np.empty([0])
         self.tracker = tracker.CentroidTracker()
 
+        self.time_measurements = list()
+        self.time_window = conf.TIME_WINDOW
+
     def run(self):
         logger.info("Detection has started")
         preprocessing = PreprocessImg()
         steps = dict()
 
+        iterator = 0
         while self.stop_event.is_set():
-            self.timer.note_time()
+            start_time = timeit.default_timer()
 
             try:
                 orig_img, img_name = self.orig_img_q.get(timeout=2)
@@ -75,7 +76,13 @@ class Detection(threading.Thread):
             if conf.WRITE_IMG:
                 extentions.write_steps(steps, data_to_save, img_name, objects, prob_q)
 
-            self.timer.get_time()
+            self.time_measurements.append(timeit.default_timer() - start_time)
+            iterator += 1
+            if iterator >= self.time_window:
+                mean_fps = round(1 / (sum(self.time_measurements) / self.time_window), 1)
+                logger.info("FPS for last {} samples: mean - {}".format(self.time_window, mean_fps))
+                self.time_measurements = list()
+                iterator = 0
 
     @ staticmethod
     def prepare_array_to_save(data, img_num):
