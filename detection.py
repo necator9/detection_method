@@ -194,6 +194,41 @@ class Frame(object):
 
         return np.column_stack((feature_vector, o_class))
 
+    def split_lighting_spot(self):
+        pass
+
+    def find_contradictory_objects(self, basic_params):
+        pass
+
+
+    def separate_lighting_spot(self, binary_patch):
+        """
+        Splitting the object and its light's reflections in specific scenarios of object movement.
+        Splitting is performed when the splitting conditions satisfied only:
+        width to height ratio > thr1 and extent value > thr2.
+        Splitting is designed based on experimental observations, namely:
+        1) when the object moves horizontally (relative to a camera frame) the splitting point usually
+        lies in a half of a frame (divided along x-axis), where the lighting spot is located.
+        2) splitting point is characterized by a significant value of a derivative
+        3) the derivative which is corresponding to the splitting point is usually located
+        closer to a horizontal frame center
+        :param binary_patch: a contradictory segment of a binary image supposed to be splitted
+        :return: splitted image segment
+        """
+
+        nonzero_x = np.count_nonzero(binary_patch, axis=0)  # Find amount of white pixels in columns
+        der = np.abs(np.diff(nonzero_x))  # Derivative showing the changes along x-axis
+        # Find 2 of the biggest jumps (impulses) of the derivative in left and right halfes of a binary image
+        middle_point_idx = int(der.shape[0] / 2)
+        impulses_idx = np.asarray(
+            (np.argmax(der[:middle_point_idx]), np.argmax(der[middle_point_idx:]) + middle_point_idx))
+        # Choose one which is closer to center along x-axis.
+        distances = np.absolute(impulses_idx - middle_point_idx)
+        split_x_index = impulses_idx[np.argmin(distances)]
+        # Separate image by drawing vertical line
+        binary_patch[:, split_x_index] = 0
+
+        return binary_patch, der
 
     # def split_object(self, obj_to_split, filled):
     #     def make_split(bin_mask, fill=0.68, tail=0.25): # fill - amount of zeros in coloumn in percent ratio
