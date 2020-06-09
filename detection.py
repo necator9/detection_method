@@ -13,7 +13,6 @@ import tracker
 
 import pickle
 
-
 logger = logging.getLogger('detect.detect')
 
 all_classifiers = pickle.load(open(conf.CLF_PATH, "rb"))
@@ -84,7 +83,7 @@ class Detection(threading.Thread):
                 self.time_measurements = list()
                 iterator = 0
 
-    @ staticmethod
+    @staticmethod
     def prepare_array_to_save(data, img_num):
         # Add image number and row indices as first two columns to distinguish objects later
         return np.column_stack((np.full(data.shape[0], img_num), np.arange(data.shape[0]), data))
@@ -117,6 +116,7 @@ class Frame(object):
     def check_on_conf_flag(fun_to_call):
         def wrapper(self, fun_arg, flag):
             return fun_to_call(self, fun_arg) if flag else fun_arg
+
         return wrapper
 
     def check_input_on_empty_arr(fun_to_call):
@@ -184,6 +184,7 @@ class Frame(object):
         basic_params = self.filter_c_ar(basic_params, self.c_ar_thr > 0)
         # Filtering by intersection with a frame border if filtering is enabled
         basic_params = self.filter_margin(basic_params, self.margin_offset > 0)
+        self.find_contradictory_objects(basic_params, mask)
         # Get features of the object using its bounding rectangles and contour areas
         feature_vector = np.column_stack((self.extract_features(basic_params), basic_params))
         # Filter by distance to the object if filtering is enabled
@@ -197,9 +198,34 @@ class Frame(object):
     def split_lighting_spot(self):
         pass
 
-    def find_contradictory_objects(self, basic_params):
-        pass
+    def find_contradictory_objects(self, basic_params, mask):
+        splitting_mask = ((basic_params[:, 4] / (basic_params[:, 2] * basic_params[:, 3]) < 0.5) &
+                          (basic_params[:, 3] / basic_params[:, 2] < 0.66))
 
+        # Chose problematic indices
+        problematic_indices = np.where(splitting_mask)[0]
+        if problematic_indices.size > 0:
+            for i in problematic_indices:
+                # Select patch from image
+                x, y = basic_params[i, 0], basic_params[i, 1]
+                w, h = x + basic_params[i, 2], y + basic_params[i, 3]
+                print(mask.shape)
+                patch = mask[: basic_params[i, 0] + ,
+                        basic_params[i, 1]: basic_params[i, 1] + basic_params[i, 3]]
+                print(patch.shape)
+                break
+                # Split
+                patch = self.separate_lighting_spot(patch)
+                print(patch)
+                # Find basic parameters
+                # b_param = self.find_basic_params(patch)
+                # print(b_param)
+                # b_param = b_param[np.argmax(b_param[:, 4])]
+
+                # Replace problematic object
+            logger.info(problematic_indices)
+        else:
+            logger.info('blo')
 
     def separate_lighting_spot(self, binary_patch):
         """
@@ -226,9 +252,11 @@ class Frame(object):
         distances = np.absolute(impulses_idx - middle_point_idx)
         split_x_index = impulses_idx[np.argmin(distances)]
         # Separate image by drawing vertical line
+        print(binary_patch.shape)
         binary_patch[:, split_x_index] = 0
+        print(binary_patch.shape)
 
-        return binary_patch, der
+        return binary_patch
 
     # def split_object(self, obj_to_split, filled):
     #     def make_split(bin_mask, fill=0.68, tail=0.25): # fill - amount of zeros in coloumn in percent ratio
