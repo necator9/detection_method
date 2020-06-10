@@ -46,13 +46,13 @@ class VirtualCamera(threading.Thread):
 
             global_vars.COUNTER += 1
 
-            if not self.stop_event.is_set():
+            if self.stop_event.is_set():
                 break
 
         self.quit()
 
     def quit(self):
-        self.stop_event.clear()
+        self.stop_event.set()
 
 
 class Camera(threading.Thread):
@@ -67,7 +67,7 @@ class Camera(threading.Thread):
         logger.info("Camera thread has started...")
         self.cam_setup()
 
-        while self.stop_event.is_set():
+        while not self.stop_event.is_set():
             read_ok, image = self.camera.read()
 
             if not read_ok:
@@ -102,5 +102,5 @@ class Camera(threading.Thread):
 
     def quit(self):
         self.camera.release()
-        self.stop_event.clear()
+        self.stop_event.set()
         logger.info("Exiting the Camera thread...")

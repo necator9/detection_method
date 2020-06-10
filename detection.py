@@ -49,7 +49,7 @@ class Detection(threading.Thread):
         steps = dict()
 
         iterator = 0
-        while self.stop_event.is_set():
+        while not self.stop_event.is_set():
             start_time = timeit.default_timer()
 
             try:
@@ -184,7 +184,7 @@ class Frame(object):
         basic_params = self.filter_c_ar(basic_params, self.c_ar_thr > 0)
         # Filtering by intersection with a frame border if filtering is enabled
         basic_params = self.filter_margin(basic_params, self.margin_offset > 0)
-        self.find_contradictory_objects(basic_params, mask)
+        # basic_params = self.find_contradictory_objects(basic_params, mask)
         # Get features of the object using its bounding rectangles and contour areas
         feature_vector = np.column_stack((self.extract_features(basic_params), basic_params))
         # Filter by distance to the object if filtering is enabled
@@ -195,9 +195,6 @@ class Frame(object):
 
         return np.column_stack((feature_vector, o_class))
 
-    def split_lighting_spot(self):
-        pass
-
     def find_contradictory_objects(self, basic_params, mask):
         splitting_mask = ((basic_params[:, 4] / (basic_params[:, 2] * basic_params[:, 3]) < 0.5) &
                           (basic_params[:, 3] / basic_params[:, 2] < 0.66))
@@ -206,26 +203,24 @@ class Frame(object):
         problematic_indices = np.where(splitting_mask)[0]
         if problematic_indices.size > 0:
             for i in problematic_indices:
+                if basic_params[i, 4] / self.img_area_px < 0.01:
+                    continue
                 # Select patch from image
-                x, y = basic_params[i, 0], basic_params[i, 1]
-                w, h = x + basic_params[i, 2], y + basic_params[i, 3]
-                print(mask.shape)
-                patch = mask[: basic_params[i, 0] + ,
-                        basic_params[i, 1]: basic_params[i, 1] + basic_params[i, 3]]
-                print(patch.shape)
-                break
+                x1, y1 = basic_params[i, 0], basic_params[i, 1]
+                x2, y2 = x1 + basic_params[i, 2], y1 + basic_params[i, 3]
+                patch = mask[y1: y2, x1: x2]
+
                 # Split
                 patch = self.separate_lighting_spot(patch)
-                print(patch)
                 # Find basic parameters
-                # b_param = self.find_basic_params(patch)
-                # print(b_param)
-                # b_param = b_param[np.argmax(b_param[:, 4])]
-
+                b_param = self.find_basic_params(patch)
+                b_param = b_param[np.argmax(b_param[:, 4])]
                 # Replace problematic object
-            logger.info(problematic_indices)
-        else:
-            logger.info('blo')
+                b_param[0] += basic_params[i, 0]
+                b_param[1] += basic_params[i, 1]
+                basic_params[i] = b_param
+
+        return basic_params
 
     def separate_lighting_spot(self, binary_patch):
         """
@@ -252,50 +247,7 @@ class Frame(object):
         distances = np.absolute(impulses_idx - middle_point_idx)
         split_x_index = impulses_idx[np.argmin(distances)]
         # Separate image by drawing vertical line
-        print(binary_patch.shape)
         binary_patch[:, split_x_index] = 0
-        print(binary_patch.shape)
 
         return binary_patch
 
-    # def split_object(self, obj_to_split, filled):
-    #     def make_split(bin_mask, fill=0.68, tail=0.25): # fill - amount of zeros in coloumn in percent ratio
-    #         def calc_split_point(vector):
-    #             last_zero_ind, percent = 0, 0.0
-    #             zero_indexes, = np.where(vector == 0)
-    #
-    #             if zero_indexes.size > 0:
-    #                 last_zero_ind = zero_indexes.max()
-    #                 percent = last_zero_ind / vector.size  # Get relative size of empty area by x axis
-    #
-    #             return last_zero_ind, percent
-    #
-    #         rows, coloumns = bin_mask.shape
-    #
-    #         if coloumns >= rows:
-    #             x_mask = np.asarray([0 if (np.count_nonzero(i == 0) / i.size) >= fill else 1 for i in bin_mask.T],
-    #                                 dtype='int8')
-    #             x_mask_l, x_mask_r = x_mask[:x_mask.size // 2], x_mask[x_mask.size // 2:]
-    #
-    #             front_ind, front_percent = calc_split_point(x_mask_l)
-    #             opposite_ind, opposite_percent = calc_split_point(x_mask_r[::-1])
-    #
-    #             split_data = [[front_ind, front_percent], [bin_mask.shape[1] - opposite_ind, opposite_percent]]
-    #
-    #             split_data = zip(*split_data)
-    #             max_sp_ind = split_data[1].index(max(split_data[1]))
-    #
-    #             if split_data[1][max_sp_ind] > tail:
-    #                 ind = split_data[0][max_sp_ind]
-    #                 bin_mask[:, ind] = 0
-    #
-    #         return bin_mask
-    #
-    #     split_img = np.zeros((conf.RES[1], conf.RES[0]), np.uint8)
-    #
-    #     for obj in obj_to_split:
-    #         x, y, w, h = obj.base_rect_ao
-    #         split_mask = make_split(filled[y:y + h, x:x + w])
-    #         split_img[y:y+h, x:x + w] = split_mask[:, :]
-    #
-    #     return split_img

@@ -4,9 +4,9 @@ import threading
 import time
 import conf
 import global_vars
+import os
 
 
-# from train_regression import TrainRegression
 import capturing
 import detection
 import extentions
@@ -19,7 +19,7 @@ import cv2
 # Set up logging,
 logger = logging.getLogger('detect')
 logger.setLevel(conf.LOG_LEVEL)
-file_handler = logging.FileHandler('detection.log')
+file_handler = logging.FileHandler(os.path.join(conf.OUT_DIR, 'detection.log'))
 ch = logging.StreamHandler()
 
 formatter = logging.Formatter('%(asctime)s %(threadName)s - %(message)s')
@@ -40,7 +40,7 @@ def main():
     logger.debug("Program has started")
 
     stop_event = threading.Event()
-    stop_event.set()
+    # stop_event.set()
 
     data_frame_q = queue.Queue(maxsize=50)
     orig_img_q = queue.Queue(maxsize=1)
@@ -61,9 +61,8 @@ def main():
             data_frame_q.put = blank_fn
             data_frame_q.get = blank_fn
 
-
     except capturing.StartAppError:
-        stop_event.clear()
+        stop_event.set()
         exit(1)
 
 
@@ -72,11 +71,12 @@ def main():
     detection_thread.start()
 
     try:
-        while stop_event.is_set():
+        while not stop_event.is_set():
             logger.info("{} images captured".format(global_vars.COUNTER))
-            time.sleep(30)
+            time.sleep(10)
     except KeyboardInterrupt:
         logger.warning("Keyboard Interrupt, threads are going to stop")
+        stop_event.set()
 
     capturing_thread.quit()
     saver_thread.quit()
@@ -84,7 +84,6 @@ def main():
     capturing_thread.join()
     detection_thread.join()
     saver_thread.join()
-
 
     logger.debug("Program finished")
 
