@@ -13,7 +13,7 @@ FL = cam['fl']
 WCCD = cam['wccd']
 HCCD = cam['hccd']
 RES = cam['img_res']
-FPS = 5
+FPS = 10
 
 # Classifier path
 CLF_PATH = 'clf_model/detailed_separate_clf_dict.pcl'
@@ -21,10 +21,10 @@ CLF_PATH = 'clf_model/detailed_separate_clf_dict.pcl'
 # Device is either /dev/videoX or folder containing images when VIRTUAL_CAMERA == True
 # DEVICE = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/' \
 #          'src_424x480_grayscale/'
-DEVICE = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_c_01/' \
-         'src_424x480_grayscale/'
-# DEVICE = 2
-# DEVICE = '/mnt/data_partition/experiments/sources/TZK_scene_1/scene_1_merged.mp4'
+# DEVICE = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_c_01/' \
+#          'src_424x480_grayscale/'
+# DEVICE = 0
+DEVICE = '/mnt/data_partition/experiments/sources/TZK_scene_1/scene_1_merged.mp4'
 # OUT_DIR = '/mnt/data_partition/experiments/sources/TZK_scene_1_detection_example/' \
 #           'video_{}x{}_2'.format(RES[0], RES[1])
 # OUT_DIR = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/' \
@@ -32,7 +32,7 @@ DEVICE = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_datase
 OUT_DIR = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_c_01/' \
           'separate_clfs_{}x{}'.format(RES[0], RES[1])
 
-VIRTUAL_CAMERA = True
+VIRTUAL_CAMERA = False
 
 # Pre-processing parameters
 COLOR = cam['color']

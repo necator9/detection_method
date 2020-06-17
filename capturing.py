@@ -79,7 +79,7 @@ class Camera(threading.Thread):
             image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
             try:
-                self.orig_img_q.put((image, '{}.jpeg'.format(global_vars.COUNTER)), block=True)
+                self.orig_img_q.put((image, '{}.jpeg'.format(global_vars.COUNTER)))  # , block=True
                 # self.orig_img_q.put(image, block=True)
             except queue.Full:
                 logger.warning("orig_img_q is full, next iteration")

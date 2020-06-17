@@ -16,7 +16,8 @@ imgpoints = [] # 2d points in image plane.
 nm = '/home/ivan/chessboard.mp4'
 nm = '/home/ivan/Desktop/webcam_callib.mp4'
 nm = '/home/ivan/Desktop/webcam_callib_320x240_2.mp4'
-
+nm = '/home/ivan/rpi_grabber/callibration_rpi.mp4'
+nm = '/home/ivan/rpi_grabber/callibration_hd3000.mp4'
 
 cap = cv2.VideoCapture(nm)
 i = 0
@@ -51,7 +52,7 @@ except KeyboardInterrupt:
         ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
         callib_data = [ret, mtx, dist, rvecs, tvecs]
 
-        with open('callibration.txt', 'w') as writer:
+        with open('callibration_hd3000.txt', 'w') as writer:
             for dt in callib_data:
                 print(dt)
                 writer.write('{} \n'.format(dt))
