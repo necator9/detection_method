@@ -17,8 +17,6 @@ class Saving(threading.Thread):
 
         self._is_running = bool()
         self.data_frame_q = data_frame_q
-
-        self.check_if_dir_exists()
         self.writer = WriteCsv()
 
     def run(self):
@@ -55,11 +53,6 @@ class Saving(threading.Thread):
 
         logger.warning("{} elements HAVE BEEN NOT WRITTEN".format(self.data_frame_q.qsize()))
         self._is_running = False
-
-    def check_if_dir_exists(self):
-        if not os.path.isdir(conf.OUT_DIR):
-            os.makedirs(conf.OUT_DIR)
-            logger.info("Output directory does not exists. New folder has been created.")
 
     def quit(self):
         self._is_running = False
