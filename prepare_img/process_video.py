@@ -4,7 +4,7 @@ import os
 import logging
 import numpy as np
 import pandas as pd
-import pinhole_camera_model as pcm
+import feature_extractor as pcm
 import imutils
 
 logging.basicConfig(level=logging.INFO)

@@ -1,9 +1,7 @@
 from camera_parameters import cameras
 
 # Logging parameters
-SHOW_LOGS = True
 LOG_LEVEL = 10
-PATH_TO_LOGS = "/home/ivan/logs/"
 
 # Camera parameters
 cam = cameras['camera_1']
@@ -43,15 +41,13 @@ MARGIN = 0  # Chosen 1
 
 # Ignore objects which have distance more than MAX_DISTANCE: obj distance > MAX_DISTANCE
 # Value of zero to disable filtering
-MAX_DISTANCE = 30  # Chosen 30
+MAX_DISTANCE = 30
 
 # Saving parameters
 WRITE_IMG = True
 WRITE_TO_CSV = True
 
 # Timers parameters
-TIMERS = True
 TIME_WINDOW = 200
-
 
 o_class_mapping = {0: 'noise', 1: 'pedestrian', 2: 'cyclist', 3: 'vehicle'}

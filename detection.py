@@ -6,7 +6,7 @@ import timeit
 
 import conf
 import logging
-import pinhole_camera_model as pcm
+import feature_extractor as pcm
 from pre_processing import PreprocessImg
 import extentions
 import tracker
