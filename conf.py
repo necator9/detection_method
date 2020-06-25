@@ -19,20 +19,11 @@ FPS = 10
 CLF_PATH = 'clf_model/detailed_separate_clf_dict.pcl'
 
 # Device is either /dev/videoX or folder containing images when VIRTUAL_CAMERA == True
-# DEVICE = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/' \
-#          'src_424x480_grayscale/'
-# DEVICE = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_c_01/' \
-#          'src_424x480_grayscale/'
-# DEVICE = 0
-DEVICE = '/mnt/data_partition/experiments/sources/TZK_scene_1/scene_1_merged.mp4'
-# OUT_DIR = '/mnt/data_partition/experiments/sources/TZK_scene_1_detection_example/' \
-#           'video_{}x{}_2'.format(RES[0], RES[1])
-# OUT_DIR = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/' \
-#           'separate_clfs_{}x{}'.format(RES[0], RES[1])
-OUT_DIR = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_c_01/' \
-          'separate_clfs_{}x{}'.format(RES[0], RES[1])
+DEVICE = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/' \
+         'sc_1_parking_pgc_01_4:3_320x240.mp4'
 
-VIRTUAL_CAMERA = False
+OUT_DIR = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/results/' \
+          'temp_{}x{}'.format(RES[0], RES[1])
 
 # Pre-processing parameters
 COLOR = cam['color']
@@ -48,15 +39,15 @@ CNT_AREA_FILTERING = 0.001  # Chosen 0.0005
 
 # Ignore objects intersecting with frame margin: left img border + MARGIN < obj coordinates < right img border - MARGIN
 # Value of zero to disable filtering
-MARGIN = 1  # Chosen 1
+MARGIN = 0  # Chosen 1
 
 # Ignore objects which have distance more than MAX_DISTANCE: obj distance > MAX_DISTANCE
 # Value of zero to disable filtering
 MAX_DISTANCE = 30  # Chosen 30
 
 # Saving parameters
-WRITE_IMG = False
-WRITE_TO_CSV = False
+WRITE_IMG = True
+WRITE_TO_CSV = True
 
 # Timers parameters
 TIMERS = True

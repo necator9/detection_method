@@ -1,7 +1,6 @@
 import cv2
 import threading
 import queue
-import glob
 import os
 
 import logging
@@ -22,37 +21,6 @@ def check_dir(dir_path):
 class StartAppError(Exception):
     def __init__(self):
         Exception.__init__(self, "StartAppError")
-
-
-class VirtualCamera(threading.Thread):
-    def __init__(self, orig_img_q, stop_ev):
-        super(VirtualCamera, self).__init__(name="virtual_camera")
-        self.dir_path = check_dir(conf.DEVICE)
-
-        self.img_paths = glob.glob(os.path.join(self.dir_path, '*.jpeg'))
-        img_names_digits = [int(os.path.split(img_name)[1].split('.')[0]) for img_name in self.img_paths]
-        img_names_digits, self.img_paths = zip(*sorted(zip(img_names_digits, self.img_paths)))
-
-        self.stop_event = stop_ev
-        self.orig_img_q = orig_img_q
-
-    def run(self):
-        logger.info("Files to process: {}".format(len(self.img_paths)))
-        logger.debug("Virtual camera thread has started")
-
-        for img_path in self.img_paths:
-            image = cv2.imread(img_path, conf.COLOR)
-            self.orig_img_q.put((image, os.path.split(img_path)[1]), block=True)
-
-            global_vars.COUNTER += 1
-
-            if self.stop_event.is_set():
-                break
-
-        self.quit()
-
-    def quit(self):
-        self.stop_event.set()
 
 
 class Camera(threading.Thread):

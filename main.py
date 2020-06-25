@@ -16,6 +16,14 @@ import queue
 import cv2
 
 
+def check_if_dir_exists():
+    if not os.path.isdir(conf.OUT_DIR):
+        os.makedirs(conf.OUT_DIR)
+        print("Output directory does not exists. New folder has been created.")
+
+
+check_if_dir_exists()
+
 # Set up logging,
 logger = logging.getLogger('detect')
 logger.setLevel(conf.LOG_LEVEL)
@@ -49,10 +57,7 @@ def main():
     saver_thread = extentions.Saving(data_frame_q)
 
     try:
-        if conf.VIRTUAL_CAMERA:
-            capturing_thread = capturing.VirtualCamera(orig_img_q, stop_event)
-        else:
-            capturing_thread = capturing.Camera(orig_img_q, stop_event)
+        capturing_thread = capturing.Camera(orig_img_q, stop_event)
 
         if not conf.WRITE_TO_CSV:
             saver_thread.start = blank_fn

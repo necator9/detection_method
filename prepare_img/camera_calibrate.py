@@ -18,12 +18,20 @@ nm = '/home/ivan/Desktop/webcam_callib.mp4'
 nm = '/home/ivan/Desktop/webcam_callib_320x240_2.mp4'
 nm = '/home/ivan/rpi_grabber/callibration_rpi.mp4'
 nm = '/home/ivan/rpi_grabber/callibration_hd3000.mp4'
+nm = '/home/ivan/calibration/'
+cap = cv2.VideoCapture(0)
 
-cap = cv2.VideoCapture(nm)
 i = 0
+images = glob.glob(nm + '*.png')
 try:
+    # for image in images:
+    #     img = cv2.imread(image)
+    #     ret = True
     while cap.isOpened():
         ret, img = cap.read()
+        cv2.imshow('img', img)
+        cv2.waitKey(500)
+        print(img.shape)
         if ret:
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             # Find the chess board corners
@@ -46,13 +54,14 @@ try:
         i += 1
         print(i)
 
+    raise KeyboardInterrupt
 
 except KeyboardInterrupt:
     if len(objpoints) > 0:
         ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
         callib_data = [ret, mtx, dist, rvecs, tvecs]
 
-        with open('callibration_hd3000.txt', 'w') as writer:
+        with open('callibration_hd3000_2.txt', 'w') as writer:
             for dt in callib_data:
                 print(dt)
                 writer.write('{} \n'.format(dt))
