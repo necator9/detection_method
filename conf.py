@@ -1,16 +1,21 @@
-from camera_parameters import cameras
+import camera_parameters as cp
 
 # Logging parameters
 LOG_LEVEL = 10
 
 # Camera parameters
-cam = cameras['camera_1']
-ANGLE = cam['angle']
-HEIGHT = cam['height']
-FL = cam['fl']
-WCCD = cam['wccd']
-HCCD = cam['hccd']
-RES = cam['img_res']
+sc_name = 'scene_1_TZK'
+scene = cp.scene[sc_name]
+cam = scene['cam']
+
+intrinsic = cp.scale_intrinsic(scene['img_res_cap'], cam['base_res'], cam['mtx'])
+dist = cam['dist']
+
+ANGLE = -scene['angle']
+HEIGHT = -scene['height']
+FL = 2.2
+RES = scene['img_res_cap']
+WCCD, HCCD = [cp.calc_sens_dim(FL, res_d, fpx_d) for res_d, fpx_d in zip(RES, [intrinsic[0][0], intrinsic[1][1]])]
 FPS = 10
 
 # Classifier path
@@ -21,10 +26,10 @@ DEVICE = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_datase
          'sc_1_parking_pgc_01_4:3_320x240.mp4'
 
 OUT_DIR = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/results/' \
-          'temp_{}x{}'.format(RES[0], RES[1])
+          'temp_1_{}x{}'.format(RES[0], RES[1])
 
 # Pre-processing parameters
-COLOR = cam['color']
+COLOR = 0
 CLAHE_LIMIT = 3         # Clahe contrast adjustment for grayscale images only (COLOR = 0)
 BGS_METHOD = 'MOG2'
 BG_THR = 16

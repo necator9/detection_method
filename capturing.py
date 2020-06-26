@@ -29,6 +29,8 @@ class Camera(threading.Thread):
         self.stop_event = stop_ev
         self.orig_img_q = orig_img_q
         self.camera = cv2.VideoCapture(conf.DEVICE)  # Initialize the camera capture object
+        # Allow to skip frames when real camera is used and the processing time exceeds capturing time
+        self.block_queue = False if type(conf.DEVICE) == int else True
 
     # Main thread routine
     def run(self):
@@ -47,8 +49,7 @@ class Camera(threading.Thread):
             image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
             try:
-                self.orig_img_q.put((image, '{}.jpeg'.format(global_vars.COUNTER)))  # , block=True
-                # self.orig_img_q.put(image, block=True)
+                self.orig_img_q.put((image, '{}.jpeg'.format(global_vars.COUNTER)), block=self.block_queue)
             except queue.Full:
                 logger.warning("orig_img_q is full, next iteration")
 
