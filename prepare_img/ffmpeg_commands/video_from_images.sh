@@ -14,3 +14,5 @@ ffmpeg -r $fps_scene_2 -f image2 -s 424x240 -i $in_dir/%04d.jpeg -vf hue=s=0 -vc
 #    -crf is the quality, lower means better quality, 15-25 is usually good
 #    -s is the resolution
 #    -pix_fmt yuv420p specifies the pixel format, change this as needed
+# Crop aspect ratio
+# ffmpeg -i sc_1_parking_c_01_16:9_424x240.mp4 -vf crop=iw-104 -vcodec libx264 -crf 0 -preset veryslow -y destination.mp4

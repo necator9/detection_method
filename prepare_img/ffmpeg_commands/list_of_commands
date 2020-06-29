@@ -1,0 +1,2 @@
+# Split video into segments defined by timestamps
+ffmpeg -i vid_3.mp4 -map 0 -vcodec copy -f segment -segment_times 3270,3280 -y output_%03d.mp4
