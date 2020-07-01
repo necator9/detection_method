@@ -89,8 +89,8 @@ color_map = {0: (0, 0, 0), 1: (0, 255, 0), 2: (255, 204, 33), 3: (0, 255, 255)}
 def draw_rects_new(img, data_frame):
     for row in data_frame.tolist():
         o_class = row[-1]
-        if o_class == 0:
-            continue
+        # if o_class == 0:
+        #     continue
 
         o_prob = row[-2]
 

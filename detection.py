@@ -136,6 +136,17 @@ class Frame(object):
 
         return np.column_stack((b_rects, c_areas)).astype('int32')
 
+    @check_input_on_empty_arr
+    def undistort(self, xywh):
+        p1p2 = np.stack((xywh[:, 0], xywh[:, 1], xywh[:, 0] + xywh[:, 2], xywh[:, 1] + xywh[:, 3]),
+                        axis=1).astype(np.float32)
+        p1p2_col = np.concatenate(np.split(p1p2, 2, axis=1))
+        p1p2_col_ud = cv2.undistortPoints(p1p2_col, conf.intrinsic, conf.dist, P=conf.intrinsic)
+        p1p2_ud = np.hstack(np.split(p1p2_col_ud[:, 0, :], 2, axis=0))
+        xywh_ud = np.stack((p1p2_ud[:, 0], p1p2_ud[:, 1], p1p2_ud[:, 2] - p1p2_ud[:, 0],
+                            p1p2_ud[:, 3] - p1p2_ud[:, 1]), axis=1)
+        return np.column_stack((xywh_ud, xywh[:, -1])).astype(np.float32)
+
     @check_on_conf_flag
     @check_input_on_empty_arr
     def filter_c_ar(self, basic_params):
@@ -180,6 +191,7 @@ class Frame(object):
 
     def process(self, mask):
         basic_params = self.find_basic_params(mask)
+        basic_params = self.undistort(basic_params)
         # Filtering by object contour area size if filtering by contour area size is enabled
         basic_params = self.filter_c_ar(basic_params, self.c_ar_thr > 0)
         # Filtering by intersection with a frame border if filtering is enabled

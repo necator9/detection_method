@@ -4,7 +4,8 @@ import camera_parameters as cp
 LOG_LEVEL = 10
 
 # Camera parameters
-sc_name = 'scene_1_TZK'
+# sc_name = 'scene_1_TZK'
+sc_name = 'lamp_pole_1'
 scene = cp.scene[sc_name]
 cam = scene['cam']
 
@@ -21,19 +22,19 @@ FPS = 10
 # Classifier path
 CLF_PATH = 'clf_model/detailed_separate_clf_dict.pcl'
 
-# Device is either /dev/videoX or folder containing images when VIRTUAL_CAMERA == True
-DEVICE = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/' \
-         'sc_1_parking_pgc_01_4:3_320x240.mp4'
-
-OUT_DIR = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/results/' \
-          'temp_1_{}x{}'.format(RES[0], RES[1])
+DEVICE = '/mnt/data_partition/experiments/sources/lighting_pole_3/vid_2_1.mp4'
+OUT_DIR = '/mnt/data_partition/experiments/sources/lighting_pole_3/results/1_{}x{}'.format(RES[0], RES[1])
 
 # Pre-processing parameters
 COLOR = 0
 CLAHE_LIMIT = 3         # Clahe contrast adjustment for grayscale images only (COLOR = 0)
-BGS_METHOD = 'MOG2'
-BG_THR = 16
+
+# Background subtraction parameters
+BGS_METHOD = 'MOG2'  # KNN is also available
+BG_THR = 16  # For MOG2 only
 DILATE_ITERATIONS = 1
+HISTORY = 1500
+SHADOWS = True
 
 # Cascade filtering to speed up detection by filtering insignificant objects
 # Minimal object cnt area to be considered: object cnt area / RES[0] * RES[1] > CNT_AREA_FILTERING

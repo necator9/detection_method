@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def scale_intrinsic(new_res, base_res, intrinsic):
     scale_f = np.asarray(base_res) / np.asarray(new_res)
     if scale_f[0] != scale_f[1]:
@@ -28,7 +29,7 @@ cam_param = {'rpi': {'mtx': np.array([[613, 0., 512],
 
 
 scene = {'lamp_pole_1': {'angle': -39, 'height': -3.325, 'cam': cam_param['rpi'],
-                         'img_res_cap': (1024, 768)},
+                         'img_res_cap': (320, 240)},
          'scene_1_TZK': {'angle': -13, 'height': -3.1, 'cam': cam_param['hd_3000'],
                          'img_res_cap': (320, 240)},
          'scene_2_TZK': {'angle': -22, 'height': -3, 'cam': cam_param['hd_3000'],
