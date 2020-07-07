@@ -83,7 +83,7 @@ class WriteCsv(object):
         self.fd.close()
 
 
-color_map = {0: (0, 0, 0), 1: (0, 255, 0), 2: (255, 204, 33), 3: (0, 255, 255)}
+color_map = {0: (255, 255, 255), 1: (0, 255, 0), 2: (255, 204, 33), 3: (0, 255, 255)}
 
 
 def draw_rects_new(img, data_frame, padding):

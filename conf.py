@@ -28,7 +28,7 @@ CLF_PATH = 'clf_model/lamp_pole_1.pcl'
 # DEVICE = '/mnt/data_partition/experiments/sources/lighting_pole_1/vid_3_1_4fps_night.mp4'
 # DEVICE = '/mnt/data_partition/experiments/sources/lighting_pole_1/vid_1_1_4fps_we.mp4'
 DEVICE = '/mnt/data_partition/experiments/sources/lighting_pole_1/vid_3_cars_selected/car_night_merged.mp4'
-OUT_DIR = '/mnt/data_partition/experiments/sources/lighting_pole_1/results/car_night_merged_{}x{}'.format(RES[0], RES[1])
+OUT_DIR = '/mnt/data_partition/experiments/sources/lighting_pole_1/results/car_night_merged_1_{}x{}'.format(RES[0], RES[1])
 
 # Pre-processing parameters
 COLOR = 0
@@ -54,7 +54,7 @@ MARGIN = 0  # Chosen 1
 
 # Ignore objects which have distance more than MAX_DISTANCE: obj distance > MAX_DISTANCE
 # Value of zero to disable filtering
-MAX_DISTANCE = 30
+MAX_DISTANCE = 13
 
 # Saving parameters
 WRITE_IMG = True
