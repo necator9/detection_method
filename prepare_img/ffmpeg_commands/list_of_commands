@@ -1,2 +1,6 @@
 # Split video into segments defined by timestamps
-ffmpeg -i vid_3.mp4 -map 0 -vcodec copy -f segment -segment_times 3270,3280 -y output_%03d.mp4
+ffmpeg -i vid_3.mp4 -vcodec copy -f segment -segment_times 3270,3280 -r 4 -y output_%03d.mp4
+
+# Merge videos into one
+find (pwd) -name '*.mp4' -type f > mergelist.txt
+ffmpeg -f concat -safe 0 -i mergelist.txt -r 4 car_night_merged.mp4

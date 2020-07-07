@@ -86,7 +86,7 @@ class WriteCsv(object):
 color_map = {0: (0, 0, 0), 1: (0, 255, 0), 2: (255, 204, 33), 3: (0, 255, 255)}
 
 
-def draw_rects_new(img, data_frame):
+def draw_rects_new(img, data_frame, padding):
     for row in data_frame.tolist():
         o_class = row[-1]
         # if o_class == 0:
@@ -96,6 +96,8 @@ def draw_rects_new(img, data_frame):
 
         o_class_nm = conf.o_class_mapping[o_class]
         x, y, w, h = [int(param) for param in row[7:11]]
+        x += padding
+        y += padding
         p1 = (x, y)
         p2 = (x + w, y + h)
         color = color_map[o_class]
@@ -108,7 +110,7 @@ def draw_rects_new(img, data_frame):
                     cv2.LINE_AA)
 
 
-def draw_tracking(img, objects, prob_q):
+def draw_tracking(img, objects, prob_q, padding):
     if len(objects) == 0:
         return
 
@@ -116,22 +118,44 @@ def draw_tracking(img, objects, prob_q):
         average_prob = np.mean(prob_q[obj_key])
         row = objects[obj_key]
         x, y, w, h = [int(param) for param in row[7:11]]
+        x += padding
+        y += padding
 
         cv2.putText(img, '{0} '.format(obj_key), (x, y - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
                     (0, 0, 255), 1, cv2.LINE_AA)
-        if len(prob_q[obj_key]) == 5:
+        if len(prob_q[obj_key]) == 3:
             cv2.putText(img, '{0:.2f}'.format(average_prob), (x + 20, y - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
                         (0, 0, 255), 1, cv2.LINE_AA)
 
 
+def add_padding(image, paddind_size):
+    h_pad = np.zeros((paddind_size, conf.RES[0]), np.uint8)
+    stack1 = np.vstack((h_pad, image, h_pad))
+
+    v_pad = np.zeros((stack1.shape[0], paddind_size), np.uint8)
+    stack2 = np.hstack((v_pad, stack1, v_pad))
+
+    return stack2
+
+
 def write_steps(steps, frame, img_name, objects, prob_q):
+
+    for key, img in steps.items():
+        steps[key] = cv2.undistort(img, conf.intrinsic_orig, conf.dist, None, conf.intrinsic_target)
+
+    padding = 30
+    for key, img in steps.items():
+        steps[key] = add_padding(img, padding)
+
     for key, img in steps.items():
         steps[key] = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-        # Name frames
+
+    # Name frames
+    for key, img in steps.items():
         cv2.putText(steps[key], key, (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
 
-    draw_rects_new(steps['resized_orig'], frame)
-    draw_tracking(steps['resized_orig'], objects, prob_q)
+    draw_rects_new(steps['resized_orig'], frame, padding)
+    draw_tracking(steps['resized_orig'], objects, prob_q, padding)
 
     h_stack1 = np.hstack((steps['mask'], steps['filtered']))
     h_stack2 = np.hstack((steps['filled'], steps['resized_orig']))

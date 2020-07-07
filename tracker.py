@@ -10,7 +10,7 @@ import numpy as np
 
 
 class CentroidTracker():
-    def __init__(self, maxDisappeared=5):
+    def __init__(self, maxDisappeared=3):
         # initialize the next unique object ID along with two ordered  dictionaries used to keep track of mapping a
         # given object ID to its centroid and number of consecutive frames it has been marked as "disappeared"
         self.nextObjectID = 0
@@ -20,13 +20,13 @@ class CentroidTracker():
         # store the number of maximum consecutive frames a given object is allowed to be marked as "disappeared" until
         # we need to deregister the object from tracking
         self.maxDisappeared = maxDisappeared
-        self.delta_thr = 2
+        self.delta_thr = 3
 
     def register(self, parameters):
         # when registering an object we use the next available object ID to store the centroid
         self.objects[self.nextObjectID] = parameters
         self.disappeared[self.nextObjectID] = 0
-        self.prob_q[self.nextObjectID] = deque(maxlen=5)
+        self.prob_q[self.nextObjectID] = deque(maxlen=3)
         self.prob_q[self.nextObjectID].appendleft(parameters[-2])
         self.nextObjectID += 1
 

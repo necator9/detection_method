@@ -33,7 +33,7 @@ class Detection(threading.Thread):
 
         self.data_frame_q = data_frame_q
         self.orig_img_q = orig_img_q
-        self.fe = pcm.FeatureExtractor(-conf.ANGLE, -conf.HEIGHT, conf.RES, (conf.WCCD, conf.HCCD), conf.FL)
+        self.fe = pcm.FeatureExtractor(-conf.ANGLE, -conf.HEIGHT, conf.RES, (conf.WCCD, conf.HCCD), conf.FL, conf.cxcy)
 
         self.frame = Frame(self.fe)
 
@@ -105,6 +105,8 @@ class Frame(object):
         self.left_mar, self.right_mar = self.margin_offset, conf.RES[0] - self.margin_offset
         self.up_mar, self.bot_mar = self.margin_offset, conf.RES[1] - self.margin_offset
 
+        self.extent_thr = conf.EXTENT_THR
+
         self.max_dist_thr = conf.MAX_DISTANCE
 
         self.first_in = np.ones([1])
@@ -141,10 +143,26 @@ class Frame(object):
         p1p2 = np.stack((xywh[:, 0], xywh[:, 1], xywh[:, 0] + xywh[:, 2], xywh[:, 1] + xywh[:, 3]),
                         axis=1).astype(np.float32)
         p1p2_col = np.concatenate(np.split(p1p2, 2, axis=1))
-        p1p2_col_ud = cv2.undistortPoints(p1p2_col, conf.intrinsic, conf.dist, P=conf.intrinsic)
-        p1p2_ud = np.hstack(np.split(p1p2_col_ud[:, 0, :], 2, axis=0))
+        p1p2_col_ud = cv2.undistortPoints(p1p2_col, conf.intrinsic_orig, conf.dist, P=conf.intrinsic_target)[:, 0, :]
+        # print(p1p2_col_ud)
+        # p1p2_col_ud[:, 0] = np.where(p1p2_col_ud[:, 0] < 0, 0, p1p2_col_ud[:, 0])
+        # p1p2_col_ud[:, 0] = np.where(p1p2_col_ud[:, 0] > self.right_mar, self.right_mar, p1p2_col_ud[:, 0])
+        # p1p2_col_ud[:, 1] = np.where(p1p2_col_ud[:, 1] < 0, 0, p1p2_col_ud[:, 1])
+        # p1p2_col_ud[:, 1] = np.where(p1p2_col_ud[:, 1] > self.bot_mar, self.bot_mar + 1, p1p2_col_ud[:, 1])
+
+        p1, p2 = np.split(p1p2_col_ud, 2, axis=0)
+        p1[:, 0] = np.where(p1[:, 0] < 0, 0, p1[:, 0])
+        p1[:, 1] = np.where(p1[:, 1] < 0, 0, p1[:, 1])
+        p2[:, 0] = np.where(p2[:, 0] > self.right_mar, self.right_mar, p2[:, 0])
+        p2[:, 1] = np.where(p2[:, 1] > self.bot_mar, self.bot_mar, p2[:, 1])
+
+        p1p2_ud = np.hstack((p1, p2))
         xywh_ud = np.stack((p1p2_ud[:, 0], p1p2_ud[:, 1], p1p2_ud[:, 2] - p1p2_ud[:, 0],
                             p1p2_ud[:, 3] - p1p2_ud[:, 1]), axis=1)
+
+        # xywh_ud[:, 0] = np.where(xywh_ud[:, 0] < 0, 0, xywh_ud[:, 0])
+        # xywh_ud[:, 1] = np.where(xywh_ud[:, 1] < 0, 0, xywh_ud[:, 1])
+        # xywh_ud[:, 2] = np.where(xywh_ud[:, 0] + xywh_ud[:, 0] < 0, 0, xywh_ud[:, 1])
         return np.column_stack((xywh_ud, xywh[:, -1])).astype(np.float32)
 
     @check_on_conf_flag
@@ -152,6 +170,12 @@ class Frame(object):
     def filter_c_ar(self, basic_params):
         # Filter out small object below threshold
         basic_params = basic_params[basic_params[:, -1] / self.img_area_px > self.c_ar_thr]
+        return basic_params
+
+    @check_on_conf_flag
+    @check_input_on_empty_arr
+    def filter_extent(self, basic_params):
+        basic_params = basic_params[basic_params[:, -1] / (basic_params[:, 2] * basic_params[:, 3]) > self.extent_thr]
         return basic_params
 
     @check_on_conf_flag
@@ -193,17 +217,19 @@ class Frame(object):
         basic_params = self.find_basic_params(mask)
         basic_params = self.undistort(basic_params)
         # Filtering by object contour area size if filtering by contour area size is enabled
-        basic_params = self.filter_c_ar(basic_params, self.c_ar_thr > 0)
+        basic_params = self.filter_c_ar(basic_params, self.c_ar_thr)
         # Filtering by intersection with a frame border if filtering is enabled
-        basic_params = self.filter_margin(basic_params, self.margin_offset > 0)
+        basic_params = self.filter_margin(basic_params, self.margin_offset)
         # basic_params = self.find_contradictory_objects(basic_params, mask)
+        basic_params = self.filter_extent(basic_params, self.extent_thr)
         # Get features of the object using its bounding rectangles and contour areas
         feature_vector = np.column_stack((self.extract_features(basic_params), basic_params))
         # Filter by distance to the object if filtering is enabled
         feature_vector = self.filter_distance(feature_vector, self.max_dist_thr > 0)
         feature_vector = self.filter_infinity(feature_vector)
         # Pass only informative features to classifier
-        o_class = self.classify(feature_vector[:, :4])
+        feature_vector_ = feature_vector[:, [0, 1, 3]]  #  feature_vector[:, :4]
+        o_class = self.classify(feature_vector_)  #
 
         return np.column_stack((feature_vector, o_class))
 

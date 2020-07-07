@@ -7,10 +7,11 @@ logger = logging.getLogger('detect.fe_ext')
 
 class IntrinsicMtx(object):
     def __init__(self, args, vertices, img_points):
-        self.img_res, self.f_l, self.sens_dim = args
+        self.img_res, self.f_l, self.sens_dim, self.cxcy = args
         self.mtx = np.eye(3, 4)
         np.fill_diagonal(self.mtx, self.f_l * self.img_res / self.sens_dim)
-        self.mtx[:, 2] = np.append(self.img_res / 2, 1)  # Append 1 to replace old value in mtx after fill_diagonal
+        # self.mtx[:, 2] = np.append(self.img_res / 2, 1)  # Append 1 to replace old value in mtx after fill_diagonal
+        self.mtx[:, 2] = (*self.cxcy, 1)
 
         self.img_points = img_points
         self.vertices = vertices
@@ -62,16 +63,17 @@ class FeatureExtractor(object):
     :param sens_dim: # Camera sensor dimensions (width, height) in mm
     :param f_l: # Focal length in mm
     """
-    def __init__(self, r_x, cam_h, img_res, sens_dim, f_l):
+    def __init__(self, r_x, cam_h, img_res, sens_dim, f_l, cxcy):
         self.r_x = np.deg2rad(r_x, dtype=np.float32)  # Camera rotation angle about x axis in radians
         self.cam_h = np.asarray(cam_h, dtype=np.float32)  # Ground y coord relative to camera (cam. is origin) in meters
         self.img_res = np.asarray(img_res, dtype=np.int16)  # Image resolution (width, height) in px
         self.sens_dim = np.asarray(sens_dim, dtype=np.float32)  # Camera sensor dimensions (width, height) in mm
         self.px_h_mm = self.sens_dim[1] / self.img_res[1]  # Height of a pixel in mm
         self.f_l = np.asarray(f_l, dtype=np.float32)  # Focal length in mm
+        self.cxcy = cxcy
 
         # Transformation matrices for 3D reconstruction
-        intrinsic_mtx = IntrinsicMtx((self.img_res, self.f_l, self.sens_dim), None, None).mtx
+        intrinsic_mtx = IntrinsicMtx((self.img_res, self.f_l, self.sens_dim, self.cxcy), None, None).mtx
         self.rev_intrinsic_mtx = np.linalg.inv(intrinsic_mtx[:, :-1])  # Last column is not needed in reverse transf.
         rot_x_mtx = RotationMtx('rx', None).build(self.r_x)
         self.rev_rot_x_mtx = np.linalg.inv(rot_x_mtx)
