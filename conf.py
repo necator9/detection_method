@@ -27,8 +27,12 @@ CLF_PATH = 'clf_model/lamp_pole_1.pcl'
 
 # DEVICE = '/mnt/data_partition/experiments/sources/lighting_pole_1/vid_3_1_4fps_night.mp4'
 # DEVICE = '/mnt/data_partition/experiments/sources/lighting_pole_1/vid_1_1_4fps_we.mp4'
-DEVICE = '/mnt/data_partition/experiments/sources/lighting_pole_1/vid_3_cars_selected/car_night_merged.mp4'
-OUT_DIR = '/mnt/data_partition/experiments/sources/lighting_pole_1/results/car_night_merged_1_{}x{}'.format(RES[0], RES[1])
+# DEVICE = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/sc_1_parking_pgc_01_4:3_320x240.mp4'
+# DEVICE = '/mnt/data_partition/experiments/sources/lighting_pole_1/vid_3_cars_selected/car_night_merged.mp4'
+DEVICE = '/mnt/data_partition/experiments/sources/lighting_pole_1/tests/car_night_merged_reen2.mkv'
+# DEVICE = '/mnt/data_partition/experiments/sources/lighting_pole_1/tests/car_night_merged_reen1.mp4'
+# OUT_DIR = '/mnt/data_partition/experiments/sources/lighting_pole_1/results/car_night_merged_1_{}x{}'.format(RES[0], RES[1])
+OUT_DIR = '/mnt/data_partition/experiments/test_3{}x{}'.format(RES[0], RES[1])
 
 # Pre-processing parameters
 COLOR = 0

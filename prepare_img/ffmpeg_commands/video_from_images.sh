@@ -16,3 +16,5 @@ ffmpeg -r $fps_scene_2 -f image2 -s 424x240 -i $in_dir/%04d.jpeg -vf hue=s=0 -vc
 #    -pix_fmt yuv420p specifies the pixel format, change this as needed
 # Crop aspect ratio
 # ffmpeg -i sc_1_parking_c_01_16:9_424x240.mp4 -vf crop=iw-104 -vcodec libx264 -crf 0 -preset veryslow -y destination.mp4
+# Encode into a raw_video
+# ffmpeg -f concat -safe 0 -i mergelist.txt -r 4 -s 320x240 -vf hue=s=0 -vcodec rawvideo -pix_fmt gray -y car_night_merged_reen1.mp4

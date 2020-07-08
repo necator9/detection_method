@@ -73,8 +73,8 @@ class Saving(threading.Thread):
 class WriteCsv(object):
     def __init__(self):
         self.fd = open(os.path.join(conf.OUT_DIR, 'h{}_a{}.csv'.format(conf.HEIGHT, conf.ANGLE)), 'a')
-        self.fmt = '%d,%d,%.2f,%.2f,%.2f,%.1f,%.2f,%d,%d,%d,%d,%d,%.2f,%d'
-        self.fd.write("img,o_num,rw_w,rw_h,rw_ca,rw_z,rw_x,x,y,w,h,ca,o_prob,o_class\n")
+        self.fmt = '%d,%d,%.2f,%.2f,%.2f,%.1f,%.2f,%d,%d,%d,%d,%d,%d,%d,%.2f,%d'
+        self.fd.write("img,o_num,rw_w,rw_h,rw_ca,rw_z,rw_x,x,y,w,h,ca,p2x,p2y,o_prob,o_class\n")
 
     def write(self, data):
         np.savetxt(self.fd, data, fmt=self.fmt)
@@ -86,7 +86,7 @@ class WriteCsv(object):
 color_map = {0: (255, 255, 255), 1: (0, 255, 0), 2: (255, 204, 33), 3: (0, 255, 255)}
 
 
-def draw_rects_new(img, data_frame, padding):
+def draw_rects(img, data_frame, padding):
     for row in data_frame.tolist():
         o_class = row[-1]
         # if o_class == 0:
@@ -154,7 +154,7 @@ def write_steps(steps, frame, img_name, objects, prob_q):
     for key, img in steps.items():
         cv2.putText(steps[key], key, (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
 
-    draw_rects_new(steps['resized_orig'], frame, padding)
+    draw_rects(steps['resized_orig'], frame, padding)
     draw_tracking(steps['resized_orig'], objects, prob_q, padding)
 
     h_stack1 = np.hstack((steps['mask'], steps['filtered']))

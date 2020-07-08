@@ -136,55 +136,49 @@ class Frame(object):
         c_areas = [cv2.contourArea(cnt) for cnt in cnts]
         b_rects = [cv2.boundingRect(b_r) for b_r in cnts]
 
-        return np.column_stack((b_rects, c_areas)).astype('int32')
+        return np.column_stack((b_rects, c_areas))
 
     @check_input_on_empty_arr
-    def undistort(self, xywh):
-        p1p2 = np.stack((xywh[:, 0], xywh[:, 1], xywh[:, 0] + xywh[:, 2], xywh[:, 1] + xywh[:, 3]),
-                        axis=1).astype(np.float32)
-        p1p2_col = np.concatenate(np.split(p1p2, 2, axis=1))
-        p1p2_col_ud = cv2.undistortPoints(p1p2_col, conf.intrinsic_orig, conf.dist, P=conf.intrinsic_target)[:, 0, :]
-        # print(p1p2_col_ud)
-        # p1p2_col_ud[:, 0] = np.where(p1p2_col_ud[:, 0] < 0, 0, p1p2_col_ud[:, 0])
-        # p1p2_col_ud[:, 0] = np.where(p1p2_col_ud[:, 0] > self.right_mar, self.right_mar, p1p2_col_ud[:, 0])
-        # p1p2_col_ud[:, 1] = np.where(p1p2_col_ud[:, 1] < 0, 0, p1p2_col_ud[:, 1])
-        # p1p2_col_ud[:, 1] = np.where(p1p2_col_ud[:, 1] > self.bot_mar, self.bot_mar + 1, p1p2_col_ud[:, 1])
+    def calc_second_point(self, temp_param):
+        p2_x = temp_param[:, 0] + temp_param[:, 2]
+        p2_y = temp_param[:, 1] + temp_param[:, 3]
 
-        p1, p2 = np.split(p1p2_col_ud, 2, axis=0)
-        p1[:, 0] = np.where(p1[:, 0] < 0, 0, p1[:, 0])
-        p1[:, 1] = np.where(p1[:, 1] < 0, 0, p1[:, 1])
-        p2[:, 0] = np.where(p2[:, 0] > self.right_mar, self.right_mar, p2[:, 0])
-        p2[:, 1] = np.where(p2[:, 1] > self.bot_mar, self.bot_mar, p2[:, 1])
+        return np.column_stack((temp_param, p2_x, p2_y)).astype(np.float32)
 
-        p1p2_ud = np.hstack((p1, p2))
-        xywh_ud = np.stack((p1p2_ud[:, 0], p1p2_ud[:, 1], p1p2_ud[:, 2] - p1p2_ud[:, 0],
-                            p1p2_ud[:, 3] - p1p2_ud[:, 1]), axis=1)
+    @check_input_on_empty_arr
+    def undistort(self, basic_params):
+        p1p2_col = basic_params[:, [0, 1, 5, 6]].reshape((basic_params.shape[0] * 2, 2))
+        p1p2_col[:] = cv2.undistortPoints(p1p2_col, conf.intrinsic_orig, conf.dist, P=conf.intrinsic_target)[:, 0, :]
+        p1p2 = p1p2_col.reshape((basic_params.shape[0], 4))
+        # p1p2[:, 0] = np.where(p1p2[:, 0] < 0, 0, p1p2[:, 0])
+        # p1p2[:, 1] = np.where(p1p2[:, 1] < 0, 0, p1p2[:, 1])
+        # p1p2[:, 2] = np.where(p1p2[:, 2] > self.right_mar, self.right_mar, p1p2[:, 2])
+        # p1p2[:, 3] = np.where(p1p2[:, 3] > self.bot_mar, self.bot_mar, p1p2[:, 3])
 
-        # xywh_ud[:, 0] = np.where(xywh_ud[:, 0] < 0, 0, xywh_ud[:, 0])
-        # xywh_ud[:, 1] = np.where(xywh_ud[:, 1] < 0, 0, xywh_ud[:, 1])
-        # xywh_ud[:, 2] = np.where(xywh_ud[:, 0] + xywh_ud[:, 0] < 0, 0, xywh_ud[:, 1])
-        return np.column_stack((xywh_ud, xywh[:, -1])).astype(np.float32)
+        basic_params[:, :2] = p1p2[:, :2]
+        basic_params[:, 2:4] = p1p2[:, 2:4] - p1p2[:, :2]
+        basic_params[:, [5, 6]] = p1p2[:, 2:]
 
     @check_on_conf_flag
     @check_input_on_empty_arr
     def filter_c_ar(self, basic_params):
         # Filter out small object below threshold
-        basic_params = basic_params[basic_params[:, -1] / self.img_area_px > self.c_ar_thr]
+        basic_params = basic_params[basic_params[:, 4] / self.img_area_px > self.c_ar_thr]
         return basic_params
 
     @check_on_conf_flag
     @check_input_on_empty_arr
     def filter_extent(self, basic_params):
-        basic_params = basic_params[basic_params[:, -1] / (basic_params[:, 2] * basic_params[:, 3]) > self.extent_thr]
+        basic_params = basic_params[basic_params[:, 4] / (basic_params[:, 2] * basic_params[:, 3]) > self.extent_thr]
         return basic_params
 
     @check_on_conf_flag
     @check_input_on_empty_arr
     def filter_margin(self, basic_params):
         margin_filter_mask = ((basic_params[:, 0] > self.left_mar) &  # Built filtering mask
-                              (basic_params[:, 0] + basic_params[:, 2] < self.right_mar) &
+                              (basic_params[:, 5] < self.right_mar) &
                               (basic_params[:, 1] > self.up_mar) &
-                              (basic_params[:, 1] + basic_params[:, 3] < self.bot_mar))
+                              (basic_params[:, 6] < self.bot_mar))
 
         return basic_params[margin_filter_mask]
 
@@ -215,7 +209,8 @@ class Frame(object):
 
     def process(self, mask):
         basic_params = self.find_basic_params(mask)
-        basic_params = self.undistort(basic_params)
+        basic_params = self.calc_second_point(basic_params)
+        self.undistort(basic_params)
         # Filtering by object contour area size if filtering by contour area size is enabled
         basic_params = self.filter_c_ar(basic_params, self.c_ar_thr)
         # Filtering by intersection with a frame border if filtering is enabled
@@ -227,9 +222,8 @@ class Frame(object):
         # Filter by distance to the object if filtering is enabled
         feature_vector = self.filter_distance(feature_vector, self.max_dist_thr > 0)
         feature_vector = self.filter_infinity(feature_vector)
-        # Pass only informative features to classifier
-        feature_vector_ = feature_vector[:, [0, 1, 3]]  #  feature_vector[:, :4]
-        o_class = self.classify(feature_vector_)  #
+        # Pass informative features only to the classifier
+        o_class = self.classify(feature_vector[:, [0, 1, 3]])
 
         return np.column_stack((feature_vector, o_class))
 
