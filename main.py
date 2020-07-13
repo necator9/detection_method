@@ -6,10 +6,8 @@ import conf
 import global_vars
 import os
 
-
 import capturing
 import detection
-import extentions
 import logging
 import queue
 
@@ -40,38 +38,22 @@ logger.addHandler(file_handler)
 logger.info('OpenCV version: {} '.format(cv2.__version__))
 
 
-def blank_fn(*args, **kwargs):
-    pass
-
-
 def main():
     logger.debug("Program has started")
 
     stop_event = threading.Event()
-    # stop_event.set()
 
-    data_frame_q = queue.Queue(maxsize=50)
     orig_img_q = queue.Queue(maxsize=1)
 
-    detection_thread = detection.Detection(stop_event, data_frame_q, orig_img_q)
-    saver_thread = extentions.Saving(data_frame_q)
+    detection_thread = detection.Detection(stop_event, orig_img_q)
 
     try:
         capturing_thread = capturing.Camera(orig_img_q, stop_event)
-
-        if not conf.WRITE_TO_CSV:
-            saver_thread.start = blank_fn
-            saver_thread.quit = blank_fn
-            saver_thread.join = blank_fn
-            data_frame_q.put = blank_fn
-            data_frame_q.get = blank_fn
 
     except capturing.StartAppError:
         stop_event.set()
         exit(1)
 
-
-    saver_thread.start()
     capturing_thread.start()
     detection_thread.start()
 
@@ -84,11 +66,9 @@ def main():
         stop_event.set()
 
     capturing_thread.quit()
-    saver_thread.quit()
 
     capturing_thread.join()
     detection_thread.join()
-    saver_thread.join()
 
     logger.debug("Program finished")
 

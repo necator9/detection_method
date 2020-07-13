@@ -14,7 +14,7 @@ import pickle
 
 import conf
 import logging
-import feature_extractor as pcm
+import feature_extractor as fe
 from pre_processing import PreprocessImg
 import extentions
 import tracker
@@ -24,13 +24,12 @@ logger = logging.getLogger('detect.detect')
 
 
 class Detection(threading.Thread):
-    def __init__(self, stop_ev, data_frame_q, orig_img_q):
+    def __init__(self, stop_ev, orig_img_q):
         super(Detection, self).__init__(name="detection")
         self.stop_event = stop_ev
 
-        self.data_frame_q = data_frame_q
         self.orig_img_q = orig_img_q
-        self.fe = pcm.FeatureExtractor(conf.ANGLE, conf.HEIGHT, conf.RES, intrinsic=conf.intrinsic_target)
+        self.fe = fe.FeatureExtractor(conf.ANGLE, conf.HEIGHT, conf.RES, intrinsic=conf.intrinsic_target)
 
         self.frame = Frame(self.fe)
 
@@ -39,6 +38,8 @@ class Detection(threading.Thread):
 
         self.time_measurements = list()
         self.time_window = conf.TIME_WINDOW
+
+        self.saver = extentions.SaveData(conf.SAVER)
 
     def run(self):
         logger.info("Detection has started")
@@ -59,31 +60,25 @@ class Detection(threading.Thread):
 
             try:
                 res_data = self.frame.process(steps['filled'])
-                data_to_save = self.prepare_array_to_save(res_data, int(img_name[: -5]))
-                self.data_frame_q.put(data_to_save, block=True)
-                coordinates = data_to_save[data_to_save[:, -1] > 0]
+                coordinates = res_data[res_data[:, -1] > 0]
 
             except FrameIsEmpty:
-                data_to_save = self.empty
+                res_data = self.empty
                 coordinates = self.empty
 
             objects, prob_q = self.tracker.update(coordinates)
 
-            if conf.WRITE_IMG:
-                extentions.write_steps(steps, data_to_save, img_name, objects, prob_q)
+            if conf.SAVER:
+                self.saver.write(res_data, int(img_name[: -5]), steps, img_name, objects, prob_q)
 
             self.time_measurements.append(timeit.default_timer() - start_time)
+
             iterator += 1
             if iterator >= self.time_window:
                 mean_fps = round(1 / (sum(self.time_measurements) / self.time_window), 1)
                 logger.info("FPS for last {} samples: mean - {}".format(self.time_window, mean_fps))
                 self.time_measurements = list()
                 iterator = 0
-
-    @staticmethod
-    def prepare_array_to_save(data, img_num):
-        # Add image number and row indices as first two columns to distinguish objects later
-        return np.column_stack((np.full(data.shape[0], img_num), np.arange(data.shape[0]), data))
 
 
 class FrameIsEmpty(Exception):
