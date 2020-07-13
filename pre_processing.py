@@ -1,5 +1,4 @@
 import conf
-from capturing import StartAppError
 import sl_sensor_connect
 import cv2
 import logging
@@ -27,8 +26,6 @@ class PreprocessImg(object):
                                                             varThreshold=self.bg_thr)
         elif flag == 'KNN':
             bgs_method = cv2.createBackgroundSubtractorKNN(detectShadows=self.shadows, history=self.history)
-        else:
-            raise StartAppError
 
         return bgs_method
 

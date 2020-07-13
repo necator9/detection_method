@@ -51,7 +51,7 @@ class Detection(threading.Thread):
             start_time = timeit.default_timer()
 
             try:
-                orig_img, img_name = self.orig_img_q.get(timeout=2)
+                orig_img = self.orig_img_q.get(timeout=2)
             except queue.Empty:
                 logger.warning("Timeout reached, no items can be received from orig_img_q")
                 continue
@@ -69,16 +69,17 @@ class Detection(threading.Thread):
             objects, prob_q = self.tracker.update(coordinates)
 
             if conf.SAVER:
-                self.saver.write(res_data, int(img_name[: -5]), steps, img_name, objects, prob_q)
+                self.saver.write(res_data, iterator, steps, objects, prob_q)
 
             self.time_measurements.append(timeit.default_timer() - start_time)
 
             iterator += 1
-            if iterator >= self.time_window:
+
+            if iterator % self.time_window == 0:
                 mean_fps = round(1 / (sum(self.time_measurements) / self.time_window), 1)
                 logger.info("FPS for last {} samples: mean - {}".format(self.time_window, mean_fps))
+                logger.info("Processed images for all time: {} ".format(iterator))
                 self.time_measurements = list()
-                iterator = 0
 
 
 class FrameIsEmpty(Exception):

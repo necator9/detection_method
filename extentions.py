@@ -27,12 +27,12 @@ class SaveData(object):
         # Add image number and row indices as first two columns to distinguish objects later
         return np.column_stack((np.full(data.shape[0], img_num), np.arange(data.shape[0]), data))
 
-    def write(self, data, img_num, steps, img_name, objects, prob_q):
+    def write(self, data, img_num, steps, objects, prob_q):
         data = self.prepare_array_to_save(data, img_num)
         if data.size > 0:
             np.savetxt(self.fd, data, fmt=self.fmt)
 
-        write_images(steps, data, img_name, objects, prob_q)
+        write_images(steps, data, img_num, objects, prob_q)
 
     def quit(self):
         self.fd.close()
@@ -93,7 +93,7 @@ def add_padding(image, padding_size):
     return stack2
 
 
-def write_images(steps, frame, img_name, objects, prob_q):
+def write_images(steps, frame, img_num, objects, prob_q):
 
     for key, img in steps.items():
         steps[key] = cv2.undistort(img, conf.intrinsic_orig, conf.dist, None, conf.intrinsic_target)
@@ -117,4 +117,4 @@ def write_images(steps, frame, img_name, objects, prob_q):
 
     out_img = np.vstack((h_stack1, h_stack2))
 
-    cv2.imwrite(os.path.join(conf.OUT_DIR, img_name), out_img)
+    cv2.imwrite(os.path.join(conf.OUT_DIR, '{}.jpeg'.format(img_num)), out_img)

@@ -23,7 +23,7 @@ FPS = 10
 CLF_PATH = 'clf_model/lamp_pole_1.pcl'
 
 DEVICE = '/mnt/data_partition/experiments/sources/lighting_pole_1/vid_3_cars_selected/car_night_merged_rawvideo_gray.mkv'
-OUT_DIR = '/mnt/data_partition/experiments/sources/lighting_pole_1/results/car_night_merged_4_{}x{}'.format(RES[0], RES[1])
+OUT_DIR = '/mnt/data_partition/experiments/sources/lighting_pole_1/results/car_night_merged_5_{}x{}'.format(RES[0], RES[1])
 
 
 # Pre-processing parameters
