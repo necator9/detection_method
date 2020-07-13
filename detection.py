@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import queue
 import timeit
+import pickle
 
 import conf
 import logging
@@ -11,7 +12,6 @@ from pre_processing import PreprocessImg
 import extentions
 import tracker
 
-import pickle
 
 logger = logging.getLogger('detect.detect')
 
@@ -38,9 +38,6 @@ class Detection(threading.Thread):
         preprocessing = PreprocessImg()
         steps = dict()
 
-        bgs_method = cv2.createBackgroundSubtractorMOG2(detectShadows=conf.SHADOWS, history=conf.HISTORY,
-                                                             varThreshold=conf.BG_THR)
-
         iterator = 0
         while not self.stop_event.is_set():
             start_time = timeit.default_timer()
@@ -51,12 +48,7 @@ class Detection(threading.Thread):
                 logger.warning("Timeout reached, no items can be received from orig_img_q")
                 continue
 
-
-            if iterator % 20 == 0:
-                bgs_method = cv2.createBackgroundSubtractorMOG2(detectShadows=conf.SHADOWS, history=conf.HISTORY,
-                                                                varThreshold=conf.BG_THR)
-
-            steps['resized_orig'], steps['mask'], steps['filtered'], steps['filled'] = preprocessing.apply(orig_img, bgs_method)
+            steps['resized_orig'], steps['mask'], steps['filtered'], steps['filled'] = preprocessing.apply(orig_img)
 
             try:
                 res_data = self.frame.process(steps['filled'])
