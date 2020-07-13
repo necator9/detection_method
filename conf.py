@@ -9,30 +9,22 @@ sc_name = 'lamp_pole_1'
 scene = cp.scene[sc_name]
 cam = scene['cam']
 
-intrinsic_target = cp.scale_intrinsic(scene['img_res_cap'], cam['base_res'], cam['mtx'])
-intrinsic_orig = cp.scale_intrinsic(scene['img_res_cap'], cam['base_res'], cam['mtx_orig'])
+intrinsic_target = cp.scale_intrinsic(scene['img_res_cap'], cam['calib_res'], cam['mtx'])
+intrinsic_orig = cp.scale_intrinsic(scene['img_res_cap'], cam['calib_res'], cam['mtx_orig'])
 dist = cam['dist']
 
-ANGLE = -scene['angle']
-HEIGHT = -scene['height']
-FL = 2.2
+ANGLE = scene['angle']
+HEIGHT = scene['height']
 RES = scene['img_res_cap']
-WCCD, HCCD = [cp.calc_sens_dim(FL, res_d, fpx_d) for res_d, fpx_d in zip(RES, [intrinsic_target[0][0], intrinsic_target[1][1]])]
 FPS = 10
-cxcy = (intrinsic_target[0][2], intrinsic_target[1][2])
 
 # Classifier path
 # CLF_PATH = 'clf_model/detailed_separate_clf_dict.pcl'
 CLF_PATH = 'clf_model/lamp_pole_1.pcl'
 
-# DEVICE = '/mnt/data_partition/experiments/sources/lighting_pole_1/vid_3_1_4fps_night.mp4'
-# DEVICE = '/mnt/data_partition/experiments/sources/lighting_pole_1/vid_1_1_4fps_we.mp4'
-# DEVICE = '/mnt/data_partition/experiments/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/sc_1_parking_pgc_01_4:3_320x240.mp4'
-# DEVICE = '/mnt/data_partition/experiments/sources/lighting_pole_1/vid_3_cars_selected/car_night_merged.mp4'
-DEVICE = '/mnt/data_partition/experiments/sources/lighting_pole_1/tests/car_night_merged_reen2.mkv'
-# DEVICE = '/mnt/data_partition/experiments/sources/lighting_pole_1/tests/car_night_merged_reen1.mp4'
-# OUT_DIR = '/mnt/data_partition/experiments/sources/lighting_pole_1/results/car_night_merged_1_{}x{}'.format(RES[0], RES[1])
-OUT_DIR = '/mnt/data_partition/experiments/test_3{}x{}'.format(RES[0], RES[1])
+DEVICE = '/mnt/data_partition/experiments/sources/lighting_pole_1/vid_3_cars_selected/car_night_merged_rawvideo_gray.mkv'
+OUT_DIR = '/mnt/data_partition/experiments/sources/lighting_pole_1/results/car_night_merged_2_{}x{}'.format(RES[0], RES[1])
+
 
 # Pre-processing parameters
 COLOR = 0
@@ -42,7 +34,7 @@ CLAHE_LIMIT = 3         # Clahe contrast adjustment for grayscale images only (C
 BGS_METHOD = 'MOG2'  # KNN is also available
 BG_THR = 16  # 16  # For MOG2 only
 DILATE_ITERATIONS = 1
-HISTORY = 1500
+HISTORY = 50
 SHADOWS = True
 
 # Cascade filtering to speed up detection by filtering insignificant objects
@@ -62,7 +54,7 @@ MAX_DISTANCE = 13
 
 # Saving parameters
 WRITE_IMG = True
-WRITE_TO_CSV = True
+WRITE_TO_CSV = False
 
 # Timers parameters
 TIME_WINDOW = 200

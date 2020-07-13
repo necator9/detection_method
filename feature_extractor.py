@@ -5,24 +5,6 @@ import logging
 logger = logging.getLogger('detect.fe_ext')
 
 
-class IntrinsicMtx(object):
-    def __init__(self, args, vertices, img_points):
-        self.img_res, self.f_l, self.sens_dim, self.cxcy = args
-        self.mtx = np.eye(3, 4)
-        np.fill_diagonal(self.mtx, self.f_l * self.img_res / self.sens_dim)
-        # self.mtx[:, 2] = np.append(self.img_res / 2, 1)  # Append 1 to replace old value in mtx after fill_diagonal
-        self.mtx[:, 2] = (*self.cxcy, 1)
-
-        self.img_points = img_points
-        self.vertices = vertices
-
-    def project_to_image(self):
-        temp = self.vertices @ self.mtx.T
-        self.img_points[:] = np.asarray([temp[:, 0] / temp[:, 2],
-                                         temp[:, 1] / temp[:, 2]]).T
-        self.img_points[:, 1] = self.img_res[1] - self.img_points[:, 1]  # Reverse along y axis
-
-
 class RotationMtx(object):
     def __init__(self, key, vertices):
         self.mtx = np.identity(4)
@@ -60,31 +42,29 @@ class FeatureExtractor(object):
     :param r_x: # Camera rotation angle about x axis in radians
     :param cam_h: # Ground y coord relative to camera (cam. is origin) in meters
     :param img_res: # Image resolution (width, height) in px
-    :param sens_dim: # Camera sensor dimensions (width, height) in mm
     :param f_l: # Focal length in mm
     """
-    def __init__(self, r_x, cam_h, img_res, sens_dim, f_l, cxcy):
+    def __init__(self, r_x, cam_h, img_res, intrinsic, f_l=2.2):
         self.r_x = np.deg2rad(r_x, dtype=np.float32)  # Camera rotation angle about x axis in radians
         self.cam_h = np.asarray(cam_h, dtype=np.float32)  # Ground y coord relative to camera (cam. is origin) in meters
         self.img_res = np.asarray(img_res, dtype=np.int16)  # Image resolution (width, height) in px
-        self.sens_dim = np.asarray(sens_dim, dtype=np.float32)  # Camera sensor dimensions (width, height) in mm
+        self.f_l = f_l  # Focal length in mm
+        self.sens_dim = self.f_l * self.img_res / intrinsic.diagonal()[:2] # Camera sensor dimensions (width, height) in mm
         self.px_h_mm = self.sens_dim[1] / self.img_res[1]  # Height of a pixel in mm
-        self.f_l = np.asarray(f_l, dtype=np.float32)  # Focal length in mm
-        self.cxcy = cxcy
+        self.cx_cy = intrinsic[:2, 2]
 
         # Transformation matrices for 3D reconstruction
-        intrinsic_mtx = IntrinsicMtx((self.img_res, self.f_l, self.sens_dim, self.cxcy), None, None).mtx
-        self.rev_intrinsic_mtx = np.linalg.inv(intrinsic_mtx[:, :-1])  # Last column is not needed in reverse transf.
+        self.rev_intrinsic_mtx = np.linalg.inv(intrinsic)
         rot_x_mtx = RotationMtx('rx', None).build(self.r_x)
         self.rev_rot_x_mtx = np.linalg.inv(rot_x_mtx)
 
     def extract_features(self, basic_params):
-        b_rect, ca_px = basic_params[:, :4], basic_params[:, 4]
+        b_rect, ca_px = basic_params[:, [0, 1, 2, 3, 5, 6]], basic_params[:, 4]
         # * Transform bounding rectangles to required shape
         # Important! Reverse the y coordinates of bound.rect. along y axis before transformations (self.img_res[1] - y)
-        px_y_bottom_top = self.img_res[1] - np.stack((b_rect[:, 1] + b_rect[:, 3], b_rect[:, 1]), axis=1)
+        px_y_bottom_top = self.img_res[1] - b_rect[:, [5, 1]]
         # Distances from vertices to img center (horizon) along y axis, in px
-        y_bottom_top_to_hor = self.img_res[1] / 2. - px_y_bottom_top
+        y_bottom_top_to_hor = self.cx_cy[1] - px_y_bottom_top
         np.multiply(y_bottom_top_to_hor, self.px_h_mm, out=y_bottom_top_to_hor)  # Convert to mm
         # Find angle between object pixel and central image pixel along y axis
         np.arctan(np.divide(y_bottom_top_to_hor, self.f_l, out=y_bottom_top_to_hor), out=y_bottom_top_to_hor)
@@ -96,7 +76,7 @@ class FeatureExtractor(object):
 
         # * Transform bounding rectangles to required shape
         # Build a single array from left and right rects' coords to compute within single vectorized transformation
-        px_x_l_r = np.hstack((b_rect[:, 0], b_rect[:, 0] + b_rect[:, 2]))  # Left and right bottom coords
+        px_x_l_r = np.hstack((b_rect[:, 0], b_rect[:, 4]))  # Left and right bottom coords
         # so the [:shape/2] belongs to left and [shape/2:] to the right bound. rect. coordinates
         x_lr_yb_hom = np.stack((px_x_l_r,
                                 np.tile(px_y_bottom_top[:, 0], 2),

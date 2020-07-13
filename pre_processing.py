@@ -21,27 +21,22 @@ class PreprocessImg(object):
         self.clahe_adjust = cv2.createCLAHE(clipLimit=conf.CLAHE_LIMIT, tileGridSize=(8, 8))
         self.set_ratio_done = bool()
 
-    def apply(self, orig_img):
-        orig_img = imutils.resize(orig_img, height=conf.RES[1])
+    def apply(self, orig_img, bgs):
+        orig_img = cv2.resize(orig_img, conf.RES, interpolation=cv2.INTER_NEAREST)
         # Update processing resolution according to one after resize (i.e. not correct res. is chosen by user)
         self.set_ratio(orig_img)
 
         if not conf.COLOR:
             orig_img = self.clahe_adjust.apply(orig_img)
-        # orig_img = cv2.blur(orig_img, (5, 5))
 
-        mog_mask = self.bgs_method.apply(orig_img)
-        # filtered_mask = mog_mask
+        # mog_mask = self.bgs_method.apply(orig_img)
+        mog_mask = bgs.apply(orig_img)
         filtered_mask = cv2.morphologyEx(mog_mask, cv2.MORPH_OPEN, self.f_kernel)
-        # filtered_mask = cv2.blur(filtered_mask, (3, 3))
 
         _, filled_mask = cv2.threshold(filtered_mask, 170, 255, cv2.THRESH_BINARY)
 
-        # filtered_mask = cv2.morphologyEx(mog_mask, cv2.MORPH_OPEN, self.f_kernel)
         if conf.DILATE_ITERATIONS:
             filled_mask = cv2.dilate(filled_mask, None, iterations=conf.DILATE_ITERATIONS)
-        # filled_mask = cv2.blur(filtered_mask, (3, 3))
-        # filled_mask = cv2.morphologyEx(filtered_mask, cv2.MORPH_OPEN, self.f1_kernel)
 
         return orig_img, mog_mask, filtered_mask, filled_mask
 

@@ -101,7 +101,7 @@ def draw_rects(img, data_frame, padding):
         p1 = (x, y)
         p2 = (x + w, y + h)
         color = color_map[o_class]
-        x_rw, y_rw, z_rw = row[6], -conf.HEIGHT, row[5]
+        x_rw, y_rw, z_rw = row[6], conf.HEIGHT, row[5]
 
         cv2.rectangle(img, p1, p2, color, 1)
         cv2.putText(img, '({0:.2f},{1:.2f},{2:.2f})'.format(x_rw, y_rw, z_rw), (x, p2[1] + 15),

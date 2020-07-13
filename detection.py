@@ -15,16 +15,6 @@ import pickle
 
 logger = logging.getLogger('detect.detect')
 
-all_classifiers = pickle.load(open(conf.CLF_PATH, "rb"))
-
-heights = [key for key in all_classifiers.keys() if type(key) != str]  # Filter the poly key out
-closest_height = min(heights, key=lambda x: abs(x - (-conf.HEIGHT)))  # Find the closest value among available heights
-angles = list(all_classifiers[closest_height])  # All the available angles for a given height in a form of a list
-closest_angle = min(angles, key=lambda x: abs(x - (-conf.ANGLE)))  # Find the closest value among available angles
-CLASSIFIER = all_classifiers[closest_height][closest_angle]
-
-poly = all_classifiers['poly']
-
 
 class Detection(threading.Thread):
     def __init__(self, stop_ev, data_frame_q, orig_img_q):
@@ -33,7 +23,7 @@ class Detection(threading.Thread):
 
         self.data_frame_q = data_frame_q
         self.orig_img_q = orig_img_q
-        self.fe = pcm.FeatureExtractor(-conf.ANGLE, -conf.HEIGHT, conf.RES, (conf.WCCD, conf.HCCD), conf.FL, conf.cxcy)
+        self.fe = pcm.FeatureExtractor(conf.ANGLE, conf.HEIGHT, conf.RES, intrinsic=conf.intrinsic_target)
 
         self.frame = Frame(self.fe)
 
@@ -48,6 +38,9 @@ class Detection(threading.Thread):
         preprocessing = PreprocessImg()
         steps = dict()
 
+        bgs_method = cv2.createBackgroundSubtractorMOG2(detectShadows=conf.SHADOWS, history=conf.HISTORY,
+                                                             varThreshold=conf.BG_THR)
+
         iterator = 0
         while not self.stop_event.is_set():
             start_time = timeit.default_timer()
@@ -58,7 +51,12 @@ class Detection(threading.Thread):
                 logger.warning("Timeout reached, no items can be received from orig_img_q")
                 continue
 
-            steps['resized_orig'], steps['mask'], steps['filtered'], steps['filled'] = preprocessing.apply(orig_img)
+
+            if iterator % 20 == 0:
+                bgs_method = cv2.createBackgroundSubtractorMOG2(detectShadows=conf.SHADOWS, history=conf.HISTORY,
+                                                                varThreshold=conf.BG_THR)
+
+            steps['resized_orig'], steps['mask'], steps['filtered'], steps['filled'] = preprocessing.apply(orig_img, bgs_method)
 
             try:
                 res_data = self.frame.process(steps['filled'])
@@ -112,8 +110,16 @@ class Frame(object):
         self.first_in = np.ones([1])
         self.empty = np.empty([1])
 
-        self.poly = poly
-        self.clf = CLASSIFIER
+        all_classifiers = pickle.load(open(conf.CLF_PATH, "rb"))
+        heights = [key for key in all_classifiers.keys() if type(key) != str]  # Filter the poly key out
+        closest_height = min(heights,
+                             key=lambda x: abs(x - conf.HEIGHT))  # Find the closest value among available heights
+        angles = list(
+            all_classifiers[closest_height])  # All the available angles for a given height in a form of a list
+        closest_angle = min(angles, key=lambda x: abs(x - conf.ANGLE))  # Find the closest value among available angles
+        self.clf = all_classifiers[closest_height][closest_angle]
+
+        self.poly = all_classifiers['poly']
 
     def check_on_conf_flag(fun_to_call):
         def wrapper(self, fun_arg, flag):
