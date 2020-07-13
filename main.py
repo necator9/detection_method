@@ -1,9 +1,7 @@
 #!/usr/bin/env python3.7
 
 import threading
-import time
 import conf
-import global_vars
 import os
 
 import capturing
@@ -35,35 +33,25 @@ ch.setFormatter(formatter)
 logger.addHandler(ch)
 logger.addHandler(file_handler)
 
+logger.debug("Program started")
 logger.info('OpenCV version: {} '.format(cv2.__version__))
 
+stop_event = threading.Event()
+orig_img_q = queue.Queue(maxsize=1)
 
-def main():
-    logger.debug("Program has started")
+detection_routine = detection.Detection(stop_event, orig_img_q)  # Not a thread!
+capturing_thread = capturing.Camera(orig_img_q, stop_event)
 
-    stop_event = threading.Event()
-    orig_img_q = queue.Queue(maxsize=1)
+capturing_thread.start()
 
-    detection_thread = detection.Detection(stop_event, orig_img_q)
-    capturing_thread = capturing.Camera(orig_img_q, stop_event)
+try:
+    detection_routine.run()
 
-    capturing_thread.start()
-    detection_thread.start()
+except KeyboardInterrupt:
+    logger.warning('Keyboard interrupt, stopping the threads')
+    stop_event.set()
 
-    try:
-        while not stop_event.is_set():
-            time.sleep(1)
+capturing_thread.join()
 
-    except KeyboardInterrupt:
-        stop_event.set()
-        logger.warning('Keyboard interrupt, stopping the threads')
-
-    capturing_thread.join()
-    detection_thread.join()
-
-    logger.debug("Program finished")
-
-
-if __name__ == '__main__':
-    main()
+logger.debug("Program finished")
 

@@ -5,7 +5,6 @@
 
 # The detection pipeline.
 
-import threading
 import cv2
 import numpy as np
 import queue
@@ -23,23 +22,20 @@ import tracker
 logger = logging.getLogger('detect.detect')
 
 
-class Detection(threading.Thread):
+class Detection(object):
     def __init__(self, stop_ev, orig_img_q):
-        super(Detection, self).__init__(name="detection")
         self.stop_event = stop_ev
-
         self.orig_img_q = orig_img_q
-        self.fe = fe.FeatureExtractor(conf.ANGLE, conf.HEIGHT, conf.RES, intrinsic=conf.intrinsic_target)
 
+        self.fe = fe.FeatureExtractor(conf.ANGLE, conf.HEIGHT, conf.RES, intrinsic=conf.intrinsic_target)
+        self.saver = extentions.SaveData(conf.SAVER)
         self.frame = Frame(self.fe)
+        self.tracker = tracker.CentroidTracker()
 
         self.empty = np.empty([0])
-        self.tracker = tracker.CentroidTracker()
 
         self.time_measurements = list()
         self.time_window = conf.TIME_WINDOW
-
-        self.saver = extentions.SaveData(conf.SAVER)
 
     def run(self):
         logger.info("Detection has started")
@@ -80,6 +76,8 @@ class Detection(threading.Thread):
                 logger.info("FPS for last {} samples: mean - {}".format(self.time_window, mean_fps))
                 logger.info("Processed images for all time: {} ".format(iterator))
                 self.time_measurements = list()
+
+        logger.info('Detection finished, {} images processed'.format(iterator))
 
 
 class FrameIsEmpty(Exception):
