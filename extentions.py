@@ -1,9 +1,10 @@
 import os
 import numpy as np
 import cv2
+import logging
+
 
 import conf
-import logging
 
 logger = logging.getLogger('detect.ext')
 

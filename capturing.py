@@ -1,8 +1,8 @@
+import logging
 import cv2
 import threading
 import queue
 
-import logging
 import conf
 
 logger = logging.getLogger('detect.capture')

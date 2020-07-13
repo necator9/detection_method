@@ -1,15 +1,14 @@
 #!/usr/bin/env python3.7
 
+import logging
+import queue
+import cv2
 import threading
-import conf
 import os
 
 import capturing
 import detection
-import logging
-import queue
-
-import cv2
+import conf
 
 
 def check_if_dir_exists():
@@ -48,10 +47,10 @@ try:
     detection_routine.run()
 
 except KeyboardInterrupt:
-    logger.warning('Keyboard interrupt, stopping the threads')
+    logger.warning('Interrupt received, stopping the threads')
     stop_event.set()
 
-capturing_thread.join()
-
-logger.debug("Program finished")
+finally:
+    capturing_thread.join()
+    logger.debug("Program finished")
 

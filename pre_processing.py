@@ -1,7 +1,9 @@
-import conf
-import sl_sensor_connect
 import cv2
 import logging
+
+import conf
+import sl_sensor_connect
+
 
 logger = logging.getLogger('detect.pre_processing')
 
