@@ -1,3 +1,10 @@
+#!/usr/bin/env python3.7
+
+# Created by Ivan Matveev at 01.05.20
+# E-mail: ivan.matveev@hs-anhalt.de
+
+# The detection pipeline.
+
 import threading
 import cv2
 import numpy as np
