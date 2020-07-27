@@ -1,4 +1,10 @@
-import threading
+#!/usr/bin/env python3.7
+
+# Created by Ivan Matveev at 01.05.20
+# E-mail: ivan.matveev@hs-anhalt.de
+
+# The detection pipeline.
+
 import cv2
 import numpy as np
 import queue
@@ -7,7 +13,7 @@ import pickle
 
 import conf
 import logging
-import feature_extractor as pcm
+import feature_extractor as fe
 from pre_processing import PreprocessImg
 import extentions
 import tracker
@@ -16,19 +22,17 @@ import tracker
 logger = logging.getLogger('detect.detect')
 
 
-class Detection(threading.Thread):
-    def __init__(self, stop_ev, data_frame_q, orig_img_q):
-        super(Detection, self).__init__(name="detection")
+class Detection(object):
+    def __init__(self, stop_ev, orig_img_q):
         self.stop_event = stop_ev
-
-        self.data_frame_q = data_frame_q
         self.orig_img_q = orig_img_q
-        self.fe = pcm.FeatureExtractor(conf.ANGLE, conf.HEIGHT, conf.RES, intrinsic=conf.intrinsic_target)
 
+        self.fe = fe.FeatureExtractor(conf.ANGLE, conf.HEIGHT, conf.RES, intrinsic=conf.intrinsic_target)
+        self.saver = extentions.SaveData(conf.SAVER)
         self.frame = Frame(self.fe)
+        self.tracker = tracker.CentroidTracker()
 
         self.empty = np.empty([0])
-        self.tracker = tracker.CentroidTracker()
 
         self.time_measurements = list()
         self.time_window = conf.TIME_WINDOW
@@ -43,7 +47,7 @@ class Detection(threading.Thread):
             start_time = timeit.default_timer()
 
             try:
-                orig_img, img_name = self.orig_img_q.get(timeout=2)
+                orig_img = self.orig_img_q.get(timeout=2)
             except queue.Empty:
                 logger.warning("Timeout reached, no items can be received from orig_img_q")
                 continue
@@ -52,36 +56,33 @@ class Detection(threading.Thread):
 
             try:
                 res_data = self.frame.process(steps['filled'])
-                data_to_save = self.prepare_array_to_save(res_data, int(img_name[: -5]))
-                self.data_frame_q.put(data_to_save, block=True)
-                coordinates = data_to_save[data_to_save[:, -1] > 0]
+                coordinates = res_data[res_data[:, -1] > 0]
 
             except FrameIsEmpty:
-                data_to_save = self.empty
+                res_data = self.empty
                 coordinates = self.empty
 
             objects, prob_q = self.tracker.update(coordinates)
 
-            if conf.WRITE_IMG:
-                extentions.write_steps(steps, data_to_save, img_name, objects, prob_q)
+            if conf.SAVER:
+                self.saver.write(res_data, iterator, steps, objects, prob_q)
 
             self.time_measurements.append(timeit.default_timer() - start_time)
+
             iterator += 1
-            if iterator >= self.time_window:
+
+            if iterator % self.time_window == 0:
                 mean_fps = round(1 / (sum(self.time_measurements) / self.time_window), 1)
                 logger.info("FPS for last {} samples: mean - {}".format(self.time_window, mean_fps))
+                logger.info("Processed images for all time: {} ".format(iterator))
                 self.time_measurements = list()
-                iterator = 0
 
-    @staticmethod
-    def prepare_array_to_save(data, img_num):
-        # Add image number and row indices as first two columns to distinguish objects later
-        return np.column_stack((np.full(data.shape[0], img_num), np.arange(data.shape[0]), data))
+        logger.info('Detection finished, {} images processed'.format(iterator))
 
 
 class FrameIsEmpty(Exception):
     def __init__(self):
-        Exception.__init__(self, 'No object in frame are present')
+        Exception.__init__(self, 'No objects in frame are present')
 
 
 class Frame(object):

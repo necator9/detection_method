@@ -1,7 +1,7 @@
 import camera_parameters as cp
 
 # Logging parameters
-LOG_LEVEL = 10
+LOG_LEVEL = 20
 
 # Camera parameters
 # sc_name = 'scene_1_TZK'
@@ -9,21 +9,21 @@ sc_name = 'lamp_pole_1'
 scene = cp.scene[sc_name]
 cam = scene['cam']
 
-intrinsic_target = cp.scale_intrinsic(scene['img_res_cap'], cam['calib_res'], cam['mtx'])
-intrinsic_orig = cp.scale_intrinsic(scene['img_res_cap'], cam['calib_res'], cam['mtx_orig'])
-dist = cam['dist']
-
 ANGLE = scene['angle']
 HEIGHT = scene['height']
 RES = scene['img_res_cap']
 FPS = 10
 
+intrinsic_target = cp.scale_intrinsic(RES, cam['calib_res'], cam['mtx_target'])
+intrinsic_orig = cp.scale_intrinsic(RES, cam['calib_res'], cam['mtx_orig'])
+dist = cam['dist']
+
 # Classifier path
 # CLF_PATH = 'clf_model/detailed_separate_clf_dict.pcl'
 CLF_PATH = 'clf_model/lamp_pole_1.pcl'
 
-DEVICE = '/home/ivan/NextCloudEs/experiments_data/sources/lighting_pole_1/vid_3_cars_selected/car_night_merged_rawvideo_gray.mkv'
-OUT_DIR = '/home/ivan/NextCloudEs/experiments_data/sources/lighting_pole_1/results/car_night_merged_3_{}x{}'.format(RES[0], RES[1])
+DEVICE = '/mnt/data_partition/experiments/sources/lighting_pole_1/vid_3_cars_selected/car_night_merged_rawvideo_gray.mkv'
+OUT_DIR = '/mnt/data_partition/experiments/sources/lighting_pole_1/results/car_night_merged_6_{}x{}'.format(RES[0], RES[1])
 
 
 # Pre-processing parameters
@@ -52,8 +52,7 @@ MARGIN = 0  # Chosen 1
 MAX_DISTANCE = 13
 
 # Saving parameters
-WRITE_IMG = True
-WRITE_TO_CSV = False
+SAVER = False
 
 # Timers parameters
 TIME_WINDOW = 200
