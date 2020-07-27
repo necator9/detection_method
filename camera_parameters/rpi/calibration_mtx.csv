@@ -1,0 +1,4 @@
+# Camera intrinsics: calibration matrix. Calibration resolution MUST be mentioned in the filename, e.g. 1024x768
+602.17434328 0. 511.32476428
+0. 601.27444228 334.8572872
+0. 0. 1.

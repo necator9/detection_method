@@ -15,14 +15,15 @@ RES = scene['img_res_cap']
 FPS = 10
 
 CAM_PARAM_DIR = './camera_parameters/rpi'
+# CAM_PARAM_DIR = './camera_parameters/hd3000'
 
 # Classifier path
 # CLF_PATH = 'clf_model/detailed_separate_clf_dict.pcl'
 CLF_PATH = 'clf_model/lamp_pole_1.pcl'
 
 DEVICE = '/home/ivan/NextCloudEs/experiments_data/sources/lighting_pole_1/vid_3_cars_selected/car_night_merged_rawvideo_gray.mkv'
-# OUT_DIR = '/home/ivan/NextCloudEs/experiments_data/sources/lighting_pole_1/results/car_night_merged_temp_{}x{}'.format(RES[0], RES[1])
-OUT_DIR = '/tmp/car_night_merged_temp_1{}x{}'.format(RES[0], RES[1])
+# DEVICE = '/home/ivan/NextCloudEs/experiments_data/sources/clf_test/night/added_to_dataset/sc_1_parking_pgc_01/sc_1_parking_pgc_01_4:3_320x240.mp4'
+OUT_DIR = '/tmp/car_night_merged_temp_2{}x{}'.format(RES[0], RES[1])
 
 
 
@@ -52,7 +53,7 @@ MARGIN = 0  # Chosen 1
 MAX_DISTANCE = 13
 
 # Saving parameters
-SAVER = False
+SAVER = True
 
 # Timers parameters
 TIME_WINDOW = 200
