@@ -138,7 +138,12 @@ def add_padding(image, paddind_size):
     return stack2
 
 
-def write_steps(steps, frame, img_name, objects, prob_q):
+def draw_lamp_status(img, lamp_status):
+    if lamp_status:
+        cv2.rectangle(img, (0, 0), (img.shape[1], img.shape[0]), (0, 255, 255), 3)
+
+
+def write_steps(steps, frame, img_name, objects, prob_q, av_bin_result):
 
     for key, img in steps.items():
         steps[key] = cv2.undistort(img, conf.intrinsic_orig, conf.dist, None, conf.intrinsic_target)
@@ -161,5 +166,7 @@ def write_steps(steps, frame, img_name, objects, prob_q):
     h_stack2 = np.hstack((steps['filled'], steps['resized_orig']))
 
     out_img = np.vstack((h_stack1, h_stack2))
+
+    draw_lamp_status(out_img, av_bin_result)
 
     cv2.imwrite(os.path.join(conf.OUT_DIR, img_name), out_img)

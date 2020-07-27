@@ -23,11 +23,13 @@ FPS = 10
 CLF_PATH = 'clf_model/lamp_pole_1.pcl'
 
 DEVICE = '/home/ivan/NextCloudEs/experiments_data/sources/lighting_pole_1/vid_3_cars_selected/car_night_merged_rawvideo_gray.mkv'
-OUT_DIR = '/home/ivan/NextCloudEs/experiments_data/sources/lighting_pole_1/results/car_night_merged_3_{}x{}'.format(RES[0], RES[1])
+# OUT_DIR = '/home/ivan/NextCloudEs/experiments_data/sources/lighting_pole_1/results/car_night_merged_temp_{}x{}'.format(RES[0], RES[1])
+OUT_DIR = '/tmp/car_night_merged_temp_{}x{}'.format(RES[0], RES[1])
+
 
 
 # Pre-processing parameters
-CLAHE_LIMIT = 3         # Clahe contrast adjustment for grayscale images only (COLOR = 0)
+CLAHE_LIMIT = 3         # CLAHE contrast adjustment for grayscale images only (COLOR = 0)
 
 # Background subtraction parameters
 BGS_METHOD = 'MOG2'  # KNN is also available
@@ -52,10 +54,12 @@ MARGIN = 0  # Chosen 1
 MAX_DISTANCE = 13
 
 # Saving parameters
-WRITE_IMG = True
+WRITE_IMG = False
 WRITE_TO_CSV = False
 
 # Timers parameters
 TIME_WINDOW = 200
 
 o_class_mapping = {0: 'noise', 1: 'pedestrian', 2: 'cyclist', 3: 'vehicle'}
+
+SND_RECV_PORTS = (65433, 65434)  # Send and receive ports for interconnection with SmartLighting app

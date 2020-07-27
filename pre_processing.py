@@ -8,7 +8,7 @@ logger = logging.getLogger('detect.pre_processing')
 
 
 class PreprocessImg(object):
-    def __init__(self):
+    def __init__(self, sl_app_conn):
         # Background subtraction parameters
         self.shadows = conf.SHADOWS
         self.history = conf.HISTORY
@@ -19,7 +19,7 @@ class PreprocessImg(object):
         self.clahe_adjust = cv2.createCLAHE(clipLimit=conf.CLAHE_LIMIT, tileGridSize=(8, 8))
         self.set_ratio_done = bool()
 
-        self.sl_app_conn = sl_sensor_connect.SlSensor(send_port=65433, recv_port=65434)
+        self.sl_app_conn = sl_app_conn
 
     def create_bgs(self, flag):
         if flag == 'MOG2':

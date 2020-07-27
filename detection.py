@@ -4,6 +4,7 @@ import numpy as np
 import queue
 import timeit
 import pickle
+from collections import deque
 
 import conf
 import logging
@@ -11,6 +12,7 @@ import feature_extractor as pcm
 from pre_processing import PreprocessImg
 import extentions
 import tracker
+import sl_sensor_connect
 
 
 logger = logging.getLogger('detect.detect')
@@ -33,9 +35,13 @@ class Detection(threading.Thread):
         self.time_measurements = list()
         self.time_window = conf.TIME_WINDOW
 
+        self.mean_tracker = MeanResultTracker()
+
+        self.sl_app_conn = sl_sensor_connect.SlSensor(*conf.SND_RECV_PORTS)
+
     def run(self):
         logger.info("Detection has started")
-        preprocessing = PreprocessImg()
+        preprocessing = PreprocessImg(self.sl_app_conn)
         steps = dict()
 
         iterator = 0
@@ -52,6 +58,8 @@ class Detection(threading.Thread):
 
             try:
                 res_data = self.frame.process(steps['filled'])
+                binary_result = np.any(res_data[:, -1] > 0)
+
                 data_to_save = self.prepare_array_to_save(res_data, int(img_name[: -5]))
                 self.data_frame_q.put(data_to_save, block=True)
                 coordinates = data_to_save[data_to_save[:, -1] > 0]
@@ -59,11 +67,16 @@ class Detection(threading.Thread):
             except FrameIsEmpty:
                 data_to_save = self.empty
                 coordinates = self.empty
+                binary_result = False
 
             objects, prob_q = self.tracker.update(coordinates)
+            av_bin_result = self.mean_tracker.update(binary_result)
+
+            if av_bin_result:
+                self.sl_app_conn.send('OBJECT_DETECTED')
 
             if conf.WRITE_IMG:
-                extentions.write_steps(steps, data_to_save, img_name, objects, prob_q)
+                extentions.write_steps(steps, data_to_save, img_name, objects, prob_q, av_bin_result)
 
             self.time_measurements.append(timeit.default_timer() - start_time)
             iterator += 1
@@ -280,4 +293,14 @@ class Frame(object):
         binary_patch[:, split_x_index] = 0
 
         return binary_patch
+
+
+class MeanResultTracker(object):
+    def __init__(self):
+        self.obj_q = deque(maxlen=6)
+
+    def update(self, det_result):
+        self.obj_q.appendleft(det_result)
+
+        return self.obj_q.count(True) > 2
 
