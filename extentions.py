@@ -28,12 +28,12 @@ class SaveData(object):
         # Add image number and row indices as first two columns to distinguish objects later
         return np.column_stack((np.full(data.shape[0], img_num), np.arange(data.shape[0]), data))
 
-    def write(self, data, img_num, steps, objects, prob_q):
+    def write(self, data, img_num, steps, objects, prob_q, av_bin_result):
         data = self.prepare_array_to_save(data, img_num)
         if data.size > 0:
             np.savetxt(self.fd, data, fmt=self.fmt)
 
-        write_images(steps, data, img_num, objects, prob_q)
+        write_images(steps, data, img_num, objects, prob_q, av_bin_result)
 
     def quit(self):
         self.fd.close()

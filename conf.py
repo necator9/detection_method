@@ -54,7 +54,7 @@ MARGIN = 0  # Chosen 1
 MAX_DISTANCE = 13
 
 # Saving parameters
-SAVER = False
+SAVER = True
 
 # Timers parameters
 TIME_WINDOW = 200
