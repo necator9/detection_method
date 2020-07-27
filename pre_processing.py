@@ -1,8 +1,9 @@
-import conf
-from capturing import StartAppError
-import sl_sensor_connect
 import cv2
 import logging
+
+import conf
+import sl_sensor_connect
+
 
 logger = logging.getLogger('detect.pre_processing')
 
@@ -27,15 +28,12 @@ class PreprocessImg(object):
                                                             varThreshold=self.bg_thr)
         elif flag == 'KNN':
             bgs_method = cv2.createBackgroundSubtractorKNN(detectShadows=self.shadows, history=self.history)
-        else:
-            raise StartAppError
 
         return bgs_method
 
     def apply(self, orig_img):
         orig_img = cv2.resize(orig_img, conf.RES, interpolation=cv2.INTER_NEAREST)
         # Update processing resolution according to one after resize (i.e. not correct res. is chosen by user)
-        self.set_ratio(orig_img)
 
         orig_img = self.clahe_adjust.apply(orig_img)
 
@@ -55,15 +53,3 @@ class PreprocessImg(object):
             filled_mask = cv2.dilate(filled_mask, None, iterations=conf.DILATE_ITERATIONS)
 
         return orig_img, mog_mask, filtered_mask, filled_mask
-
-    def set_ratio(self, img):
-        if not self.set_ratio_done:
-            self.set_ratio_done = True
-            actual_w, actual_h = img.shape[:2][1], img.shape[:2][0]
-            logger.info("Processing resolution: {}x{}".format(actual_w, actual_h))
-
-            if conf.RES[0] != actual_w or conf.RES[1] != actual_h:
-                conf.RES[0], conf.RES[1] = actual_w, actual_h
-                logger.info("Processing resolution updated: {}x{}".format(actual_w, actual_h))
-                # global PINHOLE_CAM
-                # PINHOLE_CAM = init_pcm()

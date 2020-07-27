@@ -9,14 +9,14 @@ sc_name = 'lamp_pole_1'
 scene = cp.scene[sc_name]
 cam = scene['cam']
 
-intrinsic_target = cp.scale_intrinsic(scene['img_res_cap'], cam['calib_res'], cam['mtx'])
-intrinsic_orig = cp.scale_intrinsic(scene['img_res_cap'], cam['calib_res'], cam['mtx_orig'])
-dist = cam['dist']
-
 ANGLE = scene['angle']
 HEIGHT = scene['height']
 RES = scene['img_res_cap']
 FPS = 10
+
+intrinsic_target = cp.scale_intrinsic(RES, cam['calib_res'], cam['mtx_target'])
+intrinsic_orig = cp.scale_intrinsic(RES, cam['calib_res'], cam['mtx_orig'])
+dist = cam['dist']
 
 # Classifier path
 # CLF_PATH = 'clf_model/detailed_separate_clf_dict.pcl'
@@ -54,8 +54,7 @@ MARGIN = 0  # Chosen 1
 MAX_DISTANCE = 13
 
 # Saving parameters
-WRITE_IMG = False
-WRITE_TO_CSV = False
+SAVER = False
 
 # Timers parameters
 TIME_WINDOW = 200
