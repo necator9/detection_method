@@ -1,4 +1,3 @@
-import cv2
 #!/usr/bin/env python3.7
 
 # Created by Ivan Matveev at 01.05.20
@@ -6,11 +5,13 @@ import cv2
 
 # The detection pipeline.
 
+import cv2
 import numpy as np
 import queue
 import timeit
 import pickle
 from collections import deque
+import os
 
 import conf
 import logging
@@ -29,9 +30,17 @@ class Detection(object):
         self.stop_event = stop_ev
         self.orig_img_q = orig_img_q
 
-        self.fe = fe.FeatureExtractor(conf.ANGLE, conf.HEIGHT, conf.RES, intrinsic=conf.intrinsic_target)
-        self.saver = extentions.SaveData(conf.SAVER)
-        self.frame = Frame(self.fe)
+        calib_res = np.genfromtxt(os.path.join(conf.CAM_PARAM_DIR, 'resolutions.csv'), delimiter=' ')
+        calib_mtx = np.genfromtxt(os.path.join(conf.CAM_PARAM_DIR, 'calibration_mtx.csv'), delimiter=' ')
+        target_mtx = np.genfromtxt(os.path.join(conf.CAM_PARAM_DIR, 'target_mtx.csv'), delimiter=' ')
+        dist = np.genfromtxt(os.path.join(conf.CAM_PARAM_DIR, 'distortions.csv'), delimiter=' ').reshape(1, -1)
+
+        scaled_calib_mtx = self.scale_intrinsic(conf.RES, calib_res[0], calib_mtx)
+        scaled_target_mtx = self.scale_intrinsic(conf.RES, calib_res[1], target_mtx)
+
+        self.fe = fe.FeatureExtractor(conf.ANGLE, conf.HEIGHT, conf.RES, intrinsic=scaled_target_mtx)
+        self.saver = extentions.SaveData(conf.SAVER, scaled_calib_mtx, scaled_target_mtx, dist)
+        self.frame = Frame(self.fe, scaled_calib_mtx, scaled_target_mtx, dist)
         self.tracker = tracker.CentroidTracker()
 
         self.empty = np.empty([0])
@@ -42,6 +51,25 @@ class Detection(object):
         self.mean_tracker = MeanResultTracker()
 
         self.sl_app_conn = sl_sensor_connect.SlSensor(*conf.SND_RECV_PORTS)
+
+    @staticmethod
+    def scale_intrinsic(new_res, base_res, intrinsic):
+        scale_f = np.asarray(base_res) / np.asarray(new_res)
+        if scale_f[0] != scale_f[1]:
+            print('WARNING! The scaling is not proportional', scale_f)
+
+        intrinsic[0, :] /= scale_f[0]
+        intrinsic[1, :] /= scale_f[1]
+
+        return intrinsic
+
+    @staticmethod
+    def parse_calib_res(dir):
+        return np.genfromtxt(os.path.join(dir, 'resolutions.csv'), delimiter=' ')
+
+    @staticmethod
+    def parse_mtx(dir):
+        return np.genfromtxt(os.path.join(dir, 'resolutions.csv'), delimiter=' ')
 
     def run(self):
         logger.info("Detection has started")
@@ -71,7 +99,8 @@ class Detection(object):
                 coordinates = self.empty
                 binary_result = False
 
-            objects, prob_q = self.tracker.update(coordinates)
+            #objects, prob_q = self.tracker.update(coordinates)
+            objects, prob_q = [], []
             av_bin_result = self.mean_tracker.update(binary_result)
 
             if av_bin_result:
@@ -99,8 +128,11 @@ class FrameIsEmpty(Exception):
 
 
 class Frame(object):
-    def __init__(self, fe_ext):
+    def __init__(self, fe_ext, scaled_calib_mtx, scaled_target_mtx, dist):
         self.fe_ext = fe_ext
+        self.calib_mtx = scaled_calib_mtx
+        self.target_mtx = scaled_target_mtx
+        self.dist = dist
 
         self.img_area_px = conf.RES[0] * conf.RES[1]
         self.c_ar_thr = conf.CNT_AREA_FILTERING
@@ -160,7 +192,7 @@ class Frame(object):
     @check_input_on_empty_arr
     def undistort(self, basic_params):
         p1p2_col = basic_params[:, [0, 1, 5, 6]].reshape((basic_params.shape[0] * 2, 2))
-        p1p2_col[:] = cv2.undistortPoints(p1p2_col, conf.intrinsic_orig, conf.dist, P=conf.intrinsic_target)[:, 0, :]
+        p1p2_col[:] = cv2.undistortPoints(p1p2_col, self.calib_mtx, self.dist, P=self.target_mtx)[:, 0, :]
         p1p2 = p1p2_col.reshape((basic_params.shape[0], 4))
         # p1p2[:, 0] = np.where(p1p2[:, 0] < 0, 0, p1p2[:, 0])
         # p1p2[:, 1] = np.where(p1p2[:, 1] < 0, 0, p1p2[:, 1])

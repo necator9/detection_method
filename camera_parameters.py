@@ -1,17 +1,6 @@
 import numpy as np
 
 
-def scale_intrinsic(new_res, base_res, intrinsic):
-    scale_f = np.asarray(base_res) / np.asarray(new_res)
-    if scale_f[0] != scale_f[1]:
-        print('WARNING! The scaling is not proportional', scale_f)
-
-    intrinsic[0, :] /= scale_f[0]
-    intrinsic[1, :] /= scale_f[1]
-
-    return intrinsic
-
-
 cam_param = {'rpi': {'mtx_orig': np.array([[613, 0., 512], [0., 613, 354.82125218], [0., 0., 1.]]),
                      'calib_res': (1024, 768),
                      'dist': np.array([[-0.33212234, 0.13364714, 0.0004479, -0.00159172, -0.02811601]])},

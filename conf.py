@@ -14,9 +14,7 @@ HEIGHT = scene['height']
 RES = scene['img_res_cap']
 FPS = 10
 
-intrinsic_target = cp.scale_intrinsic(RES, cam['calib_res'], cam['mtx_target'])
-intrinsic_orig = cp.scale_intrinsic(RES, cam['calib_res'], cam['mtx_orig'])
-dist = cam['dist']
+CAM_PARAM_DIR = './camera_parameters/rpi'
 
 # Classifier path
 # CLF_PATH = 'clf_model/detailed_separate_clf_dict.pcl'
@@ -24,7 +22,7 @@ CLF_PATH = 'clf_model/lamp_pole_1.pcl'
 
 DEVICE = '/home/ivan/NextCloudEs/experiments_data/sources/lighting_pole_1/vid_3_cars_selected/car_night_merged_rawvideo_gray.mkv'
 # OUT_DIR = '/home/ivan/NextCloudEs/experiments_data/sources/lighting_pole_1/results/car_night_merged_temp_{}x{}'.format(RES[0], RES[1])
-OUT_DIR = '/tmp/car_night_merged_temp_{}x{}'.format(RES[0], RES[1])
+OUT_DIR = '/tmp/car_night_merged_temp_1{}x{}'.format(RES[0], RES[1])
 
 
 
@@ -54,7 +52,7 @@ MARGIN = 0  # Chosen 1
 MAX_DISTANCE = 13
 
 # Saving parameters
-SAVER = True
+SAVER = False
 
 # Timers parameters
 TIME_WINDOW = 200

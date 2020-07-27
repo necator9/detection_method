@@ -26,6 +26,9 @@ class PreprocessImg(object):
         if flag == 'MOG2':
             bgs_method = cv2.createBackgroundSubtractorMOG2(detectShadows=self.shadows, history=self.history,
                                                             varThreshold=self.bg_thr)
+
+            # bgs_method = cv2.bgsegm.createBackgroundSubtractorCNT()
+
         elif flag == 'KNN':
             bgs_method = cv2.createBackgroundSubtractorKNN(detectShadows=self.shadows, history=self.history)
 

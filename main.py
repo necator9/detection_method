@@ -25,7 +25,7 @@ logger.setLevel(conf.LOG_LEVEL)
 file_handler = logging.FileHandler(os.path.join(conf.OUT_DIR, 'detection.log'))
 ch = logging.StreamHandler()
 
-formatter = logging.Formatter('%(asctime)s %(threadName)s - %(message)s')
+formatter = logging.Formatter('%(levelname)s %(asctime)s %(threadName)s - %(message)s')
 file_handler.setFormatter(formatter)
 ch.setFormatter(formatter)
 
