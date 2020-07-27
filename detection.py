@@ -82,7 +82,7 @@ class Detection(object):
 
 class FrameIsEmpty(Exception):
     def __init__(self):
-        Exception.__init__(self, 'No object in frame are present')
+        Exception.__init__(self, 'No objects in frame are present')
 
 
 class Frame(object):
