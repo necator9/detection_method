@@ -13,12 +13,11 @@ import pickle
 from collections import deque
 import os
 
-import conf
 import logging
 import feature_extractor as fe
 from pre_processing import PreprocessImg
 import extentions
-import tracker
+# import tracker
 import sl_sensor_connect
 
 
@@ -26,31 +25,31 @@ logger = logging.getLogger('detect.detect')
 
 
 class Detection(object):
-    def __init__(self, stop_ev, orig_img_q):
+    def __init__(self, stop_ev, orig_img_q, config):
         self.stop_event = stop_ev
         self.orig_img_q = orig_img_q
 
-        calib_res = np.genfromtxt(os.path.join(conf.CAM_PARAM_DIR, 'resolutions.csv'), delimiter=' ')
-        calib_mtx = np.genfromtxt(os.path.join(conf.CAM_PARAM_DIR, 'calibration_mtx.csv'), delimiter=' ')
-        target_mtx = np.genfromtxt(os.path.join(conf.CAM_PARAM_DIR, 'target_mtx.csv'), delimiter=' ')
-        dist = np.genfromtxt(os.path.join(conf.CAM_PARAM_DIR, 'distortions.csv'), delimiter=' ').reshape(1, -1)
+        calib_res = np.genfromtxt(os.path.join(config['cam_param_dir'], 'resolutions.csv'), delimiter=' ')
+        calib_mtx = np.genfromtxt(os.path.join(config['cam_param_dir'], 'calibration_mtx.csv'), delimiter=' ')
+        target_mtx = np.genfromtxt(os.path.join(config['cam_param_dir'], 'target_mtx.csv'), delimiter=' ')
+        dist = np.genfromtxt(os.path.join(config['cam_param_dir'], 'distortions.csv'), delimiter=' ').reshape(1, -1)
 
-        scaled_calib_mtx = self.scale_intrinsic(conf.RES, calib_res[0], calib_mtx)
-        scaled_target_mtx = self.scale_intrinsic(conf.RES, calib_res[1], target_mtx)
+        scaled_calib_mtx = self.scale_intrinsic(config['resolution'], calib_res[0], calib_mtx)
+        scaled_target_mtx = self.scale_intrinsic(config['resolution'], calib_res[1], target_mtx)
 
-        self.fe = fe.FeatureExtractor(conf.ANGLE, conf.HEIGHT, conf.RES, intrinsic=scaled_target_mtx)
-        self.saver = extentions.SaveData(conf.SAVER, scaled_calib_mtx, scaled_target_mtx, dist)
-        self.frame = Frame(self.fe, scaled_calib_mtx, scaled_target_mtx, dist)
-        self.tracker = tracker.CentroidTracker()
+        self.saver_flag = config['saver']
+        self.saver = extentions.SaveData(config, scaled_calib_mtx, scaled_target_mtx, dist)
+        self.frame = Frame(scaled_calib_mtx, scaled_target_mtx, dist, config)
+        # self.tracker = tracker.CentroidTracker()
+        self.mean_tracker = MeanResultTracker()
 
         self.empty = np.empty([0])
 
         self.time_measurements = list()
-        self.time_window = conf.TIME_WINDOW
+        self.time_window = config['time_window']
 
-        self.mean_tracker = MeanResultTracker()
-
-        self.sl_app_conn = sl_sensor_connect.SlSensor(*conf.SND_RECV_PORTS)
+        self.sl_app_conn = sl_sensor_connect.SlSensor(*config['snd_recv_ports'])
+        self.pre_processing = PreprocessImg(config, self.sl_app_conn)
 
     @staticmethod
     def scale_intrinsic(new_res, base_res, intrinsic):
@@ -63,63 +62,57 @@ class Detection(object):
 
         return intrinsic
 
-    @staticmethod
-    def parse_calib_res(dir):
-        return np.genfromtxt(os.path.join(dir, 'resolutions.csv'), delimiter=' ')
-
-    @staticmethod
-    def parse_mtx(dir):
-        return np.genfromtxt(os.path.join(dir, 'resolutions.csv'), delimiter=' ')
-
     def run(self):
-        logger.info("Detection has started")
-        preprocessing = PreprocessImg(self.sl_app_conn)
-        steps = dict()
+        try:
+            logger.info("Detection has started")
+            steps = dict()
 
-        iterator = 0
-        while not self.stop_event.is_set():
-            start_time = timeit.default_timer()
+            iterator = 0
+            while not self.stop_event.is_set():
+                start_time = timeit.default_timer()
 
-            try:
-                orig_img = self.orig_img_q.get(timeout=2)
-            except queue.Empty:
-                logger.warning("Timeout reached, no items can be received from orig_img_q")
-                continue
+                try:
+                    orig_img = self.orig_img_q.get(timeout=2)
+                except queue.Empty:
+                    logger.warning("Timeout reached, no items can be received from orig_img_q")
+                    continue
 
-            steps['resized_orig'], steps['mask'], steps['filtered'], steps['filled'] = preprocessing.apply(orig_img)
+                steps['resized_orig'], steps['mask'], steps['filtered'], \
+                steps['filled'] = self.pre_processing.apply(orig_img)
 
-            try:
-                res_data = self.frame.process(steps['filled'])
-                binary_result = np.any(res_data[:, -1] > 0)
+                try:
+                    res_data = self.frame.process(steps['filled'])
+                    binary_result = np.any(res_data[:, -1] > 0)
+                    coordinates = res_data[res_data[:, -1] > 0]
+                except FrameIsEmpty:
+                    res_data = self.empty
+                    coordinates = self.empty
+                    binary_result = False
 
-                coordinates = res_data[res_data[:, -1] > 0]
+                # objects, prob_q = self.tracker.update(coordinates)
+                objects, prob_q = [], []
+                av_bin_result = self.mean_tracker.update(binary_result)
 
-            except FrameIsEmpty:
-                res_data = self.empty
-                coordinates = self.empty
-                binary_result = False
+                if av_bin_result:
+                    self.sl_app_conn.send('OBJECT_DETECTED')
 
-            #objects, prob_q = self.tracker.update(coordinates)
-            objects, prob_q = [], []
-            av_bin_result = self.mean_tracker.update(binary_result)
+                if self.saver_flag:
+                    self.saver.write(res_data, iterator, steps, objects, prob_q, av_bin_result)
 
-            if av_bin_result:
-                self.sl_app_conn.send('OBJECT_DETECTED')
+                self.time_measurements.append(timeit.default_timer() - start_time)
 
-            if conf.SAVER:
-                self.saver.write(res_data, iterator, steps, objects, prob_q, av_bin_result)
+                iterator += 1
 
-            self.time_measurements.append(timeit.default_timer() - start_time)
+                if iterator % self.time_window == 0:
+                    mean_fps = round(1 / (sum(self.time_measurements) / self.time_window), 1)
+                    logger.info("FPS for last {} samples: mean - {}".format(self.time_window, mean_fps))
+                    logger.info("Processed images for all time: {} ".format(iterator))
+                    self.time_measurements = list()
 
-            iterator += 1
+            logger.info('Detection finished, {} images processed'.format(iterator))
 
-            if iterator % self.time_window == 0:
-                mean_fps = round(1 / (sum(self.time_measurements) / self.time_window), 1)
-                logger.info("FPS for last {} samples: mean - {}".format(self.time_window, mean_fps))
-                logger.info("Processed images for all time: {} ".format(iterator))
-                self.time_measurements = list()
-
-        logger.info('Detection finished, {} images processed'.format(iterator))
+        except Exception as err:
+            print(err)
 
 
 class FrameIsEmpty(Exception):
@@ -128,33 +121,37 @@ class FrameIsEmpty(Exception):
 
 
 class Frame(object):
-    def __init__(self, fe_ext, scaled_calib_mtx, scaled_target_mtx, dist):
-        self.fe_ext = fe_ext
+    def __init__(self, scaled_calib_mtx, scaled_target_mtx, dist, config):
+        self.angle = config['angle']
+        self.height = config['height']
+        self.res = config['resolution']
+
+        self.fe_ext = fe.FeatureExtractor(self.angle, self.height, self.res, intrinsic=scaled_target_mtx)
+
         self.calib_mtx = scaled_calib_mtx
         self.target_mtx = scaled_target_mtx
         self.dist = dist
 
-        self.img_area_px = conf.RES[0] * conf.RES[1]
-        self.c_ar_thr = conf.CNT_AREA_FILTERING
+        self.img_area_px = self.res[0] * self.res[1]
+        self.c_ar_thr = config['cont_area_thr']
 
-        self.margin_offset = conf.MARGIN
-        self.left_mar, self.right_mar = self.margin_offset, conf.RES[0] - self.margin_offset
-        self.up_mar, self.bot_mar = self.margin_offset, conf.RES[1] - self.margin_offset
+        self.margin_offset = config['margin']
+        self.left_mar, self.right_mar = self.margin_offset, self.res[0] - self.margin_offset
+        self.up_mar, self.bot_mar = self.margin_offset, self.res[1] - self.margin_offset
 
-        self.extent_thr = conf.EXTENT_THR
-
-        self.max_dist_thr = conf.MAX_DISTANCE
+        self.extent_thr = config['extent_thr']
+        self.max_dist_thr = config['max_distance']
 
         self.first_in = np.ones([1])
         self.empty = np.empty([1])
 
-        all_classifiers = pickle.load(open(conf.CLF_PATH, "rb"))
+        all_classifiers = pickle.load(open(config['clf_path'], "rb"))
         heights = [key for key in all_classifiers.keys() if type(key) != str]  # Filter the poly key out
         closest_height = min(heights,
-                             key=lambda x: abs(x - conf.HEIGHT))  # Find the closest value among available heights
+                             key=lambda x: abs(x - self.height))  # Find the closest value among available heights
         angles = list(
             all_classifiers[closest_height])  # All the available angles for a given height in a form of a list
-        closest_angle = min(angles, key=lambda x: abs(x - conf.ANGLE))  # Find the closest value among available angles
+        closest_angle = min(angles, key=lambda x: abs(x - self.angle))  # Find the closest value among available angles
         self.clf = all_classifiers[closest_height][closest_angle]
 
         self.poly = all_classifiers['poly']
@@ -336,4 +333,3 @@ class MeanResultTracker(object):
         self.obj_q.appendleft(det_result)
 
         return self.obj_q.count(True) > 2
-
