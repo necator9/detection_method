@@ -63,56 +63,52 @@ class Detection(object):
         return intrinsic
 
     def run(self):
-        try:
-            logger.info("Detection has started")
-            steps = dict()
+        logger.info("Detection has started")
+        steps = dict()
 
-            iterator = 0
-            while not self.stop_event.is_set():
-                start_time = timeit.default_timer()
+        iterator = 0
+        while not self.stop_event.is_set():
+            start_time = timeit.default_timer()
 
-                try:
-                    orig_img = self.orig_img_q.get(timeout=2)
-                except queue.Empty:
-                    logger.warning("Timeout reached, no items can be received from orig_img_q")
-                    continue
+            try:
+                orig_img = self.orig_img_q.get(timeout=2)
+            except queue.Empty:
+                logger.warning("Timeout reached, no items can be received from orig_img_q")
+                continue
 
-                steps['resized_orig'], steps['mask'], steps['filtered'], \
-                steps['filled'] = self.pre_processing.apply(orig_img)
+            steps['resized_orig'], steps['mask'], steps['filtered'], \
+            steps['filled'] = self.pre_processing.apply(orig_img)
 
-                try:
-                    res_data = self.frame.process(steps['filled'])
-                    binary_result = np.any(res_data[:, -1] > 0)
-                    coordinates = res_data[res_data[:, -1] > 0]
-                except FrameIsEmpty:
-                    res_data = self.empty
-                    coordinates = self.empty
-                    binary_result = False
+            try:
+                res_data = self.frame.process(steps['filled'])
+                binary_result = np.any(res_data[:, -1] > 0)
+                coordinates = res_data[res_data[:, -1] > 0]
+            except FrameIsEmpty:
+                res_data = self.empty
+                coordinates = self.empty
+                binary_result = False
 
-                # objects, prob_q = self.tracker.update(coordinates)
-                objects, prob_q = [], []
-                av_bin_result = self.mean_tracker.update(binary_result)
+            # objects, prob_q = self.tracker.update(coordinates)
+            objects, prob_q = [], []
+            av_bin_result = self.mean_tracker.update(binary_result)
 
-                if av_bin_result:
-                    self.sl_app_conn.send('OBJECT_DETECTED')
+            if av_bin_result:
+                self.sl_app_conn.send('OBJECT_DETECTED')
 
-                if self.saver_flag:
-                    self.saver.write(res_data, iterator, steps, objects, prob_q, av_bin_result)
+            if self.saver_flag:
+                self.saver.write(res_data, iterator, steps, objects, prob_q, av_bin_result)
 
-                self.time_measurements.append(timeit.default_timer() - start_time)
+            self.time_measurements.append(timeit.default_timer() - start_time)
 
-                iterator += 1
+            iterator += 1
 
-                if iterator % self.time_window == 0:
-                    mean_fps = round(1 / (sum(self.time_measurements) / self.time_window), 1)
-                    logger.info("FPS for last {} samples: mean - {}".format(self.time_window, mean_fps))
-                    logger.info("Processed images for all time: {} ".format(iterator))
-                    self.time_measurements = list()
+            if iterator % self.time_window == 0:
+                mean_fps = round(1 / (sum(self.time_measurements) / self.time_window), 1)
+                logger.info("FPS for last {} samples: mean - {}".format(self.time_window, mean_fps))
+                logger.info("Processed images for all time: {} ".format(iterator))
+                self.time_measurements = list()
 
-            logger.info('Detection finished, {} images processed'.format(iterator))
-
-        except Exception as err:
-            print(err)
+        logger.info('Detection finished, {} images processed'.format(iterator))
 
 
 class FrameIsEmpty(Exception):

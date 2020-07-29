@@ -8,8 +8,8 @@ angle: -39
 height: -3.325
 cam_param_dir: ./camera_parameters/rpi
 
-# CLF_PATH: 'clf_model/detailed_separate_clf_dict.pcl'
-clf_path: clf_model/lamp_pole_1.pcl  # Classifier path
+# clf_path: 'clf_models/detailed_separate_clf_dict.pcl'
+clf_path: clf_models/lamp_pole_1.pcl  # Classifier path
 out_dir: /tmp/car_night_merged_temp_1
 saver: False  # Saving parameters
 
