@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.7
+#!/usr/bin/env python3
 
 import logging
 import queue
@@ -13,10 +13,10 @@ import yaml
 config = yaml.safe_load(open("config.yml"))
 
 
-def check_if_dir_exists(dir):
-    if not os.path.isdir(dir):
-        os.makedirs(dir)
-        print("Output directory does not exists. New folder has been created.")
+def check_if_dir_exists(dir_path):
+    if not os.path.isdir(dir_path):
+        os.makedirs(dir_path)
+        print("Output directory does not exist, new folder created.")
 
 
 out_dir = config['out_dir']
@@ -36,24 +36,29 @@ logger.addHandler(ch)
 logger.addHandler(file_handler)
 
 logger.debug("Program started")
-logger.info('OpenCV version: {} '.format(cv2.__version__))
+logger.debug('OpenCV version: {} '.format(cv2.__version__))
 
 stop_event = threading.Event()
 orig_img_q = queue.Queue(maxsize=1)
 
-detection_routine = detection.Detection(stop_event, orig_img_q, config)  # Not a thread!
-capturing_thread = capturing.Camera(orig_img_q, stop_event, config)
-
-capturing_thread.start()
-
 try:
-    detection_routine.run()
+    detection_routine = detection.Detection(stop_event, orig_img_q, config)  # Not a thread!
+    capturing_thread = capturing.Camera(orig_img_q, stop_event, config)
 
-except KeyboardInterrupt:
-    logger.warning('Interrupt received, stopping the threads')
-    stop_event.set()
+    capturing_thread.start()
 
-finally:
-    capturing_thread.join()
-    logger.debug("Program finished")
+    try:
+        detection_routine.run()
 
+    except KeyboardInterrupt:
+        logger.warning('Interrupt received, stopping the threads')
+        stop_event.set()
+
+    finally:
+        capturing_thread.join()
+        logger.debug("Program finished")
+
+except Exception as crash_err:
+    crash_msg = '\n{0}\nAPP CRASH. Error msg:\n{1}\n{0}'.format(100 * '-', crash_err)
+    logger.exception(crash_msg)
+    exit(1)

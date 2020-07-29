@@ -41,7 +41,7 @@ class Detection(object):
         self.saver = extentions.SaveData(config, scaled_calib_mtx, scaled_target_mtx, dist)
         self.frame = Frame(scaled_calib_mtx, scaled_target_mtx, dist, config)
         # self.tracker = tracker.CentroidTracker()
-        self.mean_tracker = MeanResultTracker()
+        self.mean_tracker = MeanResultTracker(*config['lamp_on_criteria'])
 
         self.empty = np.empty([0])
 
@@ -261,7 +261,7 @@ class Frame(object):
         # Get features of the object using its bounding rectangles and contour areas
         feature_vector = np.column_stack((self.extract_features(basic_params), basic_params))
         # Filter by distance to the object if filtering is enabled
-        feature_vector = self.filter_distance(feature_vector, self.max_dist_thr > 0)
+        feature_vector = self.filter_distance(feature_vector, self.max_dist_thr)
         feature_vector = self.filter_infinity(feature_vector)
         # Pass informative features only to the classifier
         o_class = self.classify(feature_vector[:, [0, 1, 3]])
@@ -326,10 +326,11 @@ class Frame(object):
 
 
 class MeanResultTracker(object):
-    def __init__(self):
-        self.obj_q = deque(maxlen=6)
+    def __init__(self, q_len, true_events):
+        self.obj_q = deque(maxlen=q_len)
+        self.true_events = true_events
 
     def update(self, det_result):
         self.obj_q.appendleft(det_result)
 
-        return self.obj_q.count(True) > 2
+        return self.obj_q.count(True) > self.true_events
