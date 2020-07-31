@@ -50,7 +50,7 @@ class FeatureExtractor(object):
         self.img_res = np.asarray(img_res, dtype=np.int16)  # Image resolution (width, height) in px
         self.f_l = f_l  # Focal length in mm
         self.sens_dim = self.f_l * self.img_res / intrinsic.diagonal()[:2] # Camera sensor dimensions (width, height) in mm
-        self.px_h_mm = self.sens_dim[1] / self.img_res[1]  # Height of a pixel in mm
+        self.px_h_mm = self.sens_dim[1] / (self.f_l * self.img_res[1])  # Scaling between pixels in millimeters
         self.cx_cy = intrinsic[:2, 2]
 
         # Transformation matrices for 3D reconstruction
@@ -65,9 +65,8 @@ class FeatureExtractor(object):
         px_y_bottom_top = self.img_res[1] - b_rect[:, [5, 1]]
         # Distances from vertices to img center (horizon) along y axis, in px
         y_bottom_top_to_hor = self.cx_cy[1] - px_y_bottom_top
-        np.multiply(y_bottom_top_to_hor, self.px_h_mm, out=y_bottom_top_to_hor)  # Convert to mm
-        # Find angle between object pixel and central image pixel along y axis
-        np.arctan(np.divide(y_bottom_top_to_hor, self.f_l, out=y_bottom_top_to_hor), out=y_bottom_top_to_hor)
+        # Convert to mm and find angle between object pixel and central image pixel along y axis
+        np.arctan(np.multiply(y_bottom_top_to_hor, self.px_h_mm, out=y_bottom_top_to_hor), out=y_bottom_top_to_hor)
 
         # * Find object distance in real world
         rw_distance = self.estimate_distance(y_bottom_top_to_hor[:, 0])  # Passed arg is angles to bottom vertices
@@ -97,7 +96,7 @@ class FeatureExtractor(object):
     # Estimate distance to the bottom pixel of a bounding rectangle. Based on assumption that object is aligned with the
     # ground surface. Calculation uses angle between vertex and optical center along vertical axis
     def estimate_distance(self, ang_y_bot_to_hor):
-        deg = abs(self.r_x) + ang_y_bot_to_hor
+        deg = ang_y_bot_to_hor - self.r_x
         distance = abs(self.cam_h) / np.where(deg >= 0, np.tan(deg), np.inf)
 
         return distance

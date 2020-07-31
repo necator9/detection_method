@@ -116,6 +116,17 @@ class FrameIsEmpty(Exception):
         Exception.__init__(self, 'No objects in frame are present')
 
 
+from functools import wraps
+
+
+def log_real_decorator(f):
+    @wraps(f)
+    def wrapper(*args, **kw):
+        # Do something here
+        f(*args, **kw)
+
+    return wrapper
+
 class Frame(object):
     def __init__(self, scaled_calib_mtx, scaled_target_mtx, dist, config):
         self.angle = config['angle']

@@ -10,8 +10,8 @@ cam_param_dir: ./camera_parameters/rpi
 
 # clf_path: 'clf_models/detailed_separate_clf_dict.pcl'
 clf_path: clf_models/lamp_pole_1.pcl  # Classifier path
-out_dir: /tmp/car_night_merged_temp_1
-saver: False  # Saving parameters
+out_dir: /tmp/car_night_merged_temp_3
+saver: True  # Saving parameters
 
 clahe_limit: 3  # Pre-processing parameters - CLAHE contrast adjustment for grayscale images only (COLOR = 0)
 #bgs_method: {name: MOG2, parameters: [50, 16, True]}  # Background subtraction parameters, args given in OpenCV order
