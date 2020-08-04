@@ -18,8 +18,7 @@ import feature_extractor as fe
 from pre_processing import PreprocessImg
 import extentions
 # import tracker
-import sl_sensor_connect
-
+from sl_connect import SlApp
 
 logger = logging.getLogger('detect.detect')
 
@@ -48,7 +47,7 @@ class Detection(object):
         self.time_measurements = list()
         self.time_window = config['time_window']
 
-        self.sl_app_conn = sl_sensor_connect.SlSensor(*config['snd_recv_ports'])
+        self.sl_app_conn = SlApp(tuple(config['sl_port']))
         self.pre_processing = PreprocessImg(config, self.sl_app_conn)
 
     @staticmethod
@@ -90,10 +89,10 @@ class Detection(object):
 
             # objects, prob_q = self.tracker.update(coordinates)
             objects, prob_q = [], []
-            av_bin_result = self.mean_tracker.update(binary_result)
 
+            av_bin_result = self.mean_tracker.update(binary_result)
             if av_bin_result:
-                self.sl_app_conn.send('OBJECT_DETECTED')
+                self.sl_app_conn.switch_on_lamp()
 
             if self.saver_flag:
                 self.saver.write(res_data, iterator, steps, objects, prob_q, av_bin_result)

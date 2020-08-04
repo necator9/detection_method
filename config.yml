@@ -20,8 +20,8 @@ dilate_it: 1
 
 time_window: 200 # Timers parameters
 o_class_mapping: {0: noise, 1: pedestrian, 2: cyclist, 3: vehicle}
-snd_recv_ports: [65433, 65434]  # Send and receive ports for interconnection with SmartLighting app
-lamp_on_criteria: [2, 6]  # Format [q, N]: On how many q frames out of last N frames target objects have been detected
+sl_port: ['localhost', 65433]  # SmartLighting app address
+lamp_on_criteria: [6, 2]  # Format [q, N]: On how many N frames out of the last q frames target objects have been detected
 
 # Cascade filtering speeds up detection through filtering unlikely objects. Set value to zero to disable filtering.
 cont_area_thr: 0.001  # Chosen 0.0005 Minimal object cnt area to be considered: object cnt area / RES[0] * RES[1] > cont_area_thr

@@ -26,8 +26,7 @@ class PreprocessImg(object):
         orig_img = self.clahe_adjust.apply(orig_img)
 
         # Create new background model when lamp is switched on or off
-        data = self.sl_app_conn.recieve()
-        if data == 'Lamp_ON' or data == 'Lamp_OFF':
+        if self.sl_app_conn.check_lamp_status():
             self.bgs_method = self.bgs_map[self.bgs_method_name](*self.bgs_parameters)
             logger.info('Signal from SL_app received. The background model {} updated'.format(self.bgs_method_name))
 
