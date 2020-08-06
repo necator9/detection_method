@@ -194,8 +194,8 @@ class Frame(object):
 
     @check_input_on_empty_arr
     def undistort(self, basic_params):
-        p1p2_col = basic_params[:, [0, 1, 5, 6]].reshape((basic_params.shape[0] * 2, 2))
-        p1p2_col[:] = cv2.undistortPoints(p1p2_col, self.calib_mtx, self.dist, P=self.target_mtx)[:, 0, :]
+        p1p2_col = np.ascontiguousarray(basic_params[:, [0, 1, 5, 6]].reshape((basic_params.shape[0] * 2, 1, 2)))
+        cv2.undistortPoints(p1p2_col, self.calib_mtx, self.dist, p1p2_col, P=self.target_mtx)
         p1p2 = p1p2_col.reshape((basic_params.shape[0], 4))
         # p1p2[:, 0] = np.where(p1p2[:, 0] < 0, 0, p1p2[:, 0])
         # p1p2[:, 1] = np.where(p1p2[:, 1] < 0, 0, p1p2[:, 1])
