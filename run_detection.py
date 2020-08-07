@@ -26,7 +26,8 @@ def check_if_dir_exists(dir_path):
 
 parser = argparse.ArgumentParser(description='Run the lightweight detection algorithm')
 parser.add_argument('-p', '--path', action='store',
-                    help="path to the configuration file (default: ./config.yml)", default='config.yml')
+                    help="path to the configuration file (default: ./configs/config_cam0.yml)",
+                    default='./configs/config_cam0.yml')
 args = parser.parse_args()
 
 config = yaml.safe_load(open(args.path))
