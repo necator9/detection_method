@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
 
+# Created by Ivan Matveev at 01.05.20
+# E-mail: ivan.matveev@hs-anhalt.de
+
+# The main thread which starts capturing and detection routines.
+
+import cv2
+import yaml
+
 import logging
 import queue
-import cv2
 import threading
 import os
+import argparse
 
 import capturing
 import detection
-import yaml
-
-config = yaml.safe_load(open("config.yml"))
 
 
 def check_if_dir_exists(dir_path):
@@ -18,6 +23,13 @@ def check_if_dir_exists(dir_path):
         os.makedirs(dir_path)
         print("Output directory does not exist, new folder created.")
 
+
+parser = argparse.ArgumentParser(description='Run the lightweight detection algorithm')
+parser.add_argument('-p', '--path', action='store',
+                    help="path to the configuration file (default: ./config.yml)", default='config.yml')
+args = parser.parse_args()
+
+config = yaml.safe_load(open(args.path))
 
 out_dir = config['out_dir']
 check_if_dir_exists(out_dir)
