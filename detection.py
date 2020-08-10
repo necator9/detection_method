@@ -316,7 +316,7 @@ class Frame(object):
 
         nonzero_x = np.count_nonzero(binary_patch, axis=0)  # Find amount of white pixels in columns
         der = np.abs(np.diff(nonzero_x))  # Derivative showing the changes along x-axis
-        # Find 2 of the biggest jumps (impulses) of the derivative in left and right halfs of a binary image
+        # Find 2 of the biggest jumps (impulses) of the derivative in left and right sides of a binary image
         middle_point_idx = int(der.shape[0] / 2)
         impulses_idx = np.asarray(
             (np.argmax(der[:middle_point_idx]), np.argmax(der[middle_point_idx:]) + middle_point_idx))
