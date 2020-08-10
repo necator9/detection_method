@@ -83,7 +83,7 @@ class Detection(object):
                 res_data = self.frame.process(steps['filled'])
                 binary_result = np.any(res_data[:, -1] > 0)
                 # coordinates = res_data[res_data[:, -1] > 0]
-            except FrameIsEmpty:
+            except Frame.FrameIsEmpty:
                 res_data = self.empty
                 # coordinates = self.empty
                 binary_result = False
@@ -111,30 +111,45 @@ class Detection(object):
         logger.info('Detection finished, {} images processed'.format(iterator))
 
 
-class FrameIsEmpty(Exception):
-    def __init__(self):
-        Exception.__init__(self, 'No objects in frame are present')
-
-    @staticmethod
-    def interrupt_cycle():
-        raise FrameIsEmpty
-
-
 class Frame(object):
     class Decorators(object):
         @classmethod
         def check_input_on_empty_arr(cls, decorated):
+            """
+            Executes some detection stage (e.g. filtering) if passed array is not empty, otherwise interrupts iteration
+            :param decorated: detection function
+            :return: mutated array of parameters
+            """
             @wraps(decorated)
             def wrapper(*args, **kwargs):
-                return decorated(*args, **kwargs) if args[1].size > 0 else FrameIsEmpty.interrupt_cycle()
+                return decorated(*args, **kwargs) if args[1].size > 0 else Frame.FrameIsEmpty.interrupt_cycle()
             return wrapper
 
         @classmethod
         def check_on_conf_flag(cls, decorated):
+            """
+            Executes detection function if corresponding parameter in config is true (>0), otherwise returns original
+            array of parameters
+            :param decorated: detection function
+            :return: original array of parameters or mutated array of parameters
+            """
             @wraps(decorated)
             def wrapper(*args, **kwargs):
                 return decorated(*args) if kwargs['dec_flag'] else args[1]
             return wrapper
+
+    class FrameIsEmpty(Exception):
+        """
+        Used to interrupt the processing at any stage when no more objects are remaining in the parameters array (e.g
+        due to preliminary filtering)
+        """
+
+        def __init__(self):
+            Exception.__init__(self, 'No objects in frame are present')
+
+        @staticmethod
+        def interrupt_cycle():
+            raise Frame.FrameIsEmpty
 
     def __init__(self, scaled_calib_mtx, scaled_target_mtx, dist, config):
         self.angle = config['angle']
@@ -157,18 +172,14 @@ class Frame(object):
         self.extent_thr = config['extent_thr']
         self.max_dist_thr = config['max_distance']
 
-        self.first_in = np.ones([1])
-        self.empty = np.empty([1])
-
         all_classifiers = pickle.load(open(config['clf_path'], "rb"))
         heights = [key for key in all_classifiers.keys() if type(key) != str]  # Filter the poly key out
-        closest_height = min(heights,
-                             key=lambda x: abs(x - self.height))  # Find the closest value among available heights
-        angles = list(
-            all_classifiers[closest_height])  # All the available angles for a given height in a form of a list
+        # Find the closest value among available heights
+        closest_height = min(heights, key=lambda x: abs(x - self.height))
+        # All the available angles for a given height in a form of a list
+        angles = list(all_classifiers[closest_height])
         closest_angle = min(angles, key=lambda x: abs(x - self.angle))  # Find the closest value among available angles
         self.clf = all_classifiers[closest_height][closest_angle]
-
         self.poly = all_classifiers['poly']
 
     @Decorators.check_input_on_empty_arr
