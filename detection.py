@@ -76,16 +76,16 @@ class Detection(object):
                 logger.warning("Timeout reached, no items can be received from orig_img_q")
                 continue
 
-            steps['resized_orig'], steps['mask'], steps['filtered'], \
-            steps['filled'] = self.pre_processing.apply(orig_img)
+            steps['resized_orig'], steps['mask'], steps['filtered'], steps['filled'] = \
+                self.pre_processing.apply(orig_img)
 
             try:
                 res_data = self.frame.process(steps['filled'])
                 binary_result = np.any(res_data[:, -1] > 0)
-                coordinates = res_data[res_data[:, -1] > 0]
+                # coordinates = res_data[res_data[:, -1] > 0]
             except FrameIsEmpty:
                 res_data = self.empty
-                coordinates = self.empty
+                # coordinates = self.empty
                 binary_result = False
 
             # objects, prob_q = self.tracker.update(coordinates)
@@ -171,21 +171,6 @@ class Frame(object):
 
         self.poly = all_classifiers['poly']
 
-    def check_on_conf_flag(fun_to_call):
-        def wrapper(self, fun_arg, flag):
-            return fun_to_call(self, fun_arg) if flag else fun_arg
-
-        return wrapper
-
-    def check_input_on_empty_arr(fun_to_call):
-        def wrapper(self, parameters):
-            if parameters.size > 0:
-                return fun_to_call(self, parameters)
-            else:
-                raise FrameIsEmpty
-
-        return wrapper
-
     @Decorators.check_input_on_empty_arr
     def find_basic_params(self, mask):
         cnts, _ = cv2.findContours(mask, mode=0, method=1)
@@ -215,7 +200,6 @@ class Frame(object):
         basic_params[:, 2:4] = p1p2[:, 2:4] - p1p2[:, :2]
         basic_params[:, [5, 6]] = p1p2[:, 2:]
 
-    # @check_on_conf_flag
     @Decorators.check_on_conf_flag
     @Decorators.check_input_on_empty_arr
     def filter_c_ar(self, basic_params):
@@ -223,14 +207,12 @@ class Frame(object):
         basic_params = basic_params[basic_params[:, 4] / self.img_area_px > self.c_ar_thr]
         return basic_params
 
-    # @check_on_conf_flag
     @Decorators.check_on_conf_flag
     @Decorators.check_input_on_empty_arr
     def filter_extent(self, basic_params):
         basic_params = basic_params[basic_params[:, 4] / (basic_params[:, 2] * basic_params[:, 3]) > self.extent_thr]
         return basic_params
 
-    # @check_on_conf_flag
     @Decorators.check_on_conf_flag
     @Decorators.check_input_on_empty_arr
     def filter_margin(self, basic_params):
@@ -241,7 +223,6 @@ class Frame(object):
 
         return basic_params[margin_filter_mask]
 
-    # @check_on_conf_flag
     @Decorators.check_on_conf_flag
     @Decorators.check_input_on_empty_arr
     def filter_distance(self, feature_vector):
@@ -288,7 +269,9 @@ class Frame(object):
 
         return np.column_stack((feature_vector, o_class))
 
+    @Decorators.check_input_on_empty_arr
     def find_contradictory_objects(self, basic_params, mask):
+        print(basic_params)
         splitting_mask = ((basic_params[:, 4] / (basic_params[:, 2] * basic_params[:, 3]) < 0.5) &
                           (basic_params[:, 3] / basic_params[:, 2] < 0.66))
 
@@ -315,7 +298,8 @@ class Frame(object):
 
         return basic_params
 
-    def separate_lighting_spot(self, binary_patch):
+    @staticmethod
+    def separate_lighting_spot(binary_patch):
         """
         Splitting the object and its light's reflections in specific scenarios of object movement.
         Splitting is performed when the splitting conditions satisfied only:
@@ -326,13 +310,13 @@ class Frame(object):
         2) splitting point is characterized by a significant value of a derivative
         3) the derivative which is corresponding to the splitting point is usually located
         closer to a horizontal frame center
-        :param binary_patch: a contradictory segment of a binary image supposed to be splitted
-        :return: splitted image segment
+        :param binary_patch: a contradictory segment of a binary image supposed to be split
+        :return: split image segment
         """
 
         nonzero_x = np.count_nonzero(binary_patch, axis=0)  # Find amount of white pixels in columns
         der = np.abs(np.diff(nonzero_x))  # Derivative showing the changes along x-axis
-        # Find 2 of the biggest jumps (impulses) of the derivative in left and right halfes of a binary image
+        # Find 2 of the biggest jumps (impulses) of the derivative in left and right halfs of a binary image
         middle_point_idx = int(der.shape[0] / 2)
         impulses_idx = np.asarray(
             (np.argmax(der[:middle_point_idx]), np.argmax(der[middle_point_idx:]) + middle_point_idx))
