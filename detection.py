@@ -1,9 +1,9 @@
-#!/usr/bin/env python3.7
+#!/usr/bin/env python3
 
 # Created by Ivan Matveev at 01.05.20
 # E-mail: ivan.matveev@hs-anhalt.de
 
-# The detection pipeline.
+# Detection algorithm. All the stages of the detection algorithm are called from this module.
 
 import cv2
 import numpy as np
@@ -12,6 +12,7 @@ import timeit
 import pickle
 from collections import deque
 import os
+from functools import wraps
 
 import logging
 import feature_extractor as fe
@@ -54,7 +55,7 @@ class Detection(object):
     def scale_intrinsic(new_res, base_res, intrinsic):
         scale_f = np.asarray(base_res) / np.asarray(new_res)
         if scale_f[0] != scale_f[1]:
-            print('WARNING! The scaling is not proportional', scale_f)
+            logger.warning('WARNING! The scaling is not proportional', scale_f)
 
         intrinsic[0, :] /= scale_f[0]
         intrinsic[1, :] /= scale_f[1]
@@ -114,19 +115,27 @@ class FrameIsEmpty(Exception):
     def __init__(self):
         Exception.__init__(self, 'No objects in frame are present')
 
+    @staticmethod
+    def interrupt_cycle():
+        raise FrameIsEmpty
 
-from functools import wraps
-
-
-def log_real_decorator(f):
-    @wraps(f)
-    def wrapper(*args, **kw):
-        # Do something here
-        f(*args, **kw)
-
-    return wrapper
 
 class Frame(object):
+    class Decorators(object):
+        @classmethod
+        def check_input_on_empty_arr(cls, decorated):
+            @wraps(decorated)
+            def wrapper(*args, **kwargs):
+                return decorated(*args, **kwargs) if args[1].size > 0 else FrameIsEmpty.interrupt_cycle()
+            return wrapper
+
+        @classmethod
+        def check_on_conf_flag(cls, decorated):
+            @wraps(decorated)
+            def wrapper(*args, **kwargs):
+                return decorated(*args) if kwargs['dec_flag'] else args[1]
+            return wrapper
+
     def __init__(self, scaled_calib_mtx, scaled_target_mtx, dist, config):
         self.angle = config['angle']
         self.height = config['height']
@@ -177,7 +186,7 @@ class Frame(object):
 
         return wrapper
 
-    @check_input_on_empty_arr
+    @Decorators.check_input_on_empty_arr
     def find_basic_params(self, mask):
         cnts, _ = cv2.findContours(mask, mode=0, method=1)
         c_areas = [cv2.contourArea(cnt) for cnt in cnts]
@@ -185,14 +194,14 @@ class Frame(object):
 
         return np.column_stack((b_rects, c_areas))
 
-    @check_input_on_empty_arr
+    @Decorators.check_input_on_empty_arr
     def calc_second_point(self, temp_param):
         p2_x = temp_param[:, 0] + temp_param[:, 2]
         p2_y = temp_param[:, 1] + temp_param[:, 3]
 
         return np.column_stack((temp_param, p2_x, p2_y)).astype(np.float32)
 
-    @check_input_on_empty_arr
+    @Decorators.check_input_on_empty_arr
     def undistort(self, basic_params):
         p1p2_col = np.ascontiguousarray(basic_params[:, [0, 1, 5, 6]].reshape((basic_params.shape[0] * 2, 1, 2)))
         cv2.undistortPoints(p1p2_col, self.calib_mtx, self.dist, p1p2_col, P=self.target_mtx)
@@ -206,21 +215,24 @@ class Frame(object):
         basic_params[:, 2:4] = p1p2[:, 2:4] - p1p2[:, :2]
         basic_params[:, [5, 6]] = p1p2[:, 2:]
 
-    @check_on_conf_flag
-    @check_input_on_empty_arr
+    # @check_on_conf_flag
+    @Decorators.check_on_conf_flag
+    @Decorators.check_input_on_empty_arr
     def filter_c_ar(self, basic_params):
         # Filter out small object below threshold
         basic_params = basic_params[basic_params[:, 4] / self.img_area_px > self.c_ar_thr]
         return basic_params
 
-    @check_on_conf_flag
-    @check_input_on_empty_arr
+    # @check_on_conf_flag
+    @Decorators.check_on_conf_flag
+    @Decorators.check_input_on_empty_arr
     def filter_extent(self, basic_params):
         basic_params = basic_params[basic_params[:, 4] / (basic_params[:, 2] * basic_params[:, 3]) > self.extent_thr]
         return basic_params
 
-    @check_on_conf_flag
-    @check_input_on_empty_arr
+    # @check_on_conf_flag
+    @Decorators.check_on_conf_flag
+    @Decorators.check_input_on_empty_arr
     def filter_margin(self, basic_params):
         margin_filter_mask = ((basic_params[:, 0] > self.left_mar) &  # Built filtering mask
                               (basic_params[:, 5] < self.right_mar) &
@@ -229,24 +241,25 @@ class Frame(object):
 
         return basic_params[margin_filter_mask]
 
-    @check_on_conf_flag
-    @check_input_on_empty_arr
+    # @check_on_conf_flag
+    @Decorators.check_on_conf_flag
+    @Decorators.check_input_on_empty_arr
     def filter_distance(self, feature_vector):
         # Replace exceeding threshold distances with infinity.
         feature_vector[:, 3] = np.where(feature_vector[:, 3] > self.max_dist_thr, np.inf, feature_vector[:, 3])
         return feature_vector
 
-    @check_input_on_empty_arr
+    @Decorators.check_input_on_empty_arr
     def filter_infinity(self, feature_vector):
         # Filter out infinity distances. Infinities can be already in the feature_vector before filtering by distance!
         feature_vector = feature_vector[np.isfinite(feature_vector[:, 3])]
         return feature_vector
 
-    @check_input_on_empty_arr
+    @Decorators.check_input_on_empty_arr
     def extract_features(self, basic_params):
         return self.fe_ext.extract_features(basic_params)
 
-    @check_input_on_empty_arr
+    @Decorators.check_input_on_empty_arr
     def classify(self, feature_vector):
         poly_features = self.poly.transform(feature_vector)
         o_prob = self.clf.predict_proba(poly_features)
@@ -259,15 +272,16 @@ class Frame(object):
         basic_params = self.calc_second_point(basic_params)
         self.undistort(basic_params)
         # Filtering by object contour area size if filtering by contour area size is enabled
-        basic_params = self.filter_c_ar(basic_params, self.c_ar_thr)
+        basic_params = self.filter_c_ar(basic_params, dec_flag=self.c_ar_thr)
         # Filtering by intersection with a frame border if filtering is enabled
-        basic_params = self.filter_margin(basic_params, self.margin_offset)
+        basic_params = self.filter_margin(basic_params, dec_flag=self.margin_offset)
         # basic_params = self.find_contradictory_objects(basic_params, mask)
-        basic_params = self.filter_extent(basic_params, self.extent_thr)
+        basic_params = self.filter_extent(basic_params, dec_flag=self.extent_thr)
+
         # Get features of the object using its bounding rectangles and contour areas
         feature_vector = np.column_stack((self.extract_features(basic_params), basic_params))
         # Filter by distance to the object if filtering is enabled
-        feature_vector = self.filter_distance(feature_vector, self.max_dist_thr)
+        feature_vector = self.filter_distance(feature_vector, dec_flag=self.max_dist_thr)
         feature_vector = self.filter_infinity(feature_vector)
         # Pass informative features only to the classifier
         o_class = self.classify(feature_vector[:, [0, 1, 3]])

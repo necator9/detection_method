@@ -59,19 +59,18 @@ try:
     capturing_thread = capturing.Camera(orig_img_q, stop_event, config)
 
     capturing_thread.start()
-
-    try:
-        detection_routine.run()
-
-    except KeyboardInterrupt:
-        logger.warning('Interrupt received, stopping the threads')
-        stop_event.set()
-
-    finally:
-        capturing_thread.join()
-        logger.debug("Program finished")
+    detection_routine.run()
+    capturing_thread.join()
 
 except Exception as crash_err:
     crash_msg = '\n{0}\nAPP CRASH. Error msg:\n{1}\n{0}'.format(100 * '-', crash_err)
     logger.exception(crash_msg)
+    stop_event.set()
     exit(1)
+
+except KeyboardInterrupt:
+    logger.warning('Interrupt received, stopping the threads')
+    stop_event.set()
+
+finally:
+    logger.debug("Program finished")
