@@ -7,7 +7,9 @@
 file_to_stream=$1
 device=$2
 
-temp_file="/tmp/${device: -1}_$file_to_stream"
+basename=`basename "$file_to_stream"`
+temp_file="/tmp/${device: -1}_$basename"
+
 echo $temp_file
 rsync -a $file_to_stream $temp_file
 ffmpeg -re -stream_loop -1 -i $temp_file -pix_fmt yuv420p -f v4l2 $device
