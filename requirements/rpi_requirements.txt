@@ -1,0 +1,9 @@
+joblib==0.16.0
+numpy @ https://www.piwheels.org/simple/numpy/numpy-1.18.3-cp37-cp37m-linux_armv7l.whl#sha256=0ce00413e6c5506b3b46197d0516c295b64828a6c2ce3c08e7004970bb8ff958
+opencv-contrib-python @ https://www.piwheels.org/simple/opencv-contrib-python/opencv_contrib_python-4.1.0.25-cp37-cp37m-linux_armv7l.whl#sha256=954a9148b4da078697e62c93b64aa5697155698c2757ae37278b3013a7a60cae
+pkg-resources==0.0.0
+PyYAML==5.3.1
+scikit-learn==0.23.2
+scipy @ file:///home/pi/scipy-1.5.1-cp37-cp37m-linux_armv7l.whl
+sklearn @ https://www.piwheels.org/simple/sklearn/sklearn-0.0-py2.py3-none-any.whl#sha256=44ea36935b8e62d8f392b52564f5a5222b2c97241fa6772910bec0f6627acb66
+threadpoolctl==2.1.0
