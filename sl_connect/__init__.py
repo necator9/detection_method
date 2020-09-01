@@ -80,7 +80,9 @@ class SensorClient(object):
         ready = select.select([self.sock_send], [], [], 0)
         if ready[0]:
             data, addr = self.sock_send.recvfrom(16)
-            return data.decode()
+            data = data.decode()
+            logger.debug('Msg received: {}'.format(data))
+            return data
 
     def maintain_connection(self):
         """
@@ -130,7 +132,8 @@ class SlApp(SensorClient):
         """
         Called in each cycle of the main program
         """
-        return True if self.receive() == 'SL_LAMP_ON' else False
+        msg = self.receive()
+        return True if msg == 'SL_LAMP_ON' or msg == 'SL_LAMP_OFF' else False
 
     def switch_on_lamp(self):
         self.send('LAMP_ON')

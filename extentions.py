@@ -12,8 +12,8 @@ class SaveData(object):
 
         if self.config['saver']:
             self.fd = open(os.path.join(config['out_dir'], 'detected_objects.csv'), 'w')
-            self.fmt = '%d,%d,%.2f,%.2f,%.2f,%.1f,%.2f,%d,%d,%d,%d,%d,%d,%d,%.2f,%d'
-            self.fd.write("img,o_num,rw_w,rw_h,rw_ca,rw_z,rw_x,x,y,w,h,ca,p2x,p2y,o_prob,o_class\n")
+            self.fmt = '%d,%d,%.2f,%.2f,%.2f,%.1f,%.2f,%d,%d,%d,%d,%d,%d,%d,%.2f,%d,%d'
+            self.fd.write("img,o_num,rw_w,rw_h,rw_ca,rw_z,rw_x,x,y,w,h,ca,p2x,p2y,o_prob,o_class,lamp\n")
 
             self.calib_mtx = scaled_calib_mtx
             self.target_mtx = scaled_target_mtx
@@ -30,16 +30,17 @@ class SaveData(object):
         pass
 
     @staticmethod
-    def prepare_array_to_save(data, img_num):
+    def prepare_array_to_save(data, img_num, lamp_status):
         # Add image number and row indices as first two columns to distinguish objects later
-        return np.column_stack((np.full(data.shape[0], img_num), np.arange(data.shape[0]), data))
+        return np.column_stack((np.full(data.shape[0], img_num), np.arange(data.shape[0]), data,
+                                np.full(data.shape[0], lamp_status)))
 
-    def write(self, data, img_num, steps, objects, prob_q, av_bin_result):
-        data = self.prepare_array_to_save(data, img_num)
+    def write(self, data, img_num, steps, objects, prob_q, av_bin_result, lamp_status):
+        data = self.prepare_array_to_save(data, img_num, lamp_status)
         if data.size > 0:
             np.savetxt(self.fd, data, fmt=self.fmt)
 
-        self.write_images(steps, data, img_num, objects, prob_q, av_bin_result)
+        self.write_images(steps, data[:, :-1], img_num, objects, prob_q, av_bin_result, lamp_status)
 
     def quit(self):
         self.fd.close()
@@ -95,11 +96,16 @@ class SaveData(object):
         return stack2
 
     @staticmethod
+    def draw_av_det_res(img, av_det_status):
+        if av_det_status:
+            cv2.rectangle(img, (0, 0), (img.shape[1], img.shape[0]), (0, 0, 255), 10)
+
+    @staticmethod
     def draw_lamp_status(img, lamp_status):
         if lamp_status:
             cv2.rectangle(img, (0, 0), (img.shape[1], img.shape[0]), (0, 255, 255), 3)
 
-    def write_images(self, steps, frame, img_num, objects, prob_q, av_bin_result):
+    def write_images(self, steps, frame, img_num, objects, prob_q, av_bin_result, lamp_status):
         for key, img in steps.items():
             steps[key] = cv2.undistort(img, self.calib_mtx, self.dist, None, self.target_mtx)
 
@@ -122,6 +128,7 @@ class SaveData(object):
 
         out_img = np.vstack((h_stack1, h_stack2))
 
-        self.draw_lamp_status(out_img, av_bin_result)
+        self.draw_av_det_res(out_img, av_bin_result)
+        self.draw_lamp_status(out_img, lamp_status)
 
         cv2.imwrite(os.path.join(self.config['out_dir'], '{}.jpeg'.format(img_num)), out_img)

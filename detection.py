@@ -49,7 +49,7 @@ class Detection(object):
         self.time_window = config['time_window']
 
         self.sl_app_conn = SlApp(tuple(config['sl_port']))
-        self.pre_processing = PreprocessImg(config, self.sl_app_conn)
+        self.pre_processing = PreprocessImg(config)
 
     @staticmethod
     def scale_intrinsic(new_res, base_res, intrinsic):
@@ -72,12 +72,20 @@ class Detection(object):
 
             try:
                 orig_img = self.orig_img_q.get(timeout=2)
+
+                lamp_status = self.sl_app_conn.check_lamp_status()
+                if lamp_status:
+                    logger.debug("Skipping the current frame due to the lamp event")
+                    self.orig_img_q.get(timeout=2)  # Blank call to skip current frame
+                    logger.debug("Recapturing the frame")
+                    orig_img = self.orig_img_q.get(timeout=2)  # Recapture image
+
             except queue.Empty:
                 logger.warning("Timeout reached, no items can be received from orig_img_q")
                 continue
 
             steps['resized_orig'], steps['mask'], steps['filtered'], steps['filled'] = \
-                self.pre_processing.apply(orig_img)
+                self.pre_processing.apply(orig_img, lamp_status)
 
             try:
                 res_data = self.frame.process(steps['filled'])
@@ -96,7 +104,7 @@ class Detection(object):
                 self.sl_app_conn.switch_on_lamp()
 
             if self.saver_flag:
-                self.saver.write(res_data, iterator, steps, objects, prob_q, av_bin_result)
+                self.saver.write(res_data, iterator, steps, objects, prob_q, av_bin_result, lamp_status)
 
             self.time_measurements.append(timeit.default_timer() - start_time)
 

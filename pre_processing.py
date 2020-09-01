@@ -5,7 +5,7 @@ logger = logging.getLogger('detect.pre_processing')
 
 
 class PreprocessImg(object):
-    def __init__(self, config, sl_app_conn):
+    def __init__(self, config):
         # Background subtraction parameters
         self.bgs_method_name = config['bgs_method']['name']
         self.bgs_parameters = config['bgs_method']['parameters']
@@ -19,14 +19,12 @@ class PreprocessImg(object):
         self.dilate_iterations = int(config['dilate_it'])
         self.resolution = tuple(config['resolution'])
 
-        self.sl_app_conn = sl_app_conn
-
-    def apply(self, orig_img):
+    def apply(self, orig_img, lamp_status):
         orig_img = cv2.resize(orig_img, self.resolution, interpolation=cv2.INTER_NEAREST)
         orig_img = self.clahe_adjust.apply(orig_img)
 
         # Create new background model when lamp is switched on or off
-        if self.sl_app_conn.check_lamp_status():
+        if lamp_status:
             self.bgs_method = self.bgs_map[self.bgs_method_name](*self.bgs_parameters)
             logger.info('Signal from SL_app received. The background model {} updated'.format(self.bgs_method_name))
 

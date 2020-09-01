@@ -9,6 +9,8 @@ import cv2
 import yaml
 
 import logging
+from logging.handlers import RotatingFileHandler
+
 import queue
 import threading
 import os
@@ -38,7 +40,8 @@ check_if_dir_exists(out_dir)
 # Set up logging,
 logger = logging.getLogger('detect')
 logger.setLevel(config['log_level'])
-file_handler = logging.FileHandler(os.path.join(out_dir, 'detection.log'))
+file_handler = RotatingFileHandler(os.path.join(out_dir, 'detection.log'), mode='a', maxBytes=5 * 1024 * 1024,
+                                   backupCount=3)
 ch = logging.StreamHandler()
 
 formatter = logging.Formatter('%(levelname)s %(asctime)s %(threadName)s - %(message)s')
