@@ -23,7 +23,7 @@ class SensorServer(object):
     Server register the clients using notification messages received from the clients.
     Server sends and receives messages to/from registered clients.
     """
-    def __init__(self, server_addr=('', 65433), max_clients=2):
+    def __init__(self, server_addr=('127.0.0.1', 35433), max_clients=2):
         self.sock_recv = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         # Set size of buf to minimal value to limit the length of a queue (UDP buffer) that may be required when
         # applications' iteration speeds are different or server disabled temporary. In current implementation
@@ -68,7 +68,7 @@ class SensorClient(object):
     each n-th receive call to maintain the connection (server can be restarted and registered clients are erased).
     Client can send and receive messages to/from server.
     """
-    def __init__(self, server_addr=('', 65433)):
+    def __init__(self, server_addr=('', 35433)):
         self.sock_send = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.server_addr = server_addr
         self.send('INIT')  # Send msg containing non-keyword content to register the client

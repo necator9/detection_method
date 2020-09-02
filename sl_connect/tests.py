@@ -23,8 +23,8 @@ logger.addHandler(ch)
 def test_transport():
     sensors_amount = 3
 
-    sl_app = sl_connect.SensorServer(('', 65433), max_clients=sensors_amount)
-    sensors = [sl_connect.SensorClient(('', 65433)) for i in range(sensors_amount)]
+    sl_app = sl_connect.SensorServer(('', 35433), max_clients=sensors_amount)
+    sensors = [sl_connect.SensorClient(('', 35433)) for i in range(sensors_amount)]
 
     print('Server registers clients')
     for i in range(sensors_amount):
@@ -46,7 +46,7 @@ def test_transport():
 
 def test_sl_cycle(duration):
     i = 0
-    det = sl_connect.DetectAlgorithm(server_addr=('', 65433), max_clients=2)
+    det = sl_connect.DetectAlgorithm(server_addr=('', 35433), max_clients=2)
     while i < duration:
         det.check_detect_status()
         if i % 30 == 0:
@@ -57,7 +57,7 @@ def test_sl_cycle(duration):
 
 def test_det_cycle(duration):
     i = 0
-    sl = sl_connect.SlApp(server_addr=('', 65433))
+    sl = sl_connect.SlApp(server_addr=('', 35433))
     while i < duration:
         logger.info('Lamp status: {}'.format(sl.check_lamp_status()))
         if i % 10 == 0:
