@@ -19,7 +19,7 @@ import feature_extractor as fe
 from pre_processing import PreprocessImg
 import extentions
 # import tracker
-from sl_connect import SlApp
+from sl_connect import SlAppConnSensor
 
 logger = logging.getLogger('detect.detect')
 
@@ -47,8 +47,7 @@ class Detection(object):
 
         self.time_measurements = list()
         self.time_window = config['time_window']
-
-        self.sl_app_conn = SlApp(tuple(config['sl_port']))
+        self.sl_app_conn = SlAppConnSensor(config['sl_conn']['detect_port'], [config['sl_conn']['sl_port']])
         self.pre_processing = PreprocessImg(config)
 
     @staticmethod

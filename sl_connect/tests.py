@@ -23,7 +23,7 @@ logger.addHandler(ch)
 def test_transport():
     sensors_amount = 3
 
-    sl_app = sl_connect.SensorServer(('', 35433), max_clients=sensors_amount)
+    sl_app = sl_connect.SocketInterface(('', 35433), max_clients=sensors_amount)
     sensors = [sl_connect.SensorClient(('', 35433)) for i in range(sensors_amount)]
 
     print('Server registers clients')
