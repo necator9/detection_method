@@ -1,0 +1,1 @@
+cars_night.mp4 - classifier "lamp_pole_1.pcl", camera "rpi"
