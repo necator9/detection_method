@@ -1,1 +1,1 @@
-cars_night.mp4 - classifier "lamp_pole_1.pcl", camera "rpi"
+cars_night.mp4 - classifier "lamp_pole_1.pcl", camera "rpi", codec rawvideo, pix_fmt gray 1 8
