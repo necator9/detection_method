@@ -1,3 +1,5 @@
+# General config file example
+
 log_level: 10  # Logging level: 10, 20 ... 50
 
 # Camera parameters
