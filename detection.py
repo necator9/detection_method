@@ -23,16 +23,20 @@ from sl_connect import SlAppConnSensor
 
 logger = logging.getLogger('detect.detect')
 
+ABS_PATH = os.path.dirname(__file__)
+CAM_PARAM = os.path.join(ABS_PATH, 'cam')
+CLF_MODEL = os.path.join(ABS_PATH, 'clf')
+
 
 class Detection(object):
     def __init__(self, stop_ev, orig_img_q, config):
         self.stop_event = stop_ev
         self.orig_img_q = orig_img_q
 
-        calib_res = np.genfromtxt(os.path.join(config['cam_param_dir'], 'resolutions.csv'), delimiter=' ')
-        calib_mtx = np.genfromtxt(os.path.join(config['cam_param_dir'], 'calibration_mtx.csv'), delimiter=' ')
-        target_mtx = np.genfromtxt(os.path.join(config['cam_param_dir'], 'target_mtx.csv'), delimiter=' ')
-        dist = np.genfromtxt(os.path.join(config['cam_param_dir'], 'distortions.csv'), delimiter=' ').reshape(1, -1)
+        calib_res = np.genfromtxt(os.path.join(CAM_PARAM, config['cam'], 'resolutions.csv'), delimiter=' ')
+        calib_mtx = np.genfromtxt(os.path.join(CAM_PARAM, config['cam'], 'calibration_mtx.csv'), delimiter=' ')
+        target_mtx = np.genfromtxt(os.path.join(CAM_PARAM, config['cam'], 'target_mtx.csv'), delimiter=' ')
+        dist = np.genfromtxt(os.path.join(CAM_PARAM, config['cam'], 'distortions.csv'), delimiter=' ').reshape(1, -1)
 
         scaled_calib_mtx = self.scale_intrinsic(config['resolution'], calib_res[0], calib_mtx)
         scaled_target_mtx = self.scale_intrinsic(config['resolution'], calib_res[1], target_mtx)
@@ -179,7 +183,7 @@ class Frame(object):
         self.extent_thr = config['extent_thr']
         self.max_dist_thr = config['max_distance']
 
-        all_classifiers = pickle.load(open(config['clf_path'], "rb"))
+        all_classifiers = pickle.load(open(os.path.join(CLF_MODEL, config['clf']), "rb"))
         heights = [key for key in all_classifiers.keys() if type(key) != str]  # Filter the poly key out
         # Find the closest value among available heights
         closest_height = min(heights, key=lambda x: abs(x - self.height))

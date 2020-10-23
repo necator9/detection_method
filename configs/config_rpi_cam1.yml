@@ -1,17 +1,17 @@
-log_level: 10  # Logging parameters
+log_level: 10  # Logging level: 10, 20 ... 50
 
 # Camera parameters
 device: 1
 resolution: [320, 240]
-fps: 10
+fps: 4
 angle: -39
 height: -3.325
-cam_param_dir: /home/pi/detection_method/camera_parameters/rpi
+cam: rpi  # Name of a subdirectory containing camera parameters in .cam directory
 
 # clf_path: 'clf_models/detailed_separate_clf_dict.pcl'
-clf_path: /home/pi/detection_method/clf_models/lamp_pole_1.pcl  # Classifier path
-out_dir: /home/pi/dout1
-saver: False  # Saving parameters
+clf: lamp_pole_1.pcl  # Name of a classifier in .clf directory
+out_dir: /var/log/detection/cam_1  # Logging directory (also resulting images are stored here )
+saver: False  # Save images and detection information
 
 clahe_limit: 3  # Pre-processing parameters - CLAHE contrast adjustment for grayscale images only (COLOR = 0)
 #bgs_method: {name: MOG2, parameters: [50, 16, True]}  # Background subtraction parameters, args given in OpenCV order
