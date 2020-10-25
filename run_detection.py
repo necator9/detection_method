@@ -23,7 +23,7 @@ import detection
 def check_if_dir_exists(dir_path):
     if not os.path.isdir(dir_path):
         os.makedirs(dir_path)
-        print("Output directory does not exist, new folder created.")
+        print("Output directory does not exist, new folder created: {}".format(dir_path))
 
 
 parser = argparse.ArgumentParser(description='Run the lightweight detection algorithm')
