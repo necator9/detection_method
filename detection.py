@@ -13,6 +13,7 @@ import pickle
 from collections import deque
 import os
 from functools import wraps
+import yaml
 
 import logging
 import feature_extractor as fe
@@ -33,13 +34,23 @@ class Detection(object):
         self.stop_event = stop_ev
         self.orig_img_q = orig_img_q
 
-        calib_res = np.genfromtxt(os.path.join(CAM_PARAM, config['cam'], 'resolutions.csv'), delimiter=' ')
-        calib_mtx = np.genfromtxt(os.path.join(CAM_PARAM, config['cam'], 'calibration_mtx.csv'), delimiter=' ')
-        target_mtx = np.genfromtxt(os.path.join(CAM_PARAM, config['cam'], 'target_mtx.csv'), delimiter=' ')
-        dist = np.genfromtxt(os.path.join(CAM_PARAM, config['cam'], 'distortions.csv'), delimiter=' ').reshape(1, -1)
+        calib_info = yaml.safe_load(open(os.path.join(CAM_PARAM, config['cam'])))
+        calib_mtx = np.asarray(calib_info['camera_matrix'])
+        calib_res = np.asarray(calib_info['base_res'])
+        dist = np.asarray(calib_info['dist_coefs']).reshape(1, -1)
 
-        scaled_calib_mtx = self.scale_intrinsic(config['resolution'], calib_res[0], calib_mtx)
-        scaled_target_mtx = self.scale_intrinsic(config['resolution'], calib_res[1], target_mtx)
+        # Handle case when the target matrix is the same as calibration matrix (target matrix is omit in cam config)
+        try:
+            target_mtx = np.asarray(calib_info['target_matrix'])
+            target_res = np.asarray(calib_info['target_res'])
+            if target_mtx is None or target_mtx is None:
+                raise KeyError
+        except KeyError:
+            target_mtx = calib_mtx
+            target_res = calib_res
+
+        scaled_calib_mtx = self.scale_intrinsic(config['resolution'], calib_res, calib_mtx)
+        scaled_target_mtx = self.scale_intrinsic(config['resolution'], target_res, target_mtx)
 
         self.saver_flag = config['saver']
         self.saver = extentions.SaveData(config, scaled_calib_mtx, scaled_target_mtx, dist)
@@ -58,7 +69,7 @@ class Detection(object):
     def scale_intrinsic(new_res, base_res, intrinsic):
         scale_f = np.asarray(base_res) / np.asarray(new_res)
         if scale_f[0] != scale_f[1]:
-            logger.warning('WARNING! The scaling is not proportional', scale_f)
+            logger.warning('WARNING! The scaling is not proportional: {}'.format(scale_f))
 
         intrinsic[0, :] /= scale_f[0]
         intrinsic[1, :] /= scale_f[1]

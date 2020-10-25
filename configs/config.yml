@@ -8,11 +8,11 @@ resolution: [320, 240]
 fps: 10
 angle: -39
 height: -3.325
-cam: rpi  # Name of a subdirectory containing camera parameters in .cam directory
+cam: rpi.yml  # Name of config containing camera parameters in .cam directory
 
 # clf_path: 'clf_models/detailed_separate_clf_dict.pcl'
 clf: lamp_pole_1.pcl  # Name of a classifier in .clf directory
-out_dir: ~/car_night  # Logging directory (also resulting images are stored here )
+out_dir: /tmp/car_night  # Logging directory (also resulting images are stored here )
 saver: True  # Save images and detection information
 
 clahe_limit: 3  # Pre-processing parameters - CLAHE contrast adjustment for grayscale images only (COLOR = 0)
