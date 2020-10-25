@@ -22,11 +22,7 @@ Below are shown subdirectories only.
 
     .
     ├── cam                             # (*m) Camera parameters
-    │   ├── cam_name_1                  # Name must match the camera specified in config
-    │   │   ├── calibration_mtx.csv     # (*m) Intrinsic camra martix
-    │   │   ├── distortions.csv         # (*m) Camera distortion coefficients
-    │   │   ├── resolutions.csv         # (*m) Calibration resolution of matrices
-    │   │   └── target_mtx.csv          # (*m) Intinsic matrix used for classifier training
+    │   ├── cam_name_1.yml              # Name must match the camera specified in config
     │   └── ...
     ├── clf                             # (*m) Classifiers
     │   ├── clf_name_1.pcl              # Name must match the one specified in config. Pickled sklearn object.
