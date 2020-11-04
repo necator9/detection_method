@@ -15,6 +15,7 @@ import queue
 import threading
 import os
 import argparse
+import sys
 
 import capturing
 import detection
@@ -72,7 +73,7 @@ except Exception as crash_err:
     crash_msg = '\n{0}\nAPP CRASH. Error msg:\n{1}\n{0}'.format(100 * '-', crash_err)
     logger.exception(crash_msg)
     stop_event.set()
-    exit(1)
+    sys.exit(1)
 
 except KeyboardInterrupt:
     logger.warning('Interrupt received, stopping the threads')
