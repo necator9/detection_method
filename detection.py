@@ -25,7 +25,6 @@ from sl_connect import SlAppConnSensor
 logger = logging.getLogger('detect.detect')
 
 ABS_PATH = os.path.dirname(__file__)
-CAM_PARAM = os.path.join(ABS_PATH, 'cam')
 CLF_MODEL = os.path.join(ABS_PATH, 'clf')
 
 
@@ -34,15 +33,14 @@ class Detection(object):
         self.stop_event = stop_ev
         self.orig_img_q = orig_img_q
 
-        calib_info = yaml.safe_load(open(os.path.join(CAM_PARAM, config['cam'])))
-        calib_mtx = np.asarray(calib_info['camera_matrix'])
-        calib_res = np.asarray(calib_info['base_res'])
-        dist = np.asarray(calib_info['dist_coefs']).reshape(1, -1)
+        calib_mtx = np.asarray(config['camera_matrix'])
+        calib_res = np.asarray(config['base_res'])
+        dist = np.asarray(config['dist_coefs']).reshape(1, -1)
 
         # Handle case when the target matrix is the same as calibration matrix (target matrix is omit in cam config)
         try:
-            target_mtx = np.asarray(calib_info['target_matrix'])
-            target_res = np.asarray(calib_info['target_res'])
+            target_mtx = np.asarray(config['target_matrix'])
+            target_res = np.asarray(config['target_res'])
             if target_mtx is None or target_mtx is None:
                 raise KeyError
         except KeyError:
