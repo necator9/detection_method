@@ -20,7 +20,6 @@ import feature_extractor as fe
 from pre_processing import PreprocessImg
 import extentions
 # import tracker
-from sl_connect import SlAppConnSensor
 
 logger = logging.getLogger('detect.detect')
 
@@ -62,7 +61,6 @@ class Detection(object):
 
         self.time_measurements = list()
         self.time_window = config['time_window']
-        self.sl_app_conn = SlAppConnSensor(config['sl_conn']['detect_port'], [config['sl_conn']['sl_port']])
         self.pre_processing = PreprocessImg(config)
 
     @staticmethod
@@ -87,19 +85,12 @@ class Detection(object):
             try:
                 orig_img = self.orig_img_q.get(timeout=2)
 
-                lamp_status = self.sl_app_conn.check_lamp_status()
-                if lamp_status:
-                    logger.debug("Skipping the current frame due to the lamp event")
-                    self.orig_img_q.get(timeout=2)  # Blank call to skip current frame
-                    logger.debug("Recapturing the frame")
-                    orig_img = self.orig_img_q.get(timeout=2)  # Recapture image
-
             except queue.Empty:
                 logger.warning("Timeout reached, no items can be received from orig_img_q")
                 continue
 
             steps['resized_orig'], steps['mask'], steps['filtered'], steps['filled'] = \
-                self.pre_processing.apply(orig_img, lamp_status)
+                self.pre_processing.apply(orig_img)
 
             try:
                 res_data = self.frame.process(steps['filled'])
@@ -114,11 +105,12 @@ class Detection(object):
             objects, prob_q = [], []
 
             av_bin_result = self.mean_tracker.update(binary_result)
+
             if av_bin_result:
-                self.sl_app_conn.switch_on_lamp()
+                logger.info('Object detected')
 
             if self.saver_flag:
-                self.saver.write(res_data, iterator, steps, objects, prob_q, av_bin_result, lamp_status)
+                self.saver.write(res_data, iterator, steps, objects, prob_q, av_bin_result)
 
             self.time_measurements.append(timeit.default_timer() - start_time)
 
