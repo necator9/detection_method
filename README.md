@@ -6,7 +6,7 @@ Classification is performed using logistic regression classifier.
 
 ## Prerequisites
 The method can be used **only** when following conditions are satisfied:
-1) Known intrinsic and extrinsic camera parameters.
+1) Known intrinsic and extrinsic (angle about X axis and height of installation) camera parameters.
 2) The camera is mounted on a static object.
 3) Trained classifier for a particular usage scenario. The training uses 3D object models and camera parameters on input.
 
@@ -15,7 +15,7 @@ If the trained classifier is **already existing** and the camera has been **cali
 ```
 python3 run_detection.py -p path_to_config.yml
 ```  
-By default `configs/config.yml` will be used.
+By default `configs/config.yml` is be used.
 
 ## Project structure
 Below are shown subdirectories only. 
@@ -35,3 +35,7 @@ Below are shown subdirectories only.
     └── requirements                    # Python packages lists
 
 ***m - the file/directory name must match the given example**
+
+## Camera calibration
+To obtain intrinsic camera parameters the camara calibration should be performed. 
+For example, [see this repository for instructions](https://github.com/necator9/video2calibration).
