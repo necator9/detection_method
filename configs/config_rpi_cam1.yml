@@ -1,0 +1,32 @@
+# Config file for /dev/video1
+
+log_level: 10  # Logging level: 10, 20 ... 50
+
+# Camera parameters
+device: 1
+resolution: [320, 240]
+fps: 4
+angle: -39
+height: -3.325
+cam: rpi.yml  # Name of config containing camera parameters in .cam directory
+
+# clf_path: 'clf_models/detailed_separate_clf_dict.pcl'
+clf: lamp_pole_1.pcl  # Name of a classifier in .clf directory
+out_dir: /var/log/detection/cam_1  # Logging directory (also resulting images are stored here )
+saver: False  # Save images and detection information
+
+clahe_limit: 3  # Pre-processing parameters - CLAHE contrast adjustment for grayscale images only (COLOR = 0)
+#bgs_method: {name: MOG2, parameters: [50, 16, True]}  # Background subtraction parameters, args given in OpenCV order
+bgs_method: {name: CNT, parameters: [1]}
+dilate_it: 1
+
+time_window: 200 # Timers parameters
+o_class_mapping: {0: noise, 1: pedestrian, 2: cyclist, 3: vehicle}
+sl_conn: {detect_port: 35002, sl_port: 35000}  # Ports of this algorithm and SmartLighting applications
+lamp_on_criteria: [6, 2]  # Format [q, N]: On how many N frames out of the last q frames target objects have been detected
+
+# Cascade filtering speeds up detection through filtering unlikely objects. Set value to zero to disable filtering.
+cont_area_thr: 0.001  # Chosen 0.0005 Minimal object cnt area to be considered: object cnt area / RES[0] * RES[1] > cont_area_thr
+extent_thr: 0.2
+max_distance: 13 # Ignore objects which have distance more than MAX_DISTANCE: obj distance > MAX_DISTANCE.
+margin: 0  # Ignore objects intersecting frame margin: left img border + MARGIN < obj coordinates < right img border - MARGIN

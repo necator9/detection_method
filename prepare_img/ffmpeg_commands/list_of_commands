@@ -1,0 +1,9 @@
+# Split video into segments defined by timestamps
+ffmpeg -i vid_3.mp4 -vcodec copy -f segment -segment_times 3270,3280 -r 4 -y output_%03d.mp4
+
+# Merge videos into one
+find (pwd) -name '*.mp4' -type f > mergelist.txt
+ffmpeg -f concat -safe 0 -i mergelist.txt -r 4 car_night_merged.mp4
+
+# Encode as raw video with gray pix_fmt
+ffmpeg -i vid_3_3.mp4 -c:v rawvideo -pix_fmt gray -r 4 -s 320x240 out.mkv
