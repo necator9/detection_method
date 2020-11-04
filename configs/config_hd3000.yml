@@ -21,6 +21,7 @@ dilate_it: 1
 
 time_window: 200 # Timers parameters
 o_class_mapping: {0: noise, 1: pedestrian, 2: cyclist, 3: vehicle}
+sl_conn: {detect_port: 35001, sl_port: 35000}  # Ports of this algorithm and SmartLighting applications
 lamp_on_criteria: [6, 2]  # Format [q, N]: On how many N frames out of the last q frames target objects have been detected
 
 # Cascade filtering speeds up detection through filtering unlikely objects. Set value to zero to disable filtering.
@@ -31,26 +32,26 @@ margin: 0  # Ignore objects intersecting frame margin: left img border + MARGIN 
 
 # Base resolutions of the calibration matrix (for scaling)
 base_res:
-- 1024
-- 768
+- 640
+- 480
 # Calibration matrix (intrinsic)
 camera_matrix:
-- - 602.17434328
+- - 693.38863768
   - 0.0
-  - 511.32476428
+  - 339.53274061
 - - 0.0
-  - 601.27444228
-  - 334.8572872
+  - 690.71040995
+  - 236.18033069
 - - 0.0
   - 0.0
   - 1.0
 # Camera lens's distortion coefficients
 dist_coefs:
-- - -0.321267
-  - 0.11775163
-  - -0.00091285
-  - 0.0007689
-  - -0.02101163
+- - 0.21584076
+  - -1.58033256
+  - -0.00369491
+  - 0.00366677
+  - 2.94284061
 # Base resolutions of the target matrix
 # Do not specify if the target matrix is the same as the calibration matrix
 target_res:

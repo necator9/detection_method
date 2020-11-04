@@ -8,7 +8,6 @@ resolution: [320, 240]
 fps: 4
 angle: -39
 height: -3.325
-cam: rpi.yml  # Name of config containing camera parameters in .cam directory
 
 # clf_path: 'clf_models/detailed_separate_clf_dict.pcl'
 clf: lamp_pole_1.pcl  # Name of a classifier in .clf directory
@@ -30,3 +29,43 @@ cont_area_thr: 0.001  # Chosen 0.0005 Minimal object cnt area to be considered: 
 extent_thr: 0.2
 max_distance: 13 # Ignore objects which have distance more than MAX_DISTANCE: obj distance > MAX_DISTANCE.
 margin: 0  # Ignore objects intersecting frame margin: left img border + MARGIN < obj coordinates < right img border - MARGIN
+
+# Base resolutions of the calibration matrix (for scaling)
+base_res:
+- 1024
+- 768
+# Calibration matrix (intrinsic)
+camera_matrix:
+- - 602.17434328
+  - 0.0
+  - 511.32476428
+- - 0.0
+  - 601.27444228
+  - 334.8572872
+- - 0.0
+  - 0.0
+  - 1.0
+# Camera lens's distortion coefficients
+dist_coefs:
+- - -0.321267
+  - 0.11775163
+  - -0.00091285
+  - 0.0007689
+  - -0.02101163
+# Base resolutions of the target matrix
+# Do not specify if the target matrix is the same as the calibration matrix
+target_res:
+- 1024
+- 768
+# The target matrix used for classifier training (intrinsic)
+# Do not specify if the target matrix is the same as the calibration matrix
+target_matrix:
+- - 464.4719696
+  - 0.0
+  - 517.5116402
+- - 0.0
+  - 462.89021301
+  - 365.84214009
+- - 0.0
+  - 0.0
+  - 1.0

@@ -4,3 +4,6 @@
 *.csv
 *.idea/
 venv/
+build/
+dist/
+*.spec
