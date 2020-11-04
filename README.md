@@ -11,28 +11,35 @@ The method can be used **only** when following conditions are satisfied:
 3) Trained classifier for a particular usage scenario. The training uses 3D object models and camera parameters on input.
 
 ## Usage
+```
+usage: run_detection [-h] [-p PATH] [-c CLF]
+
+Run the lightweight detection algorithm
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -p PATH, --path PATH  path to the configuration file (default: ./configs/config.yml)
+  -c CLF, --clf CLF     path to the pickled classifier file (default: ./demo/clf/lamp_pole_1.pcl)
+```
+
 If the trained classifier is **already existing** and the camera has been **calibrated**, the algorithm can be run via:
 ```
 python3 run_detection.py -p path_to_config.yml
 ```  
-By default `configs/config.yml` is be used.
 
 ## Project structure
-Below are shown subdirectories only. 
 
     .
-    ├── clf                             # (*m) Classifiers
-    │   ├── clf_name_1.pcl              # Name must match the one specified in config. Pickled sklearn object.
-    │   └── ...
     ├── configs                         # Configuration files examples 
-    │   ├── config.yml                  # (*m) Default configuration file
+    │   ├── config.yml                  # Default configuration file
     │   └── ...
-    ├── demo                            # Video and information for testing
+    ├── demo                            # Data for testing
+    │   ├── clf                         # Classifiers
+    │       ├── clf_name_1.pcl          # Pickled sklearn object.
+    │       └── ...
     ├── prepare_img                     # Usefull scripts
     └── requirements                    # Python packages lists
 
-***m - the file/directory name must match the given example**
-
-## Camera calibration
-To obtain intrinsic camera parameters the camara calibration should be performed. 
-For example, [see this repository for instructions](https://github.com/necator9/video2calibration).
+## Related
+1. [Camera calibration](doc/calibration.md)
+2. [Bundle into a single executable](doc/pyinstaller.md)
