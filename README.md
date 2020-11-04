@@ -21,9 +21,6 @@ By default `configs/config.yml` will be used.
 Below are shown subdirectories only. 
 
     .
-    ├── cam                             # (*m) Camera parameters
-    │   ├── cam_name_1.yml              # Name must match the camera specified in config
-    │   └── ...
     ├── clf                             # (*m) Classifiers
     │   ├── clf_name_1.pcl              # Name must match the one specified in config. Pickled sklearn object.
     │   └── ...

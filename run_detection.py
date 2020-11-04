@@ -30,6 +30,9 @@ parser = argparse.ArgumentParser(description='Run the lightweight detection algo
 parser.add_argument('-p', '--path', action='store',
                     help="path to the configuration file (default: ./configs/config.yml)",
                     default='./configs/config.yml')
+parser.add_argument('-c', '--clf', action='store',
+                    help="path to the pickled classifier file (default: ./demo/clf/lamp_pole_1.pcl)",
+                    default='./demo/clf/lamp_pole_1.pcl')
 args = parser.parse_args()
 
 config = yaml.safe_load(open(args.path))
@@ -58,7 +61,7 @@ stop_event = threading.Event()
 orig_img_q = queue.Queue(maxsize=1)
 
 try:
-    detection_routine = detection.Detection(stop_event, orig_img_q, config)  # Not a thread!
+    detection_routine = detection.Detection(stop_event, orig_img_q, config, args.clf)  # Not a thread!
     capturing_thread = capturing.Camera(orig_img_q, stop_event, config)
 
     capturing_thread.start()

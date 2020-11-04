@@ -24,12 +24,9 @@ from sl_connect import SlAppConnSensor
 
 logger = logging.getLogger('detect.detect')
 
-ABS_PATH = os.path.dirname(__file__)
-CLF_MODEL = os.path.join(ABS_PATH, 'clf')
-
 
 class Detection(object):
-    def __init__(self, stop_ev, orig_img_q, config):
+    def __init__(self, stop_ev, orig_img_q, config, clf):
         self.stop_event = stop_ev
         self.orig_img_q = orig_img_q
 
@@ -52,7 +49,7 @@ class Detection(object):
 
         self.saver_flag = config['saver']
         self.saver = extentions.SaveData(config, scaled_calib_mtx, scaled_target_mtx, dist)
-        self.frame = Frame(scaled_calib_mtx, scaled_target_mtx, dist, config)
+        self.frame = Frame(scaled_calib_mtx, scaled_target_mtx, dist, config, clf)
         # self.tracker = tracker.CentroidTracker()
         self.mean_tracker = MeanResultTracker(*config['lamp_on_criteria'])
 
@@ -171,7 +168,7 @@ class Frame(object):
         def interrupt_cycle():
             raise Frame.FrameIsEmpty
 
-    def __init__(self, scaled_calib_mtx, scaled_target_mtx, dist, config):
+    def __init__(self, scaled_calib_mtx, scaled_target_mtx, dist, config, clf):
         self.angle = config['angle']
         self.height = config['height']
         self.res = config['resolution']
@@ -192,7 +189,7 @@ class Frame(object):
         self.extent_thr = config['extent_thr']
         self.max_dist_thr = config['max_distance']
 
-        all_classifiers = pickle.load(open(os.path.join(CLF_MODEL, config['clf']), "rb"))
+        all_classifiers = pickle.load(open(clf, "rb"))
         heights = [key for key in all_classifiers.keys() if type(key) != str]  # Filter the poly key out
         # Find the closest value among available heights
         closest_height = min(heights, key=lambda x: abs(x - self.height))
