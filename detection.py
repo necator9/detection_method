@@ -14,8 +14,8 @@ from collections import deque
 import os
 from functools import wraps
 import yaml
-
 import logging
+
 import feature_extractor as fe
 from pre_processing import PreprocessImg
 import extentions
