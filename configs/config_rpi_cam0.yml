@@ -8,7 +8,6 @@ resolution: [320, 240]
 fps: 4
 angle: -39
 height: -3.325
-cam: rpi.yml  # Name of config containing camera parameters in .cam directory
 
 # clf_path: 'clf_models/detailed_separate_clf_dict.pcl'
 clf: lamp_pole_1.pcl  # Name of a classifier in .clf directory
