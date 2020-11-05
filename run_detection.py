@@ -60,6 +60,7 @@ logger.debug('OpenCV version: {} '.format(cv2.__version__))
 
 stop_event = threading.Event()
 orig_img_q = queue.Queue(maxsize=1)
+capturing_thread = None
 
 try:
     detection_routine = detection.Detection(stop_event, orig_img_q, config, args.clf)  # Not a thread!
@@ -67,7 +68,6 @@ try:
 
     capturing_thread.start()
     detection_routine.run()
-    capturing_thread.join()
 
 except Exception as crash_err:
     crash_msg = '\n{0}\nAPP CRASH. Error msg:\n{1}\n{0}'.format(100 * '-', crash_err)
@@ -80,4 +80,6 @@ except KeyboardInterrupt:
     stop_event.set()
 
 finally:
+    if capturing_thread:
+        capturing_thread.join()
     logger.debug("Program finished")
