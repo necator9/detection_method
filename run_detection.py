@@ -16,9 +16,23 @@ import threading
 import os
 import argparse
 import sys
+import signal
 
 import capturing
 import detection
+
+
+class ServiceExit(Exception):
+    """
+    Custom exception which is used to trigger the clean exit
+    of all running threads and the main program.
+    """
+    pass
+
+
+def service_shutdown(signum, frame):
+    print('Caught signal %d' % signum)
+    raise ServiceExit
 
 
 def check_if_dir_exists(dir_path):
@@ -41,7 +55,7 @@ config = yaml.safe_load(open(args.path))
 out_dir = config['out_dir']
 check_if_dir_exists(out_dir)
 
-# Set up logging,
+# Set up logging
 logger = logging.getLogger('detect')
 logger.setLevel(config['log_level'])
 file_handler = RotatingFileHandler(os.path.join(out_dir, 'detection.log'), mode='a', maxBytes=5 * 1024 * 1024,
@@ -55,11 +69,16 @@ ch.setFormatter(formatter)
 logger.addHandler(ch)
 logger.addHandler(file_handler)
 
-logger.debug("Program started")
+# Register the signal handlers
+signal.signal(signal.SIGTERM, service_shutdown)
+signal.signal(signal.SIGINT, service_shutdown)
+
+logger.info("Program started")
 logger.debug('OpenCV version: {} '.format(cv2.__version__))
 
 stop_event = threading.Event()
 orig_img_q = queue.Queue(maxsize=1)
+
 capturing_thread = None
 
 try:
@@ -69,17 +88,22 @@ try:
     capturing_thread.start()
     detection_routine.run()
 
+except ServiceExit:
+    # Terminate the running threads.
+    # Set the shutdown flag on each thread to trigger a clean shutdown of each thread.
+    stop_event.set()
+
 except Exception as crash_err:
     crash_msg = '\n{0}\nAPP CRASH. Error msg:\n{1}\n{0}'.format(100 * '-', crash_err)
     logger.exception(crash_msg)
     stop_event.set()
-    sys.exit(1)
 
-except KeyboardInterrupt:
-    logger.warning('Interrupt received, stopping the threads')
-    stop_event.set()
+    if capturing_thread:
+        capturing_thread.join()
+
+    sys.exit(1)
 
 finally:
     if capturing_thread:
         capturing_thread.join()
-    logger.debug("Program finished")
+    logger.info("Program finished")
