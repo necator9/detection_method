@@ -8,4 +8,6 @@ pyinstaller --onefile --hidden-import 'sklearn' \
 --paths venv/lib/python3.8/site-packages run_detection.py
 ```
 In this example `--path` adds the project virtual environment.
-Tested on `5.8.16-2-MANJARO x86_64`
+Remove option `--onefile` to not archive the files and speed up the program start by this.
+
+Tested on `5.8.16-2-MANJARO x86_64`.

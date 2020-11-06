@@ -12,31 +12,34 @@ The method can be used **only** when following conditions are satisfied:
 
 ## Usage
 ```
-usage: run_detection [-h] [-p PATH] [-c CLF]
+usage: run_detection.py [-h] [-c CLF] config
 
 Run the lightweight detection algorithm
 
+positional arguments:
+  config             path to the configuration file
+
 optional arguments:
-  -h, --help            show this help message and exit
-  -p PATH, --path PATH  path to the configuration file (default: ./configs/config.yml)
-  -c CLF, --clf CLF     path to the pickled classifier file (default: ./demo/clf/lamp_pole_1.pcl)
+  -h, --help         show this help message and exit
+  -c CLF, --clf CLF  override path to the pickled classifier file given in
+                     config
 ```
 
 If the trained classifier is **already existing** and the camera has been **calibrated**, the algorithm can be run via:
 ```
-python3 run_detection.py -p path_to_config.yml
+python3 run_detection.py path_to_config.yml
 ```  
 
 ## Project structure
 
     .
-    ├── configs                         # Configuration files examples 
-    │   ├── config.yml                  # Default configuration file
-    │   └── ...
     ├── demo                            # Data for testing
     │   ├── clf                         # Classifiers
-    │       ├── clf_name_1.pcl          # Pickled sklearn object.
-    │       └── ...
+    │   │   ├── clf_name_1.pcl          # Pickled sklearn object.
+    │   │   └── ...
+    │   ├── configs                         # Configuration files examples 
+    │   │   ├── config.yml                  
+    │   │   └── ...
     ├── prepare_img                     # Usefull scripts
     └── requirements                    # Python packages lists
 
