@@ -1,4 +1,4 @@
-## Build a single executable using pyinstaller
+## Build an executable using pyinstaller
 Enter the project directory and run:
 ```
 pyinstaller --onefile --hidden-import 'sklearn' \
