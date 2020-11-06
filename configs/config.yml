@@ -9,8 +9,6 @@ fps: 10
 angle: -39
 height: -3.325
 
-# clf_path: 'clf_models/detailed_separate_clf_dict.pcl'
-clf: lamp_pole_1.pcl  # Name of a classifier in .clf directory
 out_dir: /tmp/car_night  # Logging directory (also resulting images are stored here )
 saver: True  # Save images and detection information
 
