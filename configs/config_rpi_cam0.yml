@@ -9,8 +9,6 @@ fps: 4
 angle: -39
 height: -3.325
 
-# clf_path: 'clf_models/detailed_separate_clf_dict.pcl'
-clf: lamp_pole_1.pcl  # Name of a classifier in .clf directory
 out_dir: /var/log/detection/cam_0  # Logging directory (also resulting images are stored here )
 saver: False  # Save images and detection information
 
