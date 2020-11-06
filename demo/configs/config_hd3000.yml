@@ -9,6 +9,7 @@ fps: 10
 angle: -39
 height: -3.325
 
+clf: lamp_pole_1.pcl  # Path to classifier
 out_dir: /tmp/car_night  # Logging directory (also resulting images are stored here )
 saver: True  # Save images and detection information
 
