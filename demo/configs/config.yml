@@ -1,16 +1,17 @@
-# Config file for /dev/video1
+# General config file example
 
 log_level: 10  # Logging level: 10, 20 ... 50
 
 # Camera parameters
-device: 1
+device: demo/cars_night.mkv
 resolution: [320, 240]
-fps: 4
+fps: 10
 angle: -39
 height: -3.325
 
-out_dir: /var/log/detection/cam_1  # Logging directory (also resulting images are stored here )
-saver: False  # Save images and detection information
+clf: lamp_pole_1.pcl  # Path to classifier
+out_dir: /tmp/car_night  # Logging directory (also resulting images are stored here )
+saver: True  # Save images and detection information
 
 clahe_limit: 3  # Pre-processing parameters - CLAHE contrast adjustment for grayscale images only (COLOR = 0)
 #bgs_method: {name: MOG2, parameters: [50, 16, True]}  # Background subtraction parameters, args given in OpenCV order
@@ -19,7 +20,6 @@ dilate_it: 1
 
 time_window: 200 # Timers parameters
 o_class_mapping: {0: noise, 1: pedestrian, 2: cyclist, 3: vehicle}
-sl_conn: {detect_port: 35002, sl_port: 35000}  # Ports of this algorithm and SmartLighting applications
 lamp_on_criteria: [6, 2]  # Format [q, N]: On how many N frames out of the last q frames target objects have been detected
 
 # Cascade filtering speeds up detection through filtering unlikely objects. Set value to zero to disable filtering.
