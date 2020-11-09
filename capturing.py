@@ -40,8 +40,10 @@ class Camera(threading.Thread):
     def cam_setup(self):
         # Check on successful camera initialization
         if not self.camera.isOpened():
-            logger.error("Cannot initialize the camera: {}".format(self.config['device']))
+            msg = "Cannot initialize the camera: {}".format(self.config['device'])
+            logger.error(msg)
             self.quit()
+            raise Exception(msg)
 
         else:
             # Initial camera configuration

@@ -31,7 +31,7 @@ class ServiceExit(Exception):
 
 
 def service_shutdown(signum, frame):
-    print('Caught signal %d' % signum)
+    print('terminating on signal: %d' % signum)
     raise ServiceExit
 
 
