@@ -18,7 +18,7 @@ import logging
 
 import feature_extractor as fe
 from pre_processing import PreprocessImg
-import extentions
+import saver
 # import tracker
 from sl_connect import SlAppConnSensor
 
@@ -29,6 +29,7 @@ class Detection(object):
     def __init__(self, stop_ev, orig_img_q, config):
         self.stop_event = stop_ev
         self.orig_img_q = orig_img_q
+        self.config = config
 
         calib_mtx = np.asarray(config['camera_matrix'])
         calib_res = np.asarray(config['base_res'])
@@ -47,10 +48,7 @@ class Detection(object):
         scaled_calib_mtx = self.scale_intrinsic(config['resolution'], calib_res, calib_mtx)
         scaled_target_mtx = self.scale_intrinsic(config['resolution'], target_res, target_mtx)
 
-        self.saver_flag = config['saver']
-        self.saver = extentions.SaveData(config, scaled_calib_mtx, scaled_target_mtx, dist)
         self.frame = Frame(scaled_calib_mtx, scaled_target_mtx, dist, config)
-        # self.tracker = tracker.CentroidTracker()
         self.mean_tracker = MeanResultTracker(*config['lamp_on_criteria'])
 
         self.empty = np.empty([0])
@@ -59,6 +57,18 @@ class Detection(object):
         self.time_window = config['time_window']
         self.sl_app_conn = SlAppConnSensor(config['sl_conn']['detect_port'], [config['sl_conn']['sl_port']])
         self.pre_processing = PreprocessImg(config)
+
+        if config['save_csv']:
+            self.save_csv = saver.SaveCSV(config['out_dir'])
+        if config['save_img'] or config['stream']:
+            self.save_img = saver.SaveImg(config, scaled_calib_mtx, scaled_target_mtx, dist)
+
+        if any([config['save_csv'], config['save_img'], config['save_img'], config['stream']]):
+            self.save_flag = True
+        else:
+            self.save_flag = True
+
+        # self.saver = saver.Saver(config, scaled_calib_mtx, scaled_target_mtx, dist)
 
     @staticmethod
     def scale_intrinsic(new_res, base_res, intrinsic):
@@ -70,6 +80,12 @@ class Detection(object):
         intrinsic[1, :] /= scale_f[1]
 
         return intrinsic
+
+    @staticmethod
+    def prepare_array_to_save(data, img_num, av_bin_result, lamp_status):
+        # Add image number and row indices as first two columns to distinguish objects later
+        return np.column_stack((np.full(data.shape[0], img_num), np.arange(data.shape[0]), data,
+                                np.full(data.shape[0], av_bin_result), np.full(data.shape[0], lamp_status)))
 
     def run(self):
         logger.info("Detection has started")
@@ -106,14 +122,21 @@ class Detection(object):
                 binary_result = False
 
             # objects, prob_q = self.tracker.update(coordinates)
-            objects, prob_q = [], []
+            # objects, prob_q = [], []
 
             av_bin_result = self.mean_tracker.update(binary_result)
             if av_bin_result:
                 self.sl_app_conn.switch_on_lamp()
 
-            if self.saver_flag:
-                self.saver.write(res_data, iterator, steps, objects, prob_q, av_bin_result, lamp_status)
+            if self.save_flag:
+                packed_data = self.prepare_array_to_save(res_data, iterator, av_bin_result, lamp_status)
+                if self.config['save_csv']:
+                    self.save_csv.write(packed_data)
+                if self.config['save_img']:
+                    self.save_img.write(steps, packed_data, iterator)
+
+            # self.saver.write()
+            #     self.saver.write(res_data, iterator, steps, av_bin_result, lamp_status)
 
             self.time_measurements.append(timeit.default_timer() - start_time)
 
@@ -126,6 +149,12 @@ class Detection(object):
                 self.time_measurements = list()
 
         logger.info('Detection finished, {} images processed'.format(iterator))
+
+        if self.config['save_csv']:
+            self.save_csv.quit()
+
+        if self.config['save_img'] or self.config['stream']:
+            self.save_img.quit()
 
 
 class Frame(object):
