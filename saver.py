@@ -9,6 +9,7 @@ import cv2
 import logging
 import ffmpeg
 import socket
+import time
 
 logger = logging.getLogger('detect.ext')
 
@@ -46,35 +47,40 @@ class SaveImg(object):
 
         width, height = [(d + (self.padding * 2)) * 2 for d in config['resolution']]
 
-        if self.config['stream']:
-            stream_server = '{}/{}'.format(config['stream_server'], socket.gethostname())
+        if self.config['stream']['enabled']:
+            stream_server = '{}/{}_{}'.format(config['stream']['server'], socket.gethostname(), config['device'])
             self.process = (ffmpeg.input('pipe:', format='rawvideo', pix_fmt='bgr24', s='{}x{}'.format(width, height))
                             .output(stream_server, vcodec='mpeg4', format='rtsp', video_bitrate='1000', framerate='5')
                             .overwrite_output()
                             .run_async(pipe_stdin=True))
 
-    def write(self, steps, data, iterator):
-        out_img = self.prepare_multiple_img(steps, data)
-        if self.config['stream']:
+    def write(self, steps, data, iterator, lamp_status):
+        out_img = self.prepare_multiple_img(steps, data, lamp_status)
+        if self.config['stream']['enabled']:
             self.process.stdin.write(out_img.astype(np.uint8).tobytes())
         if self.config['save_img']:
             cv2.imwrite(os.path.join(self.config['out_dir'], '{}.jpeg'.format(iterator)), out_img)
 
-    def prepare_multiple_img(self, steps, data):
+    def prepare_multiple_img(self, steps, data, lamp_status):
         """
         Build an output image containing multiple detection stages
         Parameters
         ----------
         steps: dictionary containing detection stages
         data: detection parameters
+        lamp_status: status of the lamp on current frame
 
         Returns
         -------
         out_img: processed and stacked detection stages
         """
-
         for key, img in steps.items():
             steps[key] = self.prepare_single_img(img, key)
+
+        # Put current time
+        current_time = time.strftime("%H:%M:%S  %d.%m.%y", time.localtime())
+        cv2.putText(steps['filled'], '{}'.format(current_time), (self.padding, steps['filled'].shape[0] - self.padding),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
 
         self.draw_rects(steps['resized_orig'], data)
 
@@ -82,11 +88,10 @@ class SaveImg(object):
         h_stack2 = np.hstack((steps['filled'], steps['resized_orig']))
         out_img = np.vstack((h_stack1, h_stack2))
 
-        if data.size > 0:
-            if data[0][16]:  # Draw detection result on current frame
-                cv2.rectangle(out_img, (0, 0), (out_img.shape[1], out_img.shape[0]), (0, 0, 255), 10)
-            if data[0][17]:  # Draw lamp status
-                cv2.rectangle(out_img, (0, 0), (out_img.shape[1], out_img.shape[0]), (0, 255, 255), 3)
+        if data.size > 0 and data[0][16]:  # Draw detection result on current frame
+            cv2.rectangle(out_img, (0, 0), (out_img.shape[1], out_img.shape[0]), (0, 0, 255), 10)
+        if lamp_status:  # Draw lamp status
+            cv2.rectangle(out_img, (0, 0), (out_img.shape[1], out_img.shape[0]), (0, 255, 255), 3)
 
         return out_img
 

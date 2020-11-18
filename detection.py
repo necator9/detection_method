@@ -60,10 +60,10 @@ class Detection(object):
 
         if config['save_csv']:
             self.save_csv = saver.SaveCSV(config['out_dir'])
-        if config['save_img'] or config['stream']:
+        if config['save_img'] or config['stream']['enabled']:
             self.save_img = saver.SaveImg(config, scaled_calib_mtx, scaled_target_mtx, dist)
 
-        if any([config['save_csv'], config['save_img'], config['save_img'], config['stream']]):
+        if any([config['save_csv'], config['save_img'], config['save_img'], config['stream']['enabled']]):
             self.save_flag = True
         else:
             self.save_flag = True
@@ -90,14 +90,16 @@ class Detection(object):
         steps = dict()
 
         iterator = 0
+        lamp_status = False
         while not self.stop_event.is_set():
             start_time = timeit.default_timer()
 
             try:
                 orig_img = self.orig_img_q.get(timeout=2)
 
-                lamp_status = self.sl_app_conn.check_lamp_status()
-                if lamp_status:
+                lamp_event = self.sl_app_conn.check_lamp_status()
+                if lamp_event:
+                    lamp_status = not lamp_status
                     logger.debug("Skipping the current frame due to the lamp event")
                     self.orig_img_q.get(timeout=2)  # Blank call to skip current frame
                     logger.debug("Recapturing the frame")
@@ -108,7 +110,7 @@ class Detection(object):
                 continue
 
             steps['resized_orig'], steps['mask'], steps['filtered'], steps['filled'] = \
-                self.pre_processing.apply(orig_img, lamp_status)
+                self.pre_processing.apply(orig_img, lamp_event)
 
             try:
                 res_data = self.frame.process(steps['filled'])
@@ -125,8 +127,8 @@ class Detection(object):
                 packed_data = self.prepare_array_to_save(res_data, iterator, av_bin_result, lamp_status)
                 if self.config['save_csv']:
                     self.save_csv.write(packed_data)
-                if self.config['save_img'] or self.config['stream']:
-                    self.save_img.write(steps, packed_data, iterator)
+                if self.config['save_img'] or self.config['stream']['enabled']:
+                    self.save_img.write(steps, packed_data, iterator, lamp_status)
 
             self.time_measurements.append(timeit.default_timer() - start_time)
 
@@ -141,7 +143,7 @@ class Detection(object):
         if self.config['save_csv']:
             self.save_csv.quit()
 
-        if self.config['stream']:
+        if self.config['stream']['enabled']:
             self.save_img.quit()
 
         logger.info('Detection finished, {} images processed'.format(iterator))
