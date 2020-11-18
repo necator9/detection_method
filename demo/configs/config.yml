@@ -13,8 +13,10 @@ clf: lamp_pole_1.pcl  # Path to classifier
 out_dir: /tmp/car_night  # Logging directory (also resulting images are stored here )
 
 save_img: True  # Save images
-stream: True    # Stream images to server
 save_csv: True  # Save detection information
+
+stream: True    # Stream images to server
+stream_server: rtsp://10.33.21.148:8554  # Address of the streaming server
 
 clahe_limit: 3  # Pre-processing parameters - CLAHE contrast adjustment for grayscale images only (COLOR = 0)
 #bgs_method: {name: MOG2, parameters: [50, 16, True]}  # Background subtraction parameters, args given in OpenCV order

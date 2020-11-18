@@ -68,8 +68,6 @@ class Detection(object):
         else:
             self.save_flag = True
 
-        # self.saver = saver.Saver(config, scaled_calib_mtx, scaled_target_mtx, dist)
-
     @staticmethod
     def scale_intrinsic(new_res, base_res, intrinsic):
         scale_f = np.asarray(base_res) / np.asarray(new_res)
@@ -115,14 +113,9 @@ class Detection(object):
             try:
                 res_data = self.frame.process(steps['filled'])
                 binary_result = np.any(res_data[:, -1] > 0)
-                # coordinates = res_data[res_data[:, -1] > 0]
             except Frame.FrameIsEmpty:
                 res_data = self.empty
-                # coordinates = self.empty
                 binary_result = False
-
-            # objects, prob_q = self.tracker.update(coordinates)
-            # objects, prob_q = [], []
 
             av_bin_result = self.mean_tracker.update(binary_result)
             if av_bin_result:
@@ -132,11 +125,8 @@ class Detection(object):
                 packed_data = self.prepare_array_to_save(res_data, iterator, av_bin_result, lamp_status)
                 if self.config['save_csv']:
                     self.save_csv.write(packed_data)
-                if self.config['save_img']:
+                if self.config['save_img'] or self.config['stream']:
                     self.save_img.write(steps, packed_data, iterator)
-
-            # self.saver.write()
-            #     self.saver.write(res_data, iterator, steps, av_bin_result, lamp_status)
 
             self.time_measurements.append(timeit.default_timer() - start_time)
 
@@ -148,13 +138,13 @@ class Detection(object):
                 logger.info("Processed images for all time: {} ".format(iterator))
                 self.time_measurements = list()
 
-        logger.info('Detection finished, {} images processed'.format(iterator))
-
         if self.config['save_csv']:
             self.save_csv.quit()
 
-        if self.config['save_img'] or self.config['stream']:
+        if self.config['stream']:
             self.save_img.quit()
+
+        logger.info('Detection finished, {} images processed'.format(iterator))
 
 
 class Frame(object):

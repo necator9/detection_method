@@ -11,7 +11,12 @@ height: -3.325
 
 clf: lamp_pole_1.pcl  # Path to classifier
 out_dir: /var/log/detection/cam_0  # Logging directory (also resulting images are stored here )
-saver: False  # Save images and detection information
+
+save_img: True  # Save images
+save_csv: True  # Save detection information
+
+stream: True    # Stream images to server
+stream_server: rtsp://10.33.21.148:8554  # Address of the streaming server
 
 clahe_limit: 3  # Pre-processing parameters - CLAHE contrast adjustment for grayscale images only (COLOR = 0)
 #bgs_method: {name: MOG2, parameters: [50, 16, True]}  # Background subtraction parameters, args given in OpenCV order
