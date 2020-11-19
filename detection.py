@@ -189,7 +189,7 @@ class Frame(object):
         self.height = config['height']
         self.res = config['resolution']
 
-        self.fe_ext = fe.FeatureExtractor(self.angle, self.height, self.res, intrinsic=scaled_target_mtx)
+        self.fe_ext = fe.FeatureExtractor(self.angle, self.height, self.res, scaled_target_mtx, config['focal_length'])
 
         self.calib_mtx = scaled_calib_mtx
         self.target_mtx = scaled_target_mtx

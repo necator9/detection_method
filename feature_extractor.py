@@ -49,7 +49,7 @@ class FeatureExtractor(object):
     :param img_res: # Image resolution (width, height) in px
     :param f_l: # Focal length in mm
     """
-    def __init__(self, r_x, cam_h, img_res, intrinsic, f_l=2.2):
+    def __init__(self, r_x, cam_h, img_res, intrinsic, f_l):
         self.r_x = np.deg2rad(r_x, dtype=np.float32)  # Camera rotation angle about x axis in radians
         self.cam_h = np.asarray(cam_h, dtype=np.float32)  # Ground y coord relative to camera (cam. is origin) in meters
         self.img_res = np.asarray(img_res, dtype=np.int16)  # Image resolution (width, height) in px
