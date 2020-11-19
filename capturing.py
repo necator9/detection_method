@@ -1,3 +1,8 @@
+# Created by Ivan Matveev at 01.05.20
+# E-mail: ivan.matveev@hs-anhalt.de
+
+# Capturing images from a camera in separate thread
+
 import logging
 import cv2
 import threading

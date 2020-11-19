@@ -1,3 +1,8 @@
+# Created by Ivan Matveev at 01.05.20
+# E-mail: ivan.matveev@hs-anhalt.de
+
+# Methods for image preprocessing
+
 import cv2
 import logging
 

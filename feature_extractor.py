@@ -1,3 +1,8 @@
+# Created by Ivan Matveev at 01.05.20
+# E-mail: ivan.matveev@hs-anhalt.de
+
+# Method for feature extraction based on pinhole camera model
+
 from __future__ import division
 import numpy as np
 import logging

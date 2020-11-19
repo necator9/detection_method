@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # Created by Ivan Matveev at 01.05.20
 # E-mail: ivan.matveev@hs-anhalt.de
 
@@ -11,15 +9,12 @@ import queue
 import timeit
 import pickle
 from collections import deque
-import os
 from functools import wraps
-import yaml
 import logging
 
 import feature_extractor as fe
 from pre_processing import PreprocessImg
 import saver
-# import tracker
 from sl_connect import SlAppConnSensor
 
 logger = logging.getLogger('detect.detect')
