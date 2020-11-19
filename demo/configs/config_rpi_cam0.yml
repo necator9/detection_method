@@ -50,7 +50,7 @@ camera_matrix:
 dist_coefs:
 - - -0.321267
   - 0.11775163
-  - -0.00091285
+  - 0.00091285
   - 0.0007689
   - -0.02101163
 # Base resolutions of the target matrix
