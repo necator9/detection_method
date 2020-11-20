@@ -21,7 +21,7 @@ class SaveCSV(object):
     def __init__(self, out_dir):
         self.fd = open(os.path.join(out_dir, 'detected_objects.csv'), 'w')
         self.fmt = '%d,%d,%.2f,%.2f,%.2f,%.1f,%.2f,%d,%d,%d,%d,%d,%d,%d,%.2f,%d,%d,%d'
-        self.fd.write("img,o_num,rw_w,rw_h,rw_ca,rw_z,rw_x,x,y,w,h,ca,p2x,p2y,o_prob,o_class,av_bin,lamp\n")
+        self.fd.write("img,o_num,rw_w,rw_h,rw_ca,rw_z,rw_x,ca,x,y,w,h,p2x,p2y,o_prob,o_class,av_bin,lamp\n")
 
     def write(self, data):
         if data.size > 0:
@@ -111,7 +111,7 @@ class SaveImg(object):
         img: image on which drawing is performed
         data: detection information for current frame
         """
-        data_frame = data[:, [14, 15, 7, 8, 12, 13, 6, 5]]
+        data_frame = data[:, [14, 15, 8, 9, 12, 13, 6, 5]]
         data_frame[:, [2, 3, 4, 5]] += self.padding
         for o_prob, o_class, x, y, p2x, p2y, x_rw, z_rw in data_frame.tolist():
             # if o_class == 0:

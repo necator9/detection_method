@@ -54,7 +54,8 @@ class FeatureExtractor(object):
         self.cam_h = np.asarray(cam_h, dtype=np.float32)  # Ground y coord relative to camera (cam. is origin) in meters
         self.img_res = np.asarray(img_res, dtype=np.int16)  # Image resolution (width, height) in px
         self.f_l = f_l  # Focal length in mm
-        self.sens_dim = self.f_l * self.img_res / intrinsic.diagonal()[:2] # Camera sensor dimensions (width, height) in mm
+        # Camera sensor dimensions (width, height) in mm
+        self.sens_dim = self.f_l * self.img_res / intrinsic.diagonal()[:2]
         self.px_h_mm = self.sens_dim[1] / (self.f_l * self.img_res[1])  # Scaling between pixels in millimeters
         self.cx_cy = intrinsic[:2, 2]
 
@@ -63,8 +64,8 @@ class FeatureExtractor(object):
         rot_x_mtx = RotationMtx('rx', None).build(self.r_x)
         self.rev_rot_x_mtx = np.linalg.inv(rot_x_mtx)
 
-    def extract_features(self, basic_params):
-        b_rect, ca_px = basic_params[:, [0, 1, 2, 3, 5, 6]], basic_params[:, 4]
+    def extract_features(self, basic_params):  # [[c_ar, x, y, w, h, p2x, p2y]]
+        ca_px, b_rect = basic_params[:, 0], basic_params[:, 1:]
         # * Transform bounding rectangles to required shape
         # Important! Reverse the y coordinates of bound.rect. along y axis before transformations (self.img_res[1] - y)
         px_y_bottom_top = self.img_res[1] - b_rect[:, [5, 1]]

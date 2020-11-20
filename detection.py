@@ -218,54 +218,42 @@ class Frame(object):
     @Decorators.check_input_on_empty_arr
     def find_basic_params(self, mask):
         cnts, _ = cv2.findContours(mask, mode=0, method=1)
-        c_areas = [cv2.contourArea(cnt) for cnt in cnts]
-        b_rects = [cv2.boundingRect(b_r) for b_r in cnts]
+        cnts = [cv2.undistortPoints(cnt.astype(dtype=np.float32), self.calib_mtx, self.dist, None,
+                                    P=self.target_mtx) for cnt in cnts]
+        c_areas = np.asarray([cv2.contourArea(cnt) for cnt in cnts])
+        b_rects = np.asarray([cv2.boundingRect(b_r) for b_r in cnts])
 
-        return np.column_stack((b_rects, c_areas))
+        return np.column_stack((c_areas, b_rects))
 
     @Decorators.check_input_on_empty_arr
     def calc_second_point(self, temp_param):
-        p2_x = temp_param[:, 0] + temp_param[:, 2]
-        p2_y = temp_param[:, 1] + temp_param[:, 3]
+        p2_x = temp_param[:, 1] + temp_param[:, 3]
+        p2_y = temp_param[:, 2] + temp_param[:, 4]
 
         return np.column_stack((temp_param, p2_x, p2_y)).astype(np.float32)
-
-    @Decorators.check_input_on_empty_arr
-    def undistort(self, basic_params):
-        p1p2_col = np.ascontiguousarray(basic_params[:, [0, 1, 5, 6]].reshape((basic_params.shape[0] * 2, 1, 2)))
-        cv2.undistortPoints(p1p2_col, self.calib_mtx, self.dist, p1p2_col, P=self.target_mtx)
-        p1p2 = p1p2_col.reshape((basic_params.shape[0], 4))
-        # p1p2[:, 0] = np.where(p1p2[:, 0] < 0, 0, p1p2[:, 0])
-        # p1p2[:, 1] = np.where(p1p2[:, 1] < 0, 0, p1p2[:, 1])
-        # p1p2[:, 2] = np.where(p1p2[:, 2] > self.right_mar, self.right_mar, p1p2[:, 2])
-        # p1p2[:, 3] = np.where(p1p2[:, 3] > self.bot_mar, self.bot_mar, p1p2[:, 3])
-
-        basic_params[:, :2] = p1p2[:, :2]
-        basic_params[:, 2:4] = p1p2[:, 2:4] - p1p2[:, :2]
-        basic_params[:, [5, 6]] = p1p2[:, 2:]
 
     @Decorators.check_on_conf_flag
     @Decorators.check_input_on_empty_arr
     def filter_c_ar(self, basic_params):
         # Filter out small object below threshold
-        basic_params = basic_params[basic_params[:, 4] / self.img_area_px > self.c_ar_thr]
-        return basic_params
-
-    @Decorators.check_on_conf_flag
-    @Decorators.check_input_on_empty_arr
-    def filter_extent(self, basic_params):
-        basic_params = basic_params[basic_params[:, 4] / (basic_params[:, 2] * basic_params[:, 3]) > self.extent_thr]
+        basic_params = basic_params[basic_params[:, 0] / self.img_area_px > self.c_ar_thr]
         return basic_params
 
     @Decorators.check_on_conf_flag
     @Decorators.check_input_on_empty_arr
     def filter_margin(self, basic_params):
-        margin_filter_mask = ((basic_params[:, 0] > self.left_mar) &  # Built filtering mask
+        margin_filter_mask = ((basic_params[:, 1] > self.left_mar) &  # Built filtering mask
                               (basic_params[:, 5] < self.right_mar) &
-                              (basic_params[:, 1] > self.up_mar) &
+                              (basic_params[:, 2] > self.up_mar) &
                               (basic_params[:, 6] < self.bot_mar))
 
         return basic_params[margin_filter_mask]
+
+    @Decorators.check_on_conf_flag
+    @Decorators.check_input_on_empty_arr
+    def filter_extent(self, basic_params):
+        basic_params = basic_params[basic_params[:, 0] / (basic_params[:, 3] * basic_params[:, 4]) > self.extent_thr]
+        return basic_params
 
     @Decorators.check_on_conf_flag
     @Decorators.check_input_on_empty_arr
@@ -295,7 +283,6 @@ class Frame(object):
     def process(self, mask):
         basic_params = self.find_basic_params(mask)
         basic_params = self.calc_second_point(basic_params)
-        self.undistort(basic_params)
         # Filtering by object contour area size if filtering by contour area size is enabled
         basic_params = self.filter_c_ar(basic_params, dec_flag=self.c_ar_thr)
         # Filtering by intersection with a frame border if filtering is enabled
@@ -308,7 +295,7 @@ class Frame(object):
         # Filter by distance to the object if filtering is enabled
         feature_vector = self.filter_distance(feature_vector, dec_flag=self.max_dist_thr)
         feature_vector = self.filter_infinity(feature_vector)
-        # Pass informative features only to the classifier
+        # Pass only informative features to the classifier
         o_class = self.classify(feature_vector[:, [0, 1, 3]])
 
         return np.column_stack((feature_vector, o_class))

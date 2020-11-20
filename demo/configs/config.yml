@@ -13,7 +13,7 @@ focal_length: 2.2
 clf: lamp_pole_1.pcl  # Path to classifier
 out_dir: /tmp/car_night  # Logging directory (also resulting images are stored here )
 
-save_img: False  # Save images
+save_img: True  # Save images
 save_csv: False  # Save detection information
 stream: {enabled: False, server: rtsp://pusher:myrandompass@my_streaming_server:8554}  # Stream images to server
 
