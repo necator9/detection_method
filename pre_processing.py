@@ -1,3 +1,8 @@
+# Created by Ivan Matveev at 01.05.20
+# E-mail: ivan.matveev@hs-anhalt.de
+
+# Methods for image preprocessing
+
 import cv2
 import logging
 
@@ -19,9 +24,14 @@ class PreprocessImg(object):
         self.dilate_iterations = int(config['dilate_it'])
         self.resolution = tuple(config['resolution'])
 
-    def apply(self, orig_img):
+    def apply(self, orig_img, lamp_status):
         orig_img = cv2.resize(orig_img, self.resolution, interpolation=cv2.INTER_NEAREST)
         orig_img = self.clahe_adjust.apply(orig_img)
+
+        # Create new background model when lamp is switched on or off
+        if lamp_status:
+            self.bgs_method = self.bgs_map[self.bgs_method_name](*self.bgs_parameters)
+            logger.info('Signal from SL_app received. The background model {} updated'.format(self.bgs_method_name))
 
         mog_mask = self.bgs_method.apply(orig_img)
         filtered_mask = cv2.morphologyEx(mog_mask, cv2.MORPH_OPEN, self.f_kernel)

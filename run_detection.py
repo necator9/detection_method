@@ -66,6 +66,7 @@ ch = logging.StreamHandler()
 formatter = logging.Formatter('%(levelname)s %(asctime)s %(threadName)s - %(message)s')
 file_handler.setFormatter(formatter)
 ch.setFormatter(formatter)
+ch.setLevel(logging.WARNING)
 
 logger.addHandler(ch)
 logger.addHandler(file_handler)
@@ -98,6 +99,7 @@ except Exception as crash_err:
     crash_msg = '\n{0}\nAPP CRASH. Error msg:\n{1}\n{0}'.format(100 * '-', crash_err)
     logger.exception(crash_msg)
     stop_event.set()
+    sys.stderr.write(crash_msg)
 
     if capturing_thread:
         capturing_thread.join()

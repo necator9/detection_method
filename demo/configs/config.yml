@@ -8,18 +8,23 @@ resolution: [320, 240]
 fps: 10
 angle: -39
 height: -3.325
+focal_length: 2.2
 
 clf: lamp_pole_1.pcl  # Path to classifier
 out_dir: /tmp/car_night  # Logging directory (also resulting images are stored here )
-saver: True  # Save images and detection information
+
+save_img: True  # Save images
+save_csv: False  # Save detection information
+stream: {enabled: False, server: rtsp://pusher:myrandompass@my_streaming_server:8554}  # Stream images to server
 
 clahe_limit: 3  # Pre-processing parameters - CLAHE contrast adjustment for grayscale images only (COLOR = 0)
-#bgs_method: {name: MOG2, parameters: [50, 16, True]}  # Background subtraction parameters, args given in OpenCV order
-bgs_method: {name: CNT, parameters: [1]}
+bgs_method: {name: MOG2, parameters: [50, 16, True]}  # Background subtraction parameters, args given in OpenCV order
+#bgs_method: {name: CNT, parameters: [1]}
 dilate_it: 1
 
 time_window: 200 # Timers parameters
 o_class_mapping: {0: noise, 1: pedestrian, 2: cyclist, 3: vehicle}
+sl_conn: {detect_port: 35001, sl_port: 35000}  # Ports of this algorithm and SmartLighting applications
 lamp_on_criteria: [6, 2]  # Format [q, N]: On how many N frames out of the last q frames target objects have been detected
 
 # Cascade filtering speeds up detection through filtering unlikely objects. Set value to zero to disable filtering.
@@ -47,7 +52,7 @@ camera_matrix:
 dist_coefs:
 - - -0.321267
   - 0.11775163
-  - -0.00091285
+  - 0.00091285
   - 0.0007689
   - -0.02101163
 # Base resolutions of the target matrix

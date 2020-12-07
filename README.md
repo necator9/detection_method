@@ -46,3 +46,4 @@ python3 run_detection.py path_to_config.yml
 ## Related
 1. [Camera calibration](doc/calibration.md)
 2. [Bundle into a single executable](doc/pyinstaller.md)
+3. [Streaming server](doc/streaming_server.md)

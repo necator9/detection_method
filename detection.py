@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # Created by Ivan Matveev at 01.05.20
 # E-mail: ivan.matveev@hs-anhalt.de
 
@@ -11,15 +9,13 @@ import queue
 import timeit
 import pickle
 from collections import deque
-import os
 from functools import wraps
-import yaml
 import logging
 
 import feature_extractor as fe
 from pre_processing import PreprocessImg
-import extentions
-# import tracker
+import saver
+from sl_connect import SlAppConnSensor
 
 logger = logging.getLogger('detect.detect')
 
@@ -28,6 +24,7 @@ class Detection(object):
     def __init__(self, stop_ev, orig_img_q, config):
         self.stop_event = stop_ev
         self.orig_img_q = orig_img_q
+        self.config = config
 
         calib_mtx = np.asarray(config['camera_matrix'])
         calib_res = np.asarray(config['base_res'])
@@ -46,17 +43,25 @@ class Detection(object):
         scaled_calib_mtx = self.scale_intrinsic(config['resolution'], calib_res, calib_mtx)
         scaled_target_mtx = self.scale_intrinsic(config['resolution'], target_res, target_mtx)
 
-        self.saver_flag = config['saver']
-        self.saver = extentions.SaveData(config, scaled_calib_mtx, scaled_target_mtx, dist)
         self.frame = Frame(scaled_calib_mtx, scaled_target_mtx, dist, config)
-        # self.tracker = tracker.CentroidTracker()
         self.mean_tracker = MeanResultTracker(*config['lamp_on_criteria'])
 
         self.empty = np.empty([0])
 
         self.time_measurements = list()
         self.time_window = config['time_window']
+        self.sl_app_conn = SlAppConnSensor(config['sl_conn']['detect_port'], [config['sl_conn']['sl_port']])
         self.pre_processing = PreprocessImg(config)
+
+        if config['save_csv']:
+            self.save_csv = saver.SaveCSV(config['out_dir'])
+        if config['save_img'] or config['stream']['enabled']:
+            self.save_img = saver.SaveImg(config, scaled_calib_mtx, scaled_target_mtx, dist)
+
+        if any([config['save_csv'], config['save_img'], config['save_img'], config['stream']['enabled']]):
+            self.save_flag = True
+        else:
+            self.save_flag = True
 
     @staticmethod
     def scale_intrinsic(new_res, base_res, intrinsic):
@@ -69,43 +74,56 @@ class Detection(object):
 
         return intrinsic
 
+    @staticmethod
+    def prepare_array_to_save(data, img_num, av_bin_result, lamp_status):
+        # Add image number and row indices as first two columns to distinguish objects later
+        return np.column_stack((np.full(data.shape[0], img_num), np.arange(data.shape[0]), data,
+                                np.full(data.shape[0], av_bin_result), np.full(data.shape[0], lamp_status)))
+
     def run(self):
         logger.info("Detection has started")
         steps = dict()
 
         iterator = 0
+        lamp_status = False
         while not self.stop_event.is_set():
             start_time = timeit.default_timer()
 
             try:
                 orig_img = self.orig_img_q.get(timeout=2)
 
+                lamp_event = self.sl_app_conn.check_lamp_status()
+                if lamp_event:
+                    lamp_status = not lamp_status
+                    logger.debug("Skipping the current frame due to the lamp event")
+                    self.orig_img_q.get(timeout=2)  # Blank call to skip current frame
+                    logger.debug("Recapturing the frame")
+                    orig_img = self.orig_img_q.get(timeout=2)  # Recapture image
+
             except queue.Empty:
                 logger.warning("Timeout reached, no items can be received from orig_img_q")
                 continue
 
             steps['resized_orig'], steps['mask'], steps['filtered'], steps['filled'] = \
-                self.pre_processing.apply(orig_img)
+                self.pre_processing.apply(orig_img, lamp_event)
 
             try:
                 res_data = self.frame.process(steps['filled'])
                 binary_result = np.any(res_data[:, -1] > 0)
-                # coordinates = res_data[res_data[:, -1] > 0]
             except Frame.FrameIsEmpty:
                 res_data = self.empty
-                # coordinates = self.empty
                 binary_result = False
 
-            # objects, prob_q = self.tracker.update(coordinates)
-            objects, prob_q = [], []
-
             av_bin_result = self.mean_tracker.update(binary_result)
-
             if av_bin_result:
-                logger.info('Object detected')
+                self.sl_app_conn.switch_on_lamp()
 
-            if self.saver_flag:
-                self.saver.write(res_data, iterator, steps, objects, prob_q, av_bin_result)
+            if self.save_flag:
+                packed_data = self.prepare_array_to_save(res_data, iterator, av_bin_result, lamp_status)
+                if self.config['save_csv']:
+                    self.save_csv.write(packed_data)
+                if self.config['save_img'] or self.config['stream']['enabled']:
+                    self.save_img.write(steps, packed_data, iterator, lamp_status)
 
             self.time_measurements.append(timeit.default_timer() - start_time)
 
@@ -116,6 +134,12 @@ class Detection(object):
                 logger.info("FPS for last {} samples: mean - {}".format(self.time_window, mean_fps))
                 logger.info("Processed images for all time: {} ".format(iterator))
                 self.time_measurements = list()
+
+        if self.config['save_csv']:
+            self.save_csv.quit()
+
+        if self.config['stream']['enabled']:
+            self.save_img.quit()
 
         logger.info('Detection finished, {} images processed'.format(iterator))
 
@@ -165,7 +189,7 @@ class Frame(object):
         self.height = config['height']
         self.res = config['resolution']
 
-        self.fe_ext = fe.FeatureExtractor(self.angle, self.height, self.res, intrinsic=scaled_target_mtx)
+        self.fe_ext = fe.FeatureExtractor(self.angle, self.height, self.res, scaled_target_mtx, config['focal_length'])
 
         self.calib_mtx = scaled_calib_mtx
         self.target_mtx = scaled_target_mtx
@@ -194,54 +218,42 @@ class Frame(object):
     @Decorators.check_input_on_empty_arr
     def find_basic_params(self, mask):
         cnts, _ = cv2.findContours(mask, mode=0, method=1)
-        c_areas = [cv2.contourArea(cnt) for cnt in cnts]
-        b_rects = [cv2.boundingRect(b_r) for b_r in cnts]
+        cnts = [cv2.undistortPoints(cnt.astype(dtype=np.float32), self.calib_mtx, self.dist, None,
+                                    P=self.target_mtx) for cnt in cnts]
+        c_areas = np.asarray([cv2.contourArea(cnt) for cnt in cnts])
+        b_rects = np.asarray([cv2.boundingRect(b_r) for b_r in cnts])
 
-        return np.column_stack((b_rects, c_areas))
+        return np.column_stack((c_areas, b_rects))
 
     @Decorators.check_input_on_empty_arr
     def calc_second_point(self, temp_param):
-        p2_x = temp_param[:, 0] + temp_param[:, 2]
-        p2_y = temp_param[:, 1] + temp_param[:, 3]
+        p2_x = temp_param[:, 1] + temp_param[:, 3]
+        p2_y = temp_param[:, 2] + temp_param[:, 4]
 
         return np.column_stack((temp_param, p2_x, p2_y)).astype(np.float32)
-
-    @Decorators.check_input_on_empty_arr
-    def undistort(self, basic_params):
-        p1p2_col = np.ascontiguousarray(basic_params[:, [0, 1, 5, 6]].reshape((basic_params.shape[0] * 2, 1, 2)))
-        cv2.undistortPoints(p1p2_col, self.calib_mtx, self.dist, p1p2_col, P=self.target_mtx)
-        p1p2 = p1p2_col.reshape((basic_params.shape[0], 4))
-        # p1p2[:, 0] = np.where(p1p2[:, 0] < 0, 0, p1p2[:, 0])
-        # p1p2[:, 1] = np.where(p1p2[:, 1] < 0, 0, p1p2[:, 1])
-        # p1p2[:, 2] = np.where(p1p2[:, 2] > self.right_mar, self.right_mar, p1p2[:, 2])
-        # p1p2[:, 3] = np.where(p1p2[:, 3] > self.bot_mar, self.bot_mar, p1p2[:, 3])
-
-        basic_params[:, :2] = p1p2[:, :2]
-        basic_params[:, 2:4] = p1p2[:, 2:4] - p1p2[:, :2]
-        basic_params[:, [5, 6]] = p1p2[:, 2:]
 
     @Decorators.check_on_conf_flag
     @Decorators.check_input_on_empty_arr
     def filter_c_ar(self, basic_params):
         # Filter out small object below threshold
-        basic_params = basic_params[basic_params[:, 4] / self.img_area_px > self.c_ar_thr]
-        return basic_params
-
-    @Decorators.check_on_conf_flag
-    @Decorators.check_input_on_empty_arr
-    def filter_extent(self, basic_params):
-        basic_params = basic_params[basic_params[:, 4] / (basic_params[:, 2] * basic_params[:, 3]) > self.extent_thr]
+        basic_params = basic_params[basic_params[:, 0] / self.img_area_px > self.c_ar_thr]
         return basic_params
 
     @Decorators.check_on_conf_flag
     @Decorators.check_input_on_empty_arr
     def filter_margin(self, basic_params):
-        margin_filter_mask = ((basic_params[:, 0] > self.left_mar) &  # Built filtering mask
+        margin_filter_mask = ((basic_params[:, 1] > self.left_mar) &  # Built filtering mask
                               (basic_params[:, 5] < self.right_mar) &
-                              (basic_params[:, 1] > self.up_mar) &
+                              (basic_params[:, 2] > self.up_mar) &
                               (basic_params[:, 6] < self.bot_mar))
 
         return basic_params[margin_filter_mask]
+
+    @Decorators.check_on_conf_flag
+    @Decorators.check_input_on_empty_arr
+    def filter_extent(self, basic_params):
+        basic_params = basic_params[basic_params[:, 0] / (basic_params[:, 3] * basic_params[:, 4]) > self.extent_thr]
+        return basic_params
 
     @Decorators.check_on_conf_flag
     @Decorators.check_input_on_empty_arr
@@ -271,7 +283,6 @@ class Frame(object):
     def process(self, mask):
         basic_params = self.find_basic_params(mask)
         basic_params = self.calc_second_point(basic_params)
-        self.undistort(basic_params)
         # Filtering by object contour area size if filtering by contour area size is enabled
         basic_params = self.filter_c_ar(basic_params, dec_flag=self.c_ar_thr)
         # Filtering by intersection with a frame border if filtering is enabled
@@ -284,7 +295,7 @@ class Frame(object):
         # Filter by distance to the object if filtering is enabled
         feature_vector = self.filter_distance(feature_vector, dec_flag=self.max_dist_thr)
         feature_vector = self.filter_infinity(feature_vector)
-        # Pass informative features only to the classifier
+        # Pass only informative features to the classifier
         o_class = self.classify(feature_vector[:, [0, 1, 3]])
 
         return np.column_stack((feature_vector, o_class))
