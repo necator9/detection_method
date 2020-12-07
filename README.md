@@ -45,5 +45,6 @@ python3 run_detection.py path_to_config.yml
 
 ## Related
 1. [Camera calibration](doc/calibration.md)
-2. [Bundle into a single executable](doc/pyinstaller.md)
-3. [Streaming server](doc/streaming_server.md)
+2. [Classifier training](https://github.com/necator9/model_training)
+3. [Bundle into a single executable](doc/pyinstaller.md)
+4. [Streaming server](doc/streaming_server.md)
