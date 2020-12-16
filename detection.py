@@ -61,7 +61,7 @@ class Detection(object):
         if any([config['save_csv'], config['save_img'], config['save_img'], config['stream']['enabled']]):
             self.save_flag = True
         else:
-            self.save_flag = True
+            self.save_flag = False
 
     @staticmethod
     def scale_intrinsic(new_res, base_res, intrinsic):
