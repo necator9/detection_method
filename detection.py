@@ -51,6 +51,7 @@ class Detection(object):
         self.time_measurements = list()
         self.time_window = config['time_window']
         self.sl_app_conn = SlAppConnSensor(config['sl_conn']['detect_port'], [config['sl_conn']['sl_port']])
+        self.sl_notification_interval = config['sl_conn']['notif_interval']
         self.pre_processing = PreprocessImg(config)
 
         if config['save_csv']:
@@ -86,6 +87,8 @@ class Detection(object):
 
         iterator = 0
         lamp_status = False
+        last_detect_timestamp = 0
+
         while not self.stop_event.is_set():
             start_time = timeit.default_timer()
 
@@ -115,8 +118,9 @@ class Detection(object):
                 binary_result = False
 
             av_bin_result = self.mean_tracker.update(binary_result)
-            if av_bin_result:
+            if av_bin_result and timeit.default_timer() - last_detect_timestamp > self.sl_notification_interval:
                 self.sl_app_conn.switch_on_lamp()
+                last_detect_timestamp = timeit.default_timer()
 
             if self.save_flag:
                 packed_data = self.prepare_array_to_save(res_data, iterator, av_bin_result, lamp_status)
