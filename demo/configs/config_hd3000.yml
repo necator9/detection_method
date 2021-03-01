@@ -10,7 +10,7 @@ angle: -39
 height: -3.325
 focal_length: 2.2
 
-clf: lamp_pole_1.pcl  # Path to classifier
+clf: demo/clf/lamp_pole_1.pcl  # Path to classifier
 out_dir: /tmp/car_night  # Logging directory (also resulting images are stored here )
 
 save_img: False  # Save images
