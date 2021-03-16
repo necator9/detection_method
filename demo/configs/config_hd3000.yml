@@ -30,7 +30,7 @@ lamp_on_criteria: [6, 2]  # Format [q, N]: On how many N frames out of the last 
 # Cascade filtering speeds up detection through filtering unlikely objects. Set value to zero to disable filtering.
 cont_area_thr: 0.001  # Chosen 0.0005 Minimal object cnt area to be considered: object cnt area / RES[0] * RES[1] > cont_area_thr
 extent_thr: 0.2
-max_distance: 13 # Ignore objects which have distance more than MAX_DISTANCE: obj distance > MAX_DISTANCE.
+max_distance: 25 # Ignore objects which have distance more than MAX_DISTANCE: obj distance > MAX_DISTANCE.
 margin: 0  # Ignore objects intersecting frame margin: left img border + MARGIN < obj coordinates < right img border - MARGIN
 
 # Base resolutions of the calibration matrix (for scaling)
@@ -57,12 +57,12 @@ dist_coefs:
   - 2.94284061
 # Base resolutions of the target matrix
 # Do not specify if the target matrix is the same as the calibration matrix
-target_res:
+optimized_res:
 - 1024
 - 768
 # The target matrix used for classifier training (intrinsic)
 # Do not specify if the target matrix is the same as the calibration matrix
-target_matrix:
+optimized_matrix:
 - - 464.4719696
   - 0.0
   - 517.5116402

@@ -32,8 +32,8 @@ class Detection(object):
 
         # Handle case when the target matrix is the same as calibration matrix (target matrix is omit in cam config)
         try:
-            target_mtx = np.asarray(config['target_matrix'])
-            target_res = np.asarray(config['target_res'])
+            target_mtx = np.asarray(config['optimized_matrix'])
+            target_res = np.asarray(config['optimized_res'])
             if target_mtx is None or target_mtx is None:
                 raise KeyError
         except KeyError:
