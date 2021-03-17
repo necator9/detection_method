@@ -51,7 +51,7 @@ python3 run_detection.py path_to_config.yml
 | dilate_it | int | number of times [dilation](https://docs.opencv.org/3.4/db/df6/tutorial_erosion_dilatation.html) is applied (dilates an image by using a specific structuring element) |
 | time_window | int | number of samples defining periodicity of detection information printing (FPS, number of detections) |
 | o_class_mapping | dict | mapping the integer object class to its string name of the following format: {class(int): class(string)} |
-| detect_port | dict | specifies parameters of connection to SL daemon by keys:  *detect_port* - the port on which the detection application receives for messages from SL daemon, *sl_port* - the port of SL daemon to which the detection application sends messages |
+| sl_conn | dict | specifies parameters of connection to SL daemon by keys:  *detect_port* - the port on which the detection application receives for messages from SL daemon, *sl_port* - the port of SL daemon to which the detection application sends messages, *notif_interval* - interval in seconds defining frequency of notifications sending to SL daemon |
 | lamp_on_criteria | list of ints | sends signal to switch on lamp when the criteria is satisfied. List [q, N]: On how many N frames out of the last q frames target objects have been detected |
 | cont_area_thr | float | filter out small objects having contour area lower than the threshold (cont_area_thr): object_contour_area / (RES[0] * RES[1]) > cont_area_thr, set 0 to disable |
 | extent_thr | float | filter out objects having extent lower than the threshold (extent_thr), set 0 to disable |
