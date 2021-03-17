@@ -47,7 +47,7 @@ python3 run_detection.py path_to_config.yml
 | save_csv | bool | enable or disable saving per-object detection information |
 | stream | dict | define streaming parameters by keys: *enabled* - boolean to enable or disable streaming to rtsp streaming server, *server* - address:port of a rtsp streaming server   |
 | clahe_limit | int | value of contrast limiting for adaptive histogram equalization (see [CLAHE](https://docs.opencv.org/master/d5/daf/tutorial_py_histogram_equalization.html))
-| bgs_method | dict | parameters of background subtraction method defined by keys: *name* - name of the method available in OpenCV ([MOG2](https://docs.opencv.org/3.4/d7/d7b/classcv_1_1BackgroundSubtractorMOG2.html), [KNN](https://docs.opencv.org/3.4/db/d88/classcv_1_1BackgroundSubtractorKNN.html) and [CNT](https://docs.opencv.org/3.4/db/d88/classcv_1_1BackgroundSubtractorKNN.html))  , *parameters* - list of parameters passed to method constructor |
+| bgs_method | dict | parameters of background subtraction method defined by keys: *name* - name of the method available in OpenCV ([MOG2](https://docs.opencv.org/3.4/d7/d7b/classcv_1_1BackgroundSubtractorMOG2.html), [KNN](https://docs.opencv.org/3.4/db/d88/classcv_1_1BackgroundSubtractorKNN.html) or [CNT](https://docs.opencv.org/3.4/db/d88/classcv_1_1BackgroundSubtractorKNN.html))  , *parameters* - list of parameters passed to method constructor |
 | dilate_it | int | number of times [dilation](https://docs.opencv.org/3.4/db/df6/tutorial_erosion_dilatation.html) is applied (dilates an image by using a specific structuring element) |
 | time_window | int | number of samples defining periodicity of detection information printing (FPS, number of detections) |
 | o_class_mapping | dict | mapping the integer object class to its string name of the following format: {class(int): class(string)} |
@@ -68,7 +68,7 @@ python3 run_detection.py path_to_config.yml
     .
     ├── demo                            # Data for testing
     │   ├── clf                         # Classifiers
-    │   │   ├── clf_name_1.pcl          # Pickled sklearn object.
+    │   │   ├── clf_name_1.pcl          # Pickled dictionary containing sklearn object
     │   │   └── ...
     │   ├── configs                         # Configuration files examples 
     │   │   ├── config.yml                  
