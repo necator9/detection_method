@@ -3,6 +3,7 @@ The current repository is an implementation of detection method for low-performa
 The method is used for detection of pedestrians, cyclists and vehicles in city environment.
 The method is based on analysis of geometrical object features in a foreground mask. The foreground mask is obtained using background subtraction algorithm.
 Classification is performed using logistic regression classifier.
+Implementation of the method is based on the publication [“Fast Object Detection Using Dimensional Based Features for Public Street Environments”](https://www.mdpi.com/2624-6511/3/1/6).
 
 ## Prerequisites
 The method can be used **only** when following conditions are satisfied:
@@ -82,3 +83,7 @@ python3 run_detection.py path_to_config.yml
 3. [Classifier training](https://github.com/necator9/model_training)
 4. [Bundle into a single executable](doc/pyinstaller.md)
 5. [Streaming server](doc/streaming_server.md)
+
+## Cite
+
+I. Matveev, K. Karpov, I. Chmielewski, E. Siemens, and A. Yurchenko, “Fast Object Detection Using Dimensional Based Features for Public Street Environments,” Smart Cities, vol. 3, no. 1, Art. no. 1, Mar. 2020, doi: 10.3390/smartcities3010006.
