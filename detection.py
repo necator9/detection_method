@@ -87,9 +87,9 @@ class Detection(object):
         transaction_start = timeit.default_timer()
         count = 1
         while timeit.default_timer() - transaction_start <= self.lamp_switching_time:
-            logger.debug(f"Skipping {count} frames due to the lamp event")
             self.orig_img_q.get(timeout=2)  # Blank call to skip current frame and empty buffer
-        logger.debug("Switching finished")
+            count += 1
+        logger.debug(f"{count} frames skipped due to the lamp event")
 
     def run(self):
         logger.info("Detection has started")
