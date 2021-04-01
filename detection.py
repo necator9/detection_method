@@ -85,7 +85,7 @@ class Detection(object):
     # Blocks processing during lamps transaction process (switching on/off)
     def block_while_lamp_switching(self):
         transaction_start = timeit.default_timer()
-        count = 1
+        count = 0
         while timeit.default_timer() - transaction_start <= self.lamp_switching_time:
             self.orig_img_q.get(timeout=2)  # Blank call to skip current frame and empty buffer
             count += 1
