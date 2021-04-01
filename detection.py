@@ -53,6 +53,7 @@ class Detection(object):
         self.sl_app_conn = SlAppConnSensor(config['sl_conn']['detect_port'], [config['sl_conn']['sl_port']])
         self.sl_notification_interval = config['sl_conn']['notif_interval']
         self.pre_processing = PreprocessImg(config)
+        self.lamp_switching_time = config['lamp_switching_time']
 
         if config['save_csv']:
             self.save_csv = saver.SaveCSV(config['out_dir'])
@@ -81,6 +82,15 @@ class Detection(object):
         return np.column_stack((np.full(data.shape[0], img_num), np.arange(data.shape[0]), data,
                                 np.full(data.shape[0], av_bin_result), np.full(data.shape[0], lamp_status)))
 
+    # Blocks processing during lamps transaction process (switching on/off)
+    def block_while_lamp_switching(self):
+        transaction_start = timeit.default_timer()
+        count = 1
+        while timeit.default_timer() - transaction_start <= self.lamp_switching_time:
+            logger.debug(f"Skipping {count} frames due to the lamp event")
+            self.orig_img_q.get(timeout=2)  # Blank call to skip current frame and empty buffer
+        logger.debug("Switching finished")
+
     def run(self):
         logger.info("Detection has started")
         steps = dict()
@@ -92,17 +102,13 @@ class Detection(object):
         while not self.stop_event.is_set():
             start_time = timeit.default_timer()
 
+            lamp_event = self.sl_app_conn.check_lamp_status()
+            if lamp_event:
+                lamp_status = not lamp_status
+                self.block_while_lamp_switching()
+
             try:
                 orig_img = self.orig_img_q.get(timeout=2)
-
-                lamp_event = self.sl_app_conn.check_lamp_status()
-                if lamp_event:
-                    lamp_status = not lamp_status
-                    logger.debug("Skipping the current frame due to the lamp event")
-                    self.orig_img_q.get(timeout=2)  # Blank call to skip current frame
-                    logger.debug("Recapturing the frame")
-                    orig_img = self.orig_img_q.get(timeout=2)  # Recapture image
-
             except queue.Empty:
                 logger.warning("Timeout reached, no items can be received from orig_img_q")
                 continue

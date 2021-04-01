@@ -54,6 +54,7 @@ python3 run_detection.py path_to_config.yml
 | o_class_mapping | dict | mapping the integer object class to its string name of the following format: {class(int): class(string)} |
 | sl_conn | dict | specifies parameters of connection to SL daemon by keys:  *detect_port* - the port on which the detection application receives for messages from SL daemon, *sl_port* - the port of SL daemon to which the detection application sends messages, *notif_interval* - interval in seconds defining frequency of notifications sending to SL daemon |
 | lamp_on_criteria | list of ints | sends signal to switch on lamp when the criteria is satisfied. List [q, N]: On how many N frames out of the last q frames target objects have been detected |
+| lamp_switching_time | int | time required for a physical lamp to change its state |
 | cont_area_thr | float | filter out small objects having contour area lower than the threshold (cont_area_thr): object_contour_area / (RES[0] * RES[1]) > cont_area_thr, set 0 to disable |
 | extent_thr | float | filter out objects having extent lower than the threshold (extent_thr), set 0 to disable |
 | max_distance | float | filter out objects detected on distances more than the threshold (max_distance), set 0 to disable | 

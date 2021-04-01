@@ -24,6 +24,7 @@ time_window: 200 # Timers parameters
 o_class_mapping: {0: noise, 1: pedestrian, 2: cyclist, 3: vehicle}
 sl_conn: {detect_port: 35001, sl_port: 35000, notif_interval: 3}  # Ports of this algorithm and SmartLighting applications
 lamp_on_criteria: [6, 2]  # Format [q, N]: On how many N frames out of the last q frames target objects have been detected
+lamp_switching_time: 0.3  # Time required for a lamp to change its state
 
 # Cascade filtering speeds up detection through filtering unlikely objects. Set value to zero to disable filtering.
 cont_area_thr: 0.001  # Chosen 0.0005 Minimal object cnt area to be considered: object cnt area / RES[0] * RES[1] > cont_area_thr
