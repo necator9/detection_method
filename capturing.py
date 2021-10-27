@@ -7,6 +7,7 @@ import logging
 import cv2
 import threading
 import queue
+import time
 
 logger = logging.getLogger('detect.capture')
 
@@ -26,6 +27,10 @@ class Camera(threading.Thread):
         logger.info("Camera thread has started...")
 
         while not self.stop_event.is_set():
+            
+            # Control FPS manually, because sometimes the FPS assignment performed by CV2 does not work 
+            time.sleep(1.0 / self.config['fps'])
+
             read_ok, image = self.camera.read()
 
             if not read_ok:
@@ -54,7 +59,8 @@ class Camera(threading.Thread):
             # Initial camera configuration
             self.camera.set(3, self.config['resolution'][0])
             self.camera.set(4, self.config['resolution'][1])
-            self.camera.set(5, self.config['fps'])
+            # The microcontroller controlls cameras does not support FPS assignment
+            #self.camera.set(5, self.config['fps'])
 
     def quit(self):
         self.camera.release()
