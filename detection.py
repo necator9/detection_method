@@ -50,7 +50,7 @@ class Detection(object):
 
         self.time_measurements = list()
         self.time_window = config['time_window']
-        self.sl_app_conn = SlAppConnSensor(config['sl_conn']['detect_port'], [config['sl_conn']['sl_port']])
+        # self.sl_app_conn = SlAppConnSensor(config['sl_conn']['detect_port'], [config['sl_conn']['sl_port']])
         self.sl_notification_interval = config['sl_conn']['notif_interval']
         self.pre_processing = PreprocessImg(config)
         self.lamp_switching_time = config['lamp_switching_time']
@@ -102,10 +102,10 @@ class Detection(object):
         while not self.stop_event.is_set():
             start_time = timeit.default_timer()
 
-            lamp_event = self.sl_app_conn.check_lamp_status()
-            if lamp_event:
-                lamp_status = not lamp_status
-                self.block_while_lamp_switching()
+            # lamp_event = self.sl_app_conn.check_lamp_status()
+            # if lamp_event:
+            #     lamp_status = not lamp_status
+            #     self.block_while_lamp_switching()
 
             try:
                 orig_img = self.orig_img_q.get(timeout=2)
@@ -114,7 +114,7 @@ class Detection(object):
                 continue
 
             steps['resized_orig'], steps['mask'], steps['filtered'], steps['filled'] = \
-                self.pre_processing.apply(orig_img, lamp_event)
+                self.pre_processing.apply(orig_img, False)
 
             try:
                 res_data = self.frame.process(steps['filled'])
@@ -125,7 +125,7 @@ class Detection(object):
 
             av_bin_result = self.mean_tracker.update(binary_result)
             if av_bin_result and timeit.default_timer() - last_detect_timestamp > self.sl_notification_interval:
-                self.sl_app_conn.switch_on_lamp()
+                #self.sl_app_conn.switch_on_lamp()
                 last_detect_timestamp = timeit.default_timer()
 
             if self.save_flag:

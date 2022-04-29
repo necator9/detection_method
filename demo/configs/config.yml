@@ -3,7 +3,7 @@
 log_level: 10  # Logging level: 10, 20 ... 50
 
 # Camera parameters
-device: demo/cars_night.mkv
+device: 'C:\Users\Ivan\scene_1_merged_1.mp4'
 resolution: [320, 240]
 fps: 10
 angle: -39
@@ -13,7 +13,7 @@ focal_length: 2.2
 clf: demo/clf/lamp_pole_1.pcl  # Path to classifier
 out_dir: /tmp/car_night  # Logging directory (also resulting images are stored here )
 
-save_img: True  # Save images
+save_img: False  # Save images
 save_csv: False  # Save detection information
 stream: {enabled: False, server: rtsp://pusher:myrandompass@my_streaming_server:8554}  # Stream images to server
 

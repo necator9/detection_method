@@ -29,7 +29,7 @@ class Camera(threading.Thread):
         while not self.stop_event.is_set():
             
             # Control FPS manually, because sometimes the FPS assignment performed by CV2 does not work 
-            time.sleep(1.0 / self.config['fps'])
+         #   time.sleep(1.0 / self.config['fps'])
 
             read_ok, image = self.camera.read()
 
